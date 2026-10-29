@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClarityOS</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div id="shell">
+
+  <!-- ══ Sidebar ══ -->
+  <aside id="side">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">ClarityOS</span>
+    </div>
+
+    <nav class="side-nav" aria-label="Sections">
+      <button class="nav-item on" data-panel="chat" aria-current="page">
+        <span class="ni-ico" aria-hidden="true">◈</span><span>Conversation</span>
+      </button>
+      <button class="nav-item" data-panel="activity">
+        <span class="ni-ico" aria-hidden="true">≡</span><span>Activity</span>
+        <span class="ni-badge" id="act-count" hidden>0</span>
+      </button>
+    </nav>
+
+    <div class="side-section">
+      <h2 class="side-h">Status</h2>
+      <div class="pills" role="status" aria-label="Connections">
+        <span class="pill" id="p-hub"><span class="pill-k">Hub</span><span class="pill-v">—</span></span>
+        <span class="pill" id="p-helper"><span class="pill-k">Windows</span><span class="pill-v">—</span></span>
+        <span class="pill" id="p-chrome"><span class="pill-k">Chrome</span><span class="pill-v">—</span></span>
+        <span class="pill" id="p-voice"><span class="pill-k">Voice</span><span class="pill-v">—</span></span>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <button id="b-theme" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">◐</button>
+      <button id="b-settings" class="ghost-btn">Settings</button>
+    </div>
+  </aside>
+
+  <!-- ══ Main ══ -->
+  <main id="main">
+
+    <!-- Activity rail (toggled from the sidebar) -->
+    <section id="timeline" aria-label="Agent activity" hidden>
+      <div class="panel-head">
+        <h2>Activity</h2>
+        <button id="act-close" class="icon-btn" aria-label="Close activity">✕</button>
+      </div>
+      <ol id="steps"></ol>
+      <p class="empty-note" id="act-empty">Tool calls and progress will appear here while a task runs.</p>
+    </section>
+
+    <!-- Conversation -->
+    <section id="chat">
+      <!-- Perspective tunnel: the landing visual behind the welcome state.
+           Removed from the DOM flow the moment a conversation starts. -->
+      <div id="herofx" aria-hidden="true">
+        <canvas id="fxMetal" class="fx-metal"></canvas>
+        <div class="fx-dots"></div>
+        <div class="fx-glow"></div>
+        <div class="fx-ring r1"></div>
+        <div class="fx-ring r2"></div>
+        <div class="fx-plane" id="fxPlane"></div>
+      </div>
+
+      <div id="scroll">
+        <!-- Welcome / empty state -->
+        <div id="welcome">
+          <p class="w-eyebrow">Personal AI companion for Windows</p>
+          <h1>Your AI. Your Desktop. <span class="grad">Your Flow.</span></h1>
+          <p class="w-sub">Ask a question, or let ClarityOS act on your PC. Press <kbd>Space</kbd> to talk.</p>
+
+          <div class="suggest" role="list">
+            <button class="sg" role="listitem" data-cmd="What is on my screen right now?">
+              <span class="sg-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>
+                </svg>
+              </span>
+              <span class="sg-txt">
+                <span class="sg-t">Read my screen</span>
+                <span class="sg-d">Describe what's visible right now</span>
+              </span>
+              <span class="sg-go" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            </button>
+            <button class="sg" role="listitem" data-cmd="List the apps currently running on this PC">
+              <span class="sg-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/>
+                  <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/>
+                </svg>
+              </span>
+              <span class="sg-txt">
+                <span class="sg-t">Running apps</span>
+                <span class="sg-d">See what's open on this machine</span>
+              </span>
+              <span class="sg-go" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            </button>
+            <button class="sg" role="listitem" data-cmd="Open Notepad">
+              <span class="sg-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="16" rx="2.4"/><path d="M3 9h18M8 14h8"/>
+                </svg>
+              </span>
+              <span class="sg-txt">
+                <span class="sg-t">Open an app</span>
+                <span class="sg-d">Launch Notepad, Explorer, Calculator…</span>
+              </span>
+              <span class="sg-go" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            </button>
+            <button class="sg" role="listitem" data-cmd="Summarise the page open in my browser">
+              <span class="sg-ico" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 3.5h9l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 20V5a1.5 1.5 0 0 1 1-1.5z"/>
+                  <path d="M14 3.5V9h5M8.5 13h7M8.5 17h4.5"/>
+                </svg>
+              </span>
+              <span class="sg-txt">
+                <span class="sg-t">Summarise a page</span>
+                <span class="sg-d">Needs the Chrome extension</span>
+              </span>
+              <span class="sg-go" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div id="log" role="log" aria-live="polite"></div>
+      </div>
+
+      <div id="banner" hidden></div>
+
+      <!-- Composer -->
+      <div id="bar">
+        <canvas id="wave" width="600" height="36" aria-hidden="true"></canvas>
+        <div id="row">
+          <button id="b-mic" aria-label="Microphone: hold Space or click to talk" title="Hold Space or click to talk">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/>
+            </svg>
+          </button>
+          <input id="in" placeholder="Ask anything, or describe a task…" autocomplete="off" aria-label="Command">
+          <button id="b-send" aria-label="Send">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+          <button id="b-pause" class="secondary">Pause</button>
+          <button id="b-stop" class="danger">Stop</button>
+        </div>
+        <small id="hint">Hold Space = talk · Enter = send · Esc = stop</small>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="d-approve" aria-labelledby="ap-t">
+  <h3 id="ap-t">Approval needed</h3><p id="ap-why"></p><pre id="ap-sum"></pre>
+  <div class="btns"><button id="ap-no" class="danger">Deny</button><button id="ap-yes">Allow once</button></div>
+</dialog>
+
+<dialog id="d-pair" aria-labelledby="pr-t">
+  <h3 id="pr-t">Connect browser extension?</h3>
+  <p id="pr-why"></p>
+  <p class="mut">Approving shares this ClarityOS pairing code with the extension so it can read and act on tabs you ask about. Only approve a request you started.</p>
+  <div class="btns"><button id="pr-no" class="danger">Deny</button><button id="pr-yes">Approve</button></div>
+</dialog>
+
+<dialog id="d-settings" aria-labelledby="st-t">
+  <h3 id="st-t">Settings</h3>
+  <nav id="tabs"><button data-t="voice">Voice</button><button data-t="keys">API keys</button><button data-t="perm">Permissions</button>
+    <button data-t="conn">Connections</button><button data-t="hist">History</button><button data-t="wf">Workflows</button></nav>
+  <div id="tab-body"></div>
+  <div class="btns"><button id="st-close">Close</button></div>
+</dialog>
+<script src="/static/shader-metal.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

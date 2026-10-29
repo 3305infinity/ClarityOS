@@ -1,0 +1,97 @@
+{
+  "name": "research_brief",
+  "priority": 115,
+  "version": "2",
+  "tags": ["research", "browser_read", "multi_step"],
+  "skill": {
+    "name": "research_brief_skill",
+    "description": "Run deep multi-step web research and extract findings from actual source pages.",
+    "examples": [
+      "can you research uk flats in egham",
+      "research tenancy laws in the uk",
+      "investigate mortgage rates in london",
+      "find information on student accommodation in surrey"
+    ],
+    "capabilities_all": ["research", "browser_read"],
+    "anti_patterns": ["google doc", "google document", "save to file", "write to file", "report document"],
+    "min_semantic_score": 0.17,
+    "semantic_weight": 9.2
+  },
+  "match": {
+    "intent_actions": ["query", "search", "analyze", "unknown"],
+    "keywords_any": ["research", "investigate", "study", "find", "look up", "analyse", "analyze"],
+    "keywords_none": ["google doc", "google document", "save to file", "write to file", "report document"],
+    "regex_any": [
+      "^(?:hey\\s+moonwalk[, ]*)?(?:can|could|would)\\s+you\\s+(?:research|investigate|study|look\\s+up|find|analy[sz]e)\\s+(?P<query>.+)$",
+      "^(?:please\\s+)?(?:research|investigate|study|look\\s+up|find|analy[sz]e)\\s+(?P<query>.+)$"
+    ],
+    "min_total_score": 118
+  },
+  "plan": {
+    "task_summary": "Research topic from multiple web sources",
+    "steps": [
+      {
+        "description": "Search the web for the topic",
+        "tool": "web_search",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search results visible",
+        "wait_after": 1
+      },
+      {
+        "description": "Read search results to identify relevant links",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search results read with source links",
+        "wait_after": 0
+      },
+      {
+        "description": "Click into a promising search result to read full content",
+        "tool": "browser_click_match",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Navigated to source page",
+        "wait_after": 1
+      },
+      {
+        "description": "Read article text from the source page",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Source text content extracted",
+        "wait_after": 0
+      },
+      {
+        "description": "Scroll for more content on this page",
+        "tool": "browser_scroll",
+        "args": {
+          "direction": "down",
+          "amount": "page"
+        },
+        "success_criteria": "Additional content visible",
+        "wait_after": 0
+      },
+      {
+        "description": "Read additional text content after scrolling",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Additional findings captured",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["browser_read_page"],
+    "forbidden_tools": ["run_shell"],
+    "min_steps": 4,
+    "max_steps": 8
+  },
+  "final_response": "Completed web research for {query}."
+}

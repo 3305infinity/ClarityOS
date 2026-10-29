@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="480" viewBox="0 0 600 480">
+  <defs>
+    <filter id="pill-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+    <filter id="modal-shadow" x="-10%" y="-5%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+    <filter id="btn-glow" x="-20%" y="-30%" width="140%" height="180%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="rgba(0,122,255,0.4)"/>
+    </filter>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+      .label { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="600" height="480" fill="white"/>
+
+  <!-- Glass pill — loading state (above plan modal) -->
+  <rect x="230" y="24" width="140" height="64" rx="32" ry="32"
+        fill="rgba(255,255,255,0.75)"
+        stroke="rgba(0,0,0,0.04)" stroke-width="1"
+        filter="url(#pill-shadow)"/>
+  <circle cx="286" cy="52" r="4" fill="#007aff" opacity="0.7"/>
+  <circle cx="300" cy="56" r="4" fill="#007aff" opacity="0.9"/>
+  <circle cx="314" cy="53" r="4" fill="#007aff" opacity="1.0"/>
+
+  <!-- Steps modal — plan mode: 420px wide, glass bg, 24px border-radius -->
+  <rect x="90" y="104" width="420" height="320" rx="24" ry="24"
+        fill="rgba(255,255,255,0.75)"
+        stroke="rgba(0,0,0,0.04)" stroke-width="1"
+        filter="url(#modal-shadow)"/>
+  <rect x="91" y="105" width="418" height="318" rx="23" ry="23"
+        fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1"/>
+
+  <!-- Dismiss button -->
+  <circle cx="486" cy="128" r="13" fill="rgba(0,0,0,0.05)"/>
+  <line x1="481" y1="123" x2="491" y2="133" stroke="rgba(0,0,0,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="491" y1="123" x2="481" y2="133" stroke="rgba(0,0,0,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Title -->
+  <text x="114" y="140" class="label" font-size="16" font-weight="650" fill="#1d1d1f" letter-spacing="-0.27">Here's what I'll do</text>
+  <!-- Subtitle -->
+  <text x="114" y="158" class="label" font-size="12" font-weight="500" fill="#6e6e73" letter-spacing="-0.07">3 steps · ~15 seconds</text>
+
+  <!-- Plan step 1 — card row -->
+  <rect x="110" y="176" width="380" height="52" rx="14" ry="14" fill="rgba(255,255,255,0.6)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+  <!-- Step number squircle -->
+  <rect x="124" y="189" width="26" height="26" rx="8" ry="8" fill="rgba(0,122,255,0.08)"/>
+  <text x="137" y="207" class="label" font-size="13" font-weight="650" fill="#007aff" text-anchor="middle">1</text>
+  <!-- Step label -->
+  <text x="162" y="200" class="label" font-size="14.5" font-weight="600" fill="#1d1d1f" letter-spacing="-0.14">Open Safari</text>
+  <text x="162" y="216" class="label" font-size="12" font-weight="400" fill="#86868b" letter-spacing="-0.07">Launch the browser app</text>
+
+  <!-- Plan step 2 -->
+  <rect x="110" y="236" width="380" height="52" rx="14" ry="14" fill="rgba(255,255,255,0.6)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+  <rect x="124" y="249" width="26" height="26" rx="8" ry="8" fill="rgba(0,122,255,0.08)"/>
+  <text x="137" y="267" class="label" font-size="13" font-weight="650" fill="#007aff" text-anchor="middle">2</text>
+  <text x="162" y="260" class="label" font-size="14.5" font-weight="600" fill="#1d1d1f" letter-spacing="-0.14">Navigate to flights page</text>
+  <text x="162" y="276" class="label" font-size="12" font-weight="400" fill="#86868b" letter-spacing="-0.07">Go to Google Flights</text>
+
+  <!-- Plan step 3 -->
+  <rect x="110" y="296" width="380" height="52" rx="14" ry="14" fill="rgba(255,255,255,0.6)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+  <rect x="124" y="309" width="26" height="26" rx="8" ry="8" fill="rgba(0,122,255,0.08)"/>
+  <text x="137" y="327" class="label" font-size="13" font-weight="650" fill="#007aff" text-anchor="middle">3</text>
+  <text x="162" y="320" class="label" font-size="14.5" font-weight="600" fill="#1d1d1f" letter-spacing="-0.14">Search SFO → Tokyo</text>
+  <text x="162" y="336" class="label" font-size="12" font-weight="400" fill="#86868b" letter-spacing="-0.07">Fill in departure and destination</text>
+
+  <!-- Proceed button — full-width blue pill with arrow -->
+  <rect x="110" y="364" width="380" height="46" rx="23" ry="23" fill="#007aff" filter="url(#btn-glow)"/>
+  <text x="280" y="393" class="label" font-size="15" font-weight="600" fill="white" text-anchor="middle">Proceed</text>
+  <!-- Arrow → -->
+  <path d="M320 387 L328 387 M324 383 L328 387 L324 391" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+
+  <!-- Label -->
+  <text x="300" y="456" class="label" font-size="12" font-weight="500" fill="#86868b" text-anchor="middle" letter-spacing="0.5">PLAN PREVIEW MODAL</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="200" viewBox="0 0 600 200">
+  <defs>
+    <filter id="pill-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap');
+      .label { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="600" height="200" fill="white"/>
+
+  <!-- Glass pill — loading state: 140px wide, 64px tall -->
+  <rect x="230" y="68" width="140" height="64" rx="32" ry="32"
+        fill="rgba(255,255,255,0.75)"
+        stroke="rgba(0,0,0,0.04)" stroke-width="1"
+        filter="url(#pill-shadow)"/>
+  <rect x="231" y="69" width="138" height="62" rx="31" ry="31"
+        fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1"/>
+
+  <!-- Three bouncing balls — 8px diameter, #007aff, centered -->
+  <circle cx="286" cy="96" r="4" fill="#007aff" opacity="0.7"/>
+  <circle cx="300" cy="100" r="4" fill="#007aff" opacity="0.9"/>
+  <circle cx="314" cy="97" r="4" fill="#007aff" opacity="1.0"/>
+
+  <!-- State label -->
+  <text x="300" y="168" class="label" font-size="12" font-weight="500" fill="#86868b" text-anchor="middle" letter-spacing="0.5">THINKING STATE</text>
+</svg>

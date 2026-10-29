@@ -1,0 +1,340 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 780" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#f5f5f7" stop-opacity="0.78"/>
+    </linearGradient>
+    <linearGradient id="accentBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#007aff"/>
+      <stop offset="100%" stop-color="#409cff"/>
+    </linearGradient>
+    <linearGradient id="accentPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#af52de"/>
+      <stop offset="100%" stop-color="#c77dff"/>
+    </linearGradient>
+    <linearGradient id="accentGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34c759"/>
+      <stop offset="100%" stop-color="#5dd87a"/>
+    </linearGradient>
+    <linearGradient id="accentPeach" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff2d55"/>
+      <stop offset="100%" stop-color="#ff6482"/>
+    </linearGradient>
+    <linearGradient id="accentYellow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffcc00"/>
+      <stop offset="100%" stop-color="#ffd633"/>
+    </linearGradient>
+    <linearGradient id="darkCard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1d1d1f"/>
+      <stop offset="100%" stop-color="#2c2c2e"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-3%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.10"/>
+    </filter>
+    <filter id="shadowSm" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#007aff"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#af52de"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34c759"/>
+    </marker>
+    <marker id="arrowPeach" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ff2d55"/>
+    </marker>
+    <marker id="arrowMuted" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6e6e73"/>
+    </marker>
+    <marker id="arrowWhite" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="rgba(255,255,255,0.7)"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="780" rx="20" fill="#f5f5f7"/>
+
+  <!-- Title -->
+  <text x="550" y="46" text-anchor="middle" font-size="22" font-weight="700" fill="#1d1d1f" letter-spacing="-0.02em">Moonwalk · Gemini &amp; GCP Data Flow</text>
+  <text x="550" y="70" text-anchor="middle" font-size="13" fill="#6e6e73">How the Gemini API and Google Cloud services interconnect with the runtime</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- LEFT COLUMN: Client-side                    -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- Electron App -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="110" width="240" height="240" rx="16" fill="url(#glass)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <rect x="60" y="110" width="240" height="30" rx="16" fill="url(#darkCard)"/>
+    <rect x="60" y="124" width="240" height="16" fill="url(#darkCard)"/>
+    <circle cx="80" cy="125" r="5" fill="#ff3b30"/>
+    <circle cx="96" cy="125" r="5" fill="#ffcc00"/>
+    <circle cx="112" cy="125" r="5" fill="#34c759"/>
+    <text x="180" y="129" text-anchor="middle" font-size="10" font-weight="600" fill="rgba(255,255,255,0.7)">Electron Desktop App</text>
+  </g>
+
+  <!-- Sub-components inside Electron -->
+  <g filter="url(#shadowSm)">
+    <rect x="80" y="156" width="200" height="36" rx="18" fill="url(#glass)" stroke="rgba(0,122,255,0.15)" stroke-width="1.5"/>
+    <text x="180" y="178" text-anchor="middle" font-size="11" font-weight="600" fill="#1d1d1f">🌙 Glass Pill UI</text>
+  </g>
+
+  <g filter="url(#shadowSm)">
+    <rect x="80" y="200" width="200" height="32" rx="8" fill="white" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <text x="180" y="220" text-anchor="middle" font-size="10" fill="#1d1d1f">renderer.js · AudioContext</text>
+  </g>
+
+  <g filter="url(#shadowSm)">
+    <rect x="80" y="240" width="200" height="32" rx="8" fill="white" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <text x="180" y="260" text-anchor="middle" font-size="10" fill="#1d1d1f">preload.js · IPC Bridge</text>
+  </g>
+
+  <g filter="url(#shadowSm)">
+    <rect x="80" y="280" width="200" height="48" rx="8" fill="white" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <text x="180" y="300" text-anchor="middle" font-size="10" font-weight="500" fill="#1d1d1f">main.js (Electron Main)</text>
+    <text x="180" y="316" text-anchor="middle" font-size="9" fill="#6e6e73">safeStorage · venv · spawn</text>
+  </g>
+
+  <!-- Chrome Extension -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="380" width="240" height="68" rx="14" fill="white" stroke="rgba(0,122,255,0.18)" stroke-width="1.5"/>
+    <rect x="78" y="395" width="32" height="32" rx="8" fill="url(#accentBlue)" opacity="0.10"/>
+    <text x="94" y="416" text-anchor="middle" font-size="16">🧩</text>
+    <text x="178" y="408" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">Chrome Extension</text>
+    <text x="178" y="425" text-anchor="middle" font-size="9" fill="#6e6e73">content_script.js · DOM snapshots</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- CENTER: Python Backend                      -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <g filter="url(#shadow)">
+    <rect x="370" y="110" width="340" height="340" rx="16" fill="url(#darkCard)"/>
+    <text x="540" y="136" text-anchor="middle" font-size="12" font-weight="700" fill="rgba(255,255,255,0.85)" letter-spacing="0.05em">PYTHON BACKEND</text>
+  </g>
+
+  <!-- local_server.py -->
+  <g filter="url(#shadowSm)">
+    <rect x="395" y="152" width="145" height="50" rx="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    <text x="467" y="174" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.85)">local_server.py</text>
+    <text x="467" y="190" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.45)">WebSocket · STT · TTS</text>
+  </g>
+
+  <!-- core_v2.py -->
+  <g filter="url(#shadowSm)">
+    <rect x="555" y="152" width="130" height="50" rx="10" fill="rgba(175,82,222,0.15)" stroke="rgba(175,82,222,0.30)" stroke-width="1"/>
+    <text x="620" y="174" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.90)">core_v2.py</text>
+    <text x="620" y="190" text-anchor="middle" font-size="9" fill="rgba(175,82,222,0.70)">SPAV Loop</text>
+  </g>
+
+  <!-- providers -->
+  <g>
+    <rect x="395" y="218" width="290" height="46" rx="10" fill="rgba(175,82,222,0.10)" stroke="rgba(175,82,222,0.25)" stroke-width="1"/>
+    <text x="540" y="240" text-anchor="middle" font-size="12" font-weight="600" fill="rgba(255,255,255,0.90)">✦  providers/ — LLM Adapters</text>
+    <text x="540" y="254" text-anchor="middle" font-size="9" fill="rgba(175,82,222,0.65)">Gemini · OpenAI · Anthropic abstraction</text>
+  </g>
+
+  <!-- tools -->
+  <g>
+    <rect x="395" y="276" width="140" height="42" rx="10" fill="rgba(52,199,89,0.10)" stroke="rgba(52,199,89,0.25)" stroke-width="1"/>
+    <text x="465" y="296" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.85)">tools/</text>
+    <text x="465" y="310" text-anchor="middle" font-size="9" fill="rgba(52,199,89,0.60)">mac · browser · gws</text>
+  </g>
+
+  <!-- perception -->
+  <g>
+    <rect x="545" y="276" width="140" height="42" rx="10" fill="rgba(0,122,255,0.10)" stroke="rgba(0,122,255,0.25)" stroke-width="1"/>
+    <text x="615" y="296" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.85)">perception.py</text>
+    <text x="615" y="310" text-anchor="middle" font-size="9" fill="rgba(0,122,255,0.60)">Screenshot → Vision</text>
+  </g>
+
+  <!-- voice -->
+  <g>
+    <rect x="395" y="330" width="140" height="42" rx="10" fill="rgba(255,45,85,0.10)" stroke="rgba(255,45,85,0.25)" stroke-width="1"/>
+    <text x="465" y="350" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.85)">voice/tts.py</text>
+    <text x="465" y="364" text-anchor="middle" font-size="9" fill="rgba(255,45,85,0.60)">Google Neural2</text>
+  </g>
+
+  <!-- memory -->
+  <g>
+    <rect x="545" y="330" width="140" height="42" rx="10" fill="rgba(255,204,0,0.12)" stroke="rgba(255,204,0,0.30)" stroke-width="1"/>
+    <text x="615" y="350" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.85)">memory/ + RAG</text>
+    <text x="615" y="364" text-anchor="middle" font-size="9" fill="rgba(255,204,0,0.60)">Cloud + Working</text>
+  </g>
+
+  <!-- WebSocket connection: Electron ↔ Backend -->
+  <path d="M300,280 L395,177" fill="none" stroke="#007aff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <rect x="320" y="215" width="70" height="20" rx="10" fill="#007aff" opacity="0.10"/>
+  <text x="355" y="229" text-anchor="middle" font-size="9" fill="#007aff" font-weight="600">ws://8000</text>
+
+  <!-- Chrome Ext ↔ Backend -->
+  <path d="M300,414 Q360,414 395,310" fill="none" stroke="#007aff" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrowBlue)"/>
+  <text x="340" y="380" font-size="8" fill="#007aff">DOM bridge</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- RIGHT COLUMN: Google Cloud                  -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- Gemini API (PRIMARY - large card) -->
+  <g filter="url(#shadow)">
+    <rect x="790" y="110" width="260" height="160" rx="16" fill="white" stroke="rgba(175,82,222,0.30)" stroke-width="2"/>
+    <!-- Gemini icon area -->
+    <rect x="810" y="130" width="44" height="44" rx="12" fill="url(#accentPurple)" opacity="0.10"/>
+    <text x="832" y="158" text-anchor="middle" font-size="26">✦</text>
+    <text x="920" y="148" text-anchor="middle" font-size="16" font-weight="700" fill="#1d1d1f">Gemini API</text>
+    <text x="920" y="166" text-anchor="middle" font-size="10" fill="#6e6e73">generativelanguage.googleapis.com</text>
+
+    <!-- Model cards -->
+    <rect x="810" y="185" width="105" height="32" rx="8" fill="#af52de" opacity="0.06"/>
+    <text x="862" y="202" text-anchor="middle" font-size="10" font-weight="600" fill="#af52de">Flash 2.0</text>
+    <text x="862" y="213" text-anchor="middle" font-size="8" fill="#6e6e73">fast path · ack</text>
+
+    <rect x="925" y="185" width="105" height="32" rx="8" fill="#af52de" opacity="0.06"/>
+    <text x="977" y="202" text-anchor="middle" font-size="10" font-weight="600" fill="#af52de">Pro 2.5</text>
+    <text x="977" y="213" text-anchor="middle" font-size="8" fill="#6e6e73">planning · tools</text>
+
+    <rect x="810" y="224" width="105" height="32" rx="8" fill="#007aff" opacity="0.06"/>
+    <text x="862" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#007aff">Vision</text>
+    <text x="862" y="252" text-anchor="middle" font-size="8" fill="#6e6e73">perception · verify</text>
+
+    <rect x="925" y="224" width="105" height="32" rx="8" fill="#34c759" opacity="0.06"/>
+    <text x="977" y="241" text-anchor="middle" font-size="10" font-weight="600" fill="#34c759">Embedding</text>
+    <text x="977" y="252" text-anchor="middle" font-size="8" fill="#6e6e73">RAG retrieval</text>
+  </g>
+
+  <!-- Connections: Backend → Gemini -->
+  <path d="M685,241 L790,190" fill="none" stroke="#af52de" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <text x="730" y="200" font-size="9" fill="#af52de" font-weight="600">LLM calls</text>
+
+  <!-- Connection: perception → Vision -->
+  <path d="M685,296 L810,240" fill="none" stroke="#007aff" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrowBlue)"/>
+  <text x="755" y="275" font-size="8" fill="#007aff">screenshots</text>
+
+  <!-- Google Cloud TTS -->
+  <g filter="url(#shadow)">
+    <rect x="790" y="296" width="260" height="70" rx="14" fill="white" stroke="rgba(255,45,85,0.20)" stroke-width="1.5"/>
+    <rect x="810" y="312" width="32" height="32" rx="8" fill="url(#accentPeach)" opacity="0.10"/>
+    <text x="826" y="333" text-anchor="middle" font-size="16">🔊</text>
+    <text x="920" y="326" text-anchor="middle" font-size="13" font-weight="600" fill="#1d1d1f">Cloud TTS Neural2</text>
+    <text x="920" y="344" text-anchor="middle" font-size="9" fill="#6e6e73">texttospeech.googleapis.com</text>
+    <text x="920" y="357" text-anchor="middle" font-size="9" fill="#ff2d55">en-US-Neural2-J · OGG Opus</text>
+  </g>
+
+  <!-- Connection: voice → TTS -->
+  <path d="M535,355 Q660,355 790,331" fill="none" stroke="#ff2d55" stroke-width="1.8" marker-end="url(#arrowPeach)"/>
+  <text x="660" y="340" font-size="9" fill="#ff2d55" font-weight="500">synthesize</text>
+
+  <!-- GCS + Firestore -->
+  <g filter="url(#shadow)">
+    <rect x="790" y="390" width="260" height="66" rx="14" fill="white" stroke="rgba(52,199,89,0.20)" stroke-width="1.5"/>
+    <rect x="810" y="406" width="32" height="32" rx="8" fill="url(#accentGreen)" opacity="0.10"/>
+    <text x="826" y="427" text-anchor="middle" font-size="16">☁</text>
+    <text x="920" y="420" text-anchor="middle" font-size="13" font-weight="600" fill="#1d1d1f">GCS · Firestore</text>
+    <text x="920" y="438" text-anchor="middle" font-size="9" fill="#6e6e73">Cloud memory · RAG storage · Releases</text>
+    <text x="920" y="450" text-anchor="middle" font-size="9" fill="#34c759">gs://getmoonwalk.top</text>
+  </g>
+
+  <!-- Connection: memory → GCS -->
+  <path d="M685,355 Q740,400 790,423" fill="none" stroke="#34c759" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="730" y="405" font-size="8" fill="#34c759">persist</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- BOTTOM: API Key Flow                        -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="500" width="990" height="150" rx="16" fill="white" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <text x="550" y="525" text-anchor="middle" font-size="14" font-weight="700" fill="#1d1d1f">API Key &amp; Credential Flow</text>
+  </g>
+
+  <!-- Step 1 -->
+  <g>
+    <rect x="90" y="545" width="150" height="76" rx="12" fill="url(#accentBlue)" opacity="0.06" stroke="rgba(0,122,255,0.15)" stroke-width="1"/>
+    <circle cx="110" cy="562" r="11" fill="url(#accentBlue)"/>
+    <text x="110" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="white">1</text>
+    <text x="165" y="566" text-anchor="middle" font-size="10" font-weight="600" fill="#007aff">Onboarding</text>
+    <text x="165" y="584" text-anchor="middle" font-size="9" fill="#6e6e73">User enters</text>
+    <text x="165" y="596" text-anchor="middle" font-size="9" fill="#6e6e73">Gemini API key</text>
+    <text x="165" y="610" text-anchor="middle" font-size="8" fill="#007aff">aistudio.google.com</text>
+  </g>
+
+  <!-- Step 2 -->
+  <g>
+    <rect x="275" y="545" width="160" height="76" rx="12" fill="url(#accentBlue)" opacity="0.06" stroke="rgba(0,122,255,0.15)" stroke-width="1"/>
+    <circle cx="295" cy="562" r="11" fill="url(#accentBlue)"/>
+    <text x="295" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="white">2</text>
+    <text x="355" y="566" text-anchor="middle" font-size="10" font-weight="600" fill="#007aff">safeStorage</text>
+    <text x="355" y="584" text-anchor="middle" font-size="9" fill="#6e6e73">Encrypted at rest in</text>
+    <text x="355" y="596" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="500">credentials.enc</text>
+    <text x="355" y="610" text-anchor="middle" font-size="8" fill="#6e6e73">~/Library/App Support</text>
+  </g>
+
+  <!-- Step 3 -->
+  <g>
+    <rect x="470" y="545" width="160" height="76" rx="12" fill="rgba(175,82,222,0.06)" stroke="rgba(175,82,222,0.15)" stroke-width="1"/>
+    <circle cx="490" cy="562" r="11" fill="url(#accentPurple)"/>
+    <text x="490" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="white">3</text>
+    <text x="550" y="566" text-anchor="middle" font-size="10" font-weight="600" fill="#af52de">Env Injection</text>
+    <text x="550" y="584" text-anchor="middle" font-size="9" fill="#6e6e73">main.js decrypts →</text>
+    <text x="550" y="596" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="500">GEMINI_API_KEY</text>
+    <text x="550" y="610" text-anchor="middle" font-size="8" fill="#6e6e73">set in child process env</text>
+  </g>
+
+  <!-- Step 4 -->
+  <g>
+    <rect x="665" y="545" width="160" height="76" rx="12" fill="rgba(175,82,222,0.06)" stroke="rgba(175,82,222,0.15)" stroke-width="1"/>
+    <circle cx="685" cy="562" r="11" fill="url(#accentPurple)"/>
+    <text x="685" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="white">4</text>
+    <text x="745" y="566" text-anchor="middle" font-size="10" font-weight="600" fill="#af52de">providers/</text>
+    <text x="745" y="584" text-anchor="middle" font-size="9" fill="#6e6e73">Python reads from</text>
+    <text x="745" y="596" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="500">os.environ</text>
+    <text x="745" y="610" text-anchor="middle" font-size="8" fill="#6e6e73">→ genai.configure()</text>
+  </g>
+
+  <!-- Step 5 -->
+  <g>
+    <rect x="860" y="545" width="160" height="76" rx="12" fill="rgba(175,82,222,0.06)" stroke="rgba(175,82,222,0.15)" stroke-width="1"/>
+    <circle cx="880" cy="562" r="11" fill="url(#accentPurple)"/>
+    <text x="880" y="566" text-anchor="middle" font-size="10" font-weight="700" fill="white">5</text>
+    <text x="940" y="566" text-anchor="middle" font-size="10" font-weight="600" fill="#af52de">API Calls</text>
+    <text x="940" y="584" text-anchor="middle" font-size="9" fill="#6e6e73">Authenticated calls to</text>
+    <text x="940" y="596" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="500">Gemini + Cloud TTS</text>
+    <text x="940" y="610" text-anchor="middle" font-size="8" fill="#6e6e73">+ GCS / Firestore</text>
+  </g>
+
+  <!-- Flow arrows between steps -->
+  <line x1="240" y1="583" x2="275" y2="583" stroke="#007aff" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="435" y1="583" x2="470" y2="583" stroke="#007aff" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="630" y1="583" x2="665" y2="583" stroke="#af52de" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+  <line x1="825" y1="583" x2="860" y2="583" stroke="#af52de" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- BOTTOM: GCP Project context                 -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <g>
+    <rect x="60" y="680" width="990" height="52" rx="12" fill="url(#darkCard)"/>
+    <text x="550" y="702" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.80)">GCP Project: gen-lang-client-0333982983  ·  Region: us-central1</text>
+    <text x="550" y="720" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.40)">APIs enabled: Generative Language · Cloud Text-to-Speech · Cloud Storage · Firestore</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(60, 750)">
+    <text x="0" y="0" font-size="10" font-weight="600" fill="#1d1d1f">Legend</text>
+    <line x1="70" y1="-4" x2="100" y2="-4" stroke="#af52de" stroke-width="2"/>
+    <text x="108" y="0" font-size="9" fill="#6e6e73">LLM calls</text>
+    <line x1="170" y1="-4" x2="200" y2="-4" stroke="#ff2d55" stroke-width="2"/>
+    <text x="208" y="0" font-size="9" fill="#6e6e73">TTS</text>
+    <line x1="240" y1="-4" x2="270" y2="-4" stroke="#34c759" stroke-width="2"/>
+    <text x="278" y="0" font-size="9" fill="#6e6e73">Storage</text>
+    <line x1="330" y1="-4" x2="360" y2="-4" stroke="#007aff" stroke-width="2"/>
+    <text x="368" y="0" font-size="9" fill="#6e6e73">Data flow</text>
+    <line x1="430" y1="-4" x2="460" y2="-4" stroke="#6e6e73" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="468" y="0" font-size="9" fill="#6e6e73">Internal</text>
+  </g>
+
+  <text x="1040" y="770" text-anchor="end" font-size="9" fill="#aeaeb2">Moonwalk v1.0.0</text>
+</svg>

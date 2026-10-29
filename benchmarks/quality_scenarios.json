@@ -1,0 +1,210 @@
+{
+    "quality_suites": [
+        {
+            "name": "Code Generation Quality",
+            "description": "Tests whether the agent generates production-ready, well-structured code.",
+            "scenarios": [
+                {
+                    "id": "1.1",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "Write a Python function to merge two sorted linked lists into one sorted linked list. Include a Node class definition.",
+                    "elite_criteria": "O(n+m) time complexity, clean iterative or recursive solution, proper Node class with __repr__, type hints, docstring, handles empty lists. Code similar to what you'd see in a top-tier engineering team.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                },
+                {
+                    "id": "1.2",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Create a complete Flask REST API endpoint for user registration. It should validate email format, enforce password strength requirements (8+ chars, uppercase, lowercase, number), hash the password, and return appropriate HTTP status codes for success and each type of failure.",
+                    "elite_criteria": "Input validation with specific error messages, bcrypt/werkzeug password hashing (NOT plaintext), proper HTTP status codes (201 Created, 400 Bad Request, 409 Conflict), JSON responses, error handling, docstring. Production-ready, not a toy example.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                },
+                {
+                    "id": "1.3",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Write a bash script that creates a full backup of a PostgreSQL database. It should: compress the backup, add a timestamp to the filename, keep only the last 7 backups (delete older ones), log the result, and exit with an appropriate error code if anything fails.",
+                    "elite_criteria": "pg_dump with proper flags, gzip compression, date-stamped filenames, find/rm for rotation, set -euo pipefail, error handling with trap, logging to file, cron-ready (no interactive prompts). Should look like a senior DevOps engineer wrote it.",
+                    "must_contain_code": true,
+                    "code_language": "bash"
+                },
+                {
+                    "id": "1.4",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Implement a thread-safe rate limiter in Python using the token bucket algorithm. It should support configurable rate and burst size, and be usable as a decorator for API endpoints.",
+                    "elite_criteria": "Thread-safe (uses threading.Lock), token bucket with refill logic, configurable rate/burst, decorator pattern, handles edge cases (burst after idle), clean API. Should be production-deployable.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                },
+                {
+                    "id": "1.5",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Write a React component for an infinite scroll feed. It should load more items when the user scrolls near the bottom, show a loading spinner during fetches, handle errors gracefully, and display a message when there are no more items.",
+                    "elite_criteria": "Uses Intersection Observer (NOT scroll event listener), loading/error/empty states, cleanup on unmount, accessible (aria attributes), debounced or throttled, React hooks (useEffect, useState, useRef, useCallback). Modern React patterns.",
+                    "must_contain_code": true,
+                    "code_language": "javascript"
+                }
+            ]
+        },
+        {
+            "name": "Technical Explanations",
+            "description": "Tests depth, accuracy, and clarity of technical explanations.",
+            "scenarios": [
+                {
+                    "id": "2.1",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Explain what happens from the moment I click a link in my browser to seeing the page loaded. Be comprehensive but concise.",
+                    "elite_criteria": "Must cover: URL parsing → DNS resolution → TCP handshake → TLS handshake (if HTTPS) → HTTP request → server processing → HTTP response → HTML parsing → DOM construction → CSSOM → render tree → layout → paint. Missing any major step loses points. Should be structured with clear stages."
+                },
+                {
+                    "id": "2.2",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "What happens when I type `git rebase -i HEAD~3` and press enter? Walk me through the entire process.",
+                    "elite_criteria": "Must explain: interactive mode opens editor, shows last 3 commits, pick/squash/edit/drop options, rewrites history (new commit hashes), dangers (shared branches), force push requirement. Should mention the temporary branch and ref log as safety net."
+                },
+                {
+                    "id": "2.3",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Explain the CAP theorem. Give a real-world example of a system that chose each pair (CA, CP, AP).",
+                    "elite_criteria": "Correct definition (Consistency, Availability, Partition tolerance — pick 2 during partition). Real examples: CA (single-node RDBMS, only when no partition), CP (HBase, ZooKeeper), AP (Cassandra, DynamoDB). Must explain that partition tolerance is generally required in distributed systems. Nuanced, not oversimplified."
+                },
+                {
+                    "id": "2.4",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "How does garbage collection work in Python compared to Go? What are the tradeoffs?",
+                    "elite_criteria": "Python: reference counting + cyclic garbage collector, generations, GIL impact. Go: concurrent tri-color mark-and-sweep, no GIL, sub-millisecond pauses. Tradeoffs: Python simpler but GIL-limited, Go better latency. Should be accurate and comparative."
+                }
+            ]
+        },
+        {
+            "name": "Debugging & Troubleshooting",
+            "description": "Tests systematic debugging methodology and accuracy of diagnosis.",
+            "scenarios": [
+                {
+                    "id": "3.1",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "My Node.js application is leaking memory. It grows by about 50MB per hour under load. How would you debug this? Give me a systematic approach.",
+                    "elite_criteria": "Systematic: 1) Reproduce under load, 2) --inspect flag + Chrome DevTools, 3) heap snapshots (before/after), 4) comparison view to find growing objects, 5) common causes (event listeners, closures, global caches, streams not destroyed), 6) tools (clinic.js, 0x). Should read like a senior engineer's debugging playbook."
+                },
+                {
+                    "id": "3.2",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "This SQL query is slow on a table with 10 million rows: `SELECT * FROM orders WHERE created_at > '2024-01-01' ORDER BY total DESC LIMIT 10;`. How do I fix it?",
+                    "elite_criteria": "Must suggest: 1) EXPLAIN ANALYZE first, 2) Index on created_at (or composite created_at, total), 3) SELECT only needed columns (not *), 4) Consider partial index if query pattern is fixed, 5) possible covering index. Should show the actual CREATE INDEX statement."
+                },
+                {
+                    "id": "3.3",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "My Docker container starts but immediately exits with code 137. What's happening and how do I fix it?",
+                    "elite_criteria": "Must identify: exit code 137 = SIGKILL = OOM killer. Steps: 1) docker stats to check memory, 2) docker logs for any output, 3) increase memory limit (docker run --memory), 4) optimize app memory usage, 5) check host system memory. Clear and actionable."
+                },
+                {
+                    "id": "3.4",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "I'm getting CORS errors in my React app talking to my Express backend. I've already added `Access-Control-Allow-Origin: *` but it's still failing on POST requests with JSON body. What's wrong?",
+                    "elite_criteria": "Must identify: preflight request issue. Content-Type: application/json triggers preflight OPTIONS request. Must add: Access-Control-Allow-Headers: Content-Type, handle OPTIONS method. If using credentials (cookies), * doesn't work — must specify exact origin. Should provide the exact Express middleware code to fix it."
+                }
+            ]
+        },
+        {
+            "name": "Strategic Advice",
+            "description": "Tests contextual decision-making and nuanced technology recommendations.",
+            "scenarios": [
+                {
+                    "id": "4.1",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "I'm a solo developer about to launch my first SaaS product. I know both JavaScript and Ruby. Should I use Next.js or Ruby on Rails? The product is a project management tool.",
+                    "elite_criteria": "Must consider: solo dev (less complexity preferred), product type (CRUD-heavy → Rails strength), JS ecosystem (React component library), Rails conventions (faster MVP). Should make a clear recommendation with reasoning. Bonus for mentioning deployment (Vercel vs Heroku). Penalize wishy-washy 'both are good' without a recommendation."
+                },
+                {
+                    "id": "4.2",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Our startup has 10,000 active users and our PostgreSQL database is hitting its limits — queries are slow and CPU is maxed. We have 2 backend developers. What should we do?",
+                    "elite_criteria": "Progressive approach: 1) Quick wins first (query optimization, indexes, connection pooling), 2) Read replicas for read-heavy queries, 3) Caching layer (Redis) for hot data, 4) Only then consider sharding/vertical scaling. Must consider team size (2 devs = avoid microservices). Should NOT jump to 'use NoSQL' or 'add microservices' for 10K users."
+                },
+                {
+                    "id": "4.3",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "We're starting a new project with a 3-person dev team. Should we go with microservices or a monolith?",
+                    "elite_criteria": "Must clearly recommend monolith for a 3-person team starting out. Reasoning: coordination overhead of microservices > team size, monolith is faster to develop/debug/deploy, can extract services later. Should warn against premature microservices. Penalize recommending microservices for this team size."
+                }
+            ]
+        },
+        {
+            "name": "Writing & Communication",
+            "description": "Tests quality of written artifacts the agent produces.",
+            "scenarios": [
+                {
+                    "id": "5.1",
+                    "difficulty": "easy",
+                    "weight": 1,
+                    "prompt": "Write a git commit message for this change: I added retry logic with exponential backoff to the payment service API client. It retries up to 3 times on 5xx errors and network timeouts.",
+                    "elite_criteria": "Conventional commits format (feat/fix prefix), clear subject line (<72 chars), body with details. Example: 'feat(payments): add retry with exponential backoff to API client\\n\\n- Retry up to 3 times on 5xx and timeout errors\\n- Exponential backoff with jitter'. Penalize vague messages like 'updated payment code'."
+                },
+                {
+                    "id": "5.2",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "Write a README.md for an open-source CLI tool called `batchr`. It processes CSV files in parallel using multiple workers. It's written in Python and installable via pip.",
+                    "elite_criteria": "Must include: project title + description, installation (pip install), quick start usage with example, CLI flags/options, example input/output, requirements (Python version), license mention. Bonus: badges, contributing section, ASCII art or emoji for visual appeal. Should look like a real open-source project README."
+                },
+                {
+                    "id": "5.3",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "Draft an email to my engineering team (8 people) announcing that we're migrating from REST APIs to GraphQL over the next quarter. Some team members are skeptical about the change.",
+                    "elite_criteria": "Professional but not corporate-speak. Must address skepticism directly (not ignore it). Should explain WHY (over-fetching, multiple endpoints → single query). Include timeline, learning resources, and acknowledge the learning curve. Should sound like a competent tech lead, not ChatGPT."
+                }
+            ]
+        },
+        {
+            "name": "Edge Case Handling",
+            "description": "Tests whether the agent writes code that handles real-world edge cases.",
+            "scenarios": [
+                {
+                    "id": "6.1",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Write a Python function called `parse_date` that takes a user-inputted string and returns a datetime object. It should handle as many reasonable date formats as possible: '2024-01-15', 'Jan 15, 2024', '15/01/2024', '01-15-2024', 'January 15th 2024', and relative dates like 'yesterday' or 'last friday'.",
+                    "elite_criteria": "Uses dateutil.parser or similar robust library. Handles all listed formats. Handles relative dates (yesterday, last friday). Returns timezone-aware datetime. Provides clear error messages for unparseable strings. Does NOT crash on garbage input. Includes docstring with examples.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                },
+                {
+                    "id": "6.2",
+                    "difficulty": "medium",
+                    "weight": 2,
+                    "prompt": "Write a Python function `validate_password(password: str) -> dict` that checks password strength. Return a dict with 'valid' (bool) and 'errors' (list of specific failure reasons). Requirements: 8+ chars, at least one uppercase, one lowercase, one digit, one special character.",
+                    "elite_criteria": "Returns ALL errors (not just first failure). Handles unicode correctly. Checks against common passwords list (optional but elite). Clear error messages. Type hints. Docstring with examples. Does not crash on empty string or None input.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                },
+                {
+                    "id": "6.3",
+                    "difficulty": "hard",
+                    "weight": 3,
+                    "prompt": "Write a production-ready Python function for handling file uploads in a web application. It should validate file type, enforce size limits, generate safe filenames, and save to a configurable directory.",
+                    "elite_criteria": "Validates MIME type (not just extension), enforces configurable max size, sanitizes filename (no path traversal), generates unique filenames (UUID or hash), creates upload directory if needed, async-compatible, returns metadata dict. Mentions but doesn't implement: virus scanning, cloud storage. Error handling for all failure modes.",
+                    "must_contain_code": true,
+                    "code_language": "python"
+                }
+            ]
+        }
+    ]
+}

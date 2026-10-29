@@ -1,0 +1,42 @@
+{
+  "agent_name": "hybrid_router",
+  "artifacts": {},
+  "failure_reason": "Gemini API error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_INVALID', 'domain': 'googleapis.com', 'metadata': {'service': 'generativelanguage.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'API key not valid. Please pass a valid API key.'}]}}",
+  "failures": [
+    {
+      "details": {},
+      "reason": "Gemini API error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_INVALID', 'domain': 'googleapis.com', 'metadata': {'service': 'generativelanguage.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'API key not valid. Please pass a valid API key.'}]}}",
+      "stage": "router"
+    }
+  ],
+  "final_state_summary": "Hybrid run did not complete successfully.",
+  "latency_ms": 3166,
+  "metadata": {
+    "mode_history": [],
+    "provider": "gemini (gemini-3-flash-preview)",
+    "run_mode": "live",
+    "scenario": {
+      "max_steps": 8,
+      "name": "whatsapp_message",
+      "preconditions": [
+        "WhatsApp is installed and logged in.",
+        "A visible chat list is available."
+      ],
+      "seed_context": {
+        "contact_name": "Kris",
+        "message_text": "Hey Kris, checking the experiment harness.",
+        "target_app": "WhatsApp"
+      },
+      "success_checks": [
+        "The target chat is open.",
+        "A short message is entered and sent."
+      ],
+      "task": "Find a contact chat in WhatsApp and send a short greeting.",
+      "timeout_s": 120
+    }
+  },
+  "scenario_name": "whatsapp_message",
+  "step_count": 0,
+  "success": false,
+  "tool_calls": []
+}

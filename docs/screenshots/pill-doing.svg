@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="200" viewBox="0 0 600 200">
+  <defs>
+    <filter id="pill-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap');
+      .label { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="600" height="200" fill="white"/>
+
+  <!-- Glass pill — doing state: 320px wide, 64px tall -->
+  <!-- Subtle blue border for doing state -->
+  <rect x="140" y="68" width="320" height="64" rx="32" ry="32"
+        fill="rgba(255,255,255,0.75)"
+        stroke="rgba(0,122,255,0.2)" stroke-width="1"
+        filter="url(#pill-shadow)"/>
+  <rect x="141" y="69" width="318" height="62" rx="31" ry="31"
+        fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1"/>
+
+  <!-- Spinner — 18px ring, blue top arc -->
+  <circle cx="182" cy="100" r="8" fill="none" stroke="rgba(0,122,255,0.2)" stroke-width="2.5"/>
+  <path d="M 182 92 A 8 8 0 0 1 190 100" fill="none" stroke="#007aff" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- App icon placeholder — 28x28 rounded rect -->
+  <rect x="200" y="86" width="28" height="28" rx="6" ry="6" fill="#f5f5f7" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+  <!-- Mini Safari compass icon approximation -->
+  <circle cx="214" cy="100" r="9" fill="none" stroke="#007aff" stroke-width="1.2"/>
+  <line x1="214" y1="93" x2="214" y2="107" stroke="#ff3b30" stroke-width="0.8" opacity="0.6"/>
+  <line x1="207" y1="100" x2="221" y2="100" stroke="#007aff" stroke-width="0.8" opacity="0.6"/>
+
+  <!-- "Opening Safari…" text -->
+  <text x="240" y="106" class="label" font-size="18" font-weight="500" fill="#1d1d1f" letter-spacing="-0.18">Opening Safari…</text>
+
+  <!-- State label -->
+  <text x="300" y="168" class="label" font-size="12" font-weight="500" fill="#86868b" text-anchor="middle" letter-spacing="0.5">DOING STATE</text>
+</svg>

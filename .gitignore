@@ -1,0 +1,33 @@
+# ── Secrets / local config ──
+# No leading slash, so these match at every depth: backend/.env,
+# windows_helper/.env, deploy/.env …
+.env
+.env.*
+!.env.example
+credentials.enc
+tokens.json
+
+# ── Dependencies ──
+# Matches the root and backend/ (and anywhere else) at any depth.
+node_modules/
+
+# ── Python virtualenvs ──
+# `venv/` alone missed the dotted form, which is what backend/ and
+# windows_helper/ actually use.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ── Build output ──
+dist/
+build/output/
+*.dmg
+*.dmg.blockmap
+
+# ── Local noise ──
+.DS_Store
+Thumbs.db
+*.log
+hey_moonwalk.ppn
+scripts/blog-*.html

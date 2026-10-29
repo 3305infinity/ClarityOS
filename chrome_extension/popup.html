@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClarityOS Bridge</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3.6 9h16.8M3.6 15h16.8" />
+          <path d="M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18" />
+        </svg>
+      </div>
+      <div class="header-text">
+        <h1>Browser Bridge</h1>
+        <p class="sub">ClarityOS</p>
+      </div>
+      <span id="statusBadge" class="badge is-loading" role="status" aria-live="polite">
+        <span class="dot"></span><span id="statusLabel">Checking…</span>
+      </span>
+    </header>
+
+    <section class="card">
+      <h2 class="card-title">Connection</h2>
+      <div class="grid">
+        <div class="stat">
+          <div class="label">WebSocket</div>
+          <div id="socketValue" class="value">—</div>
+        </div>
+        <div class="stat">
+          <div class="label">Session</div>
+          <div id="sessionValue" class="value mono">—</div>
+        </div>
+        <div class="stat">
+          <div class="label">Snapshots</div>
+          <div id="snapshotCount" class="value">—</div>
+        </div>
+        <div class="stat">
+          <div class="label">Elements</div>
+          <div id="elementCount" class="value">—</div>
+        </div>
+      </div>
+      <p id="activityNote" class="note">Reading bridge status…</p>
+      <button id="pairBtn" class="pair-btn" type="button" hidden>Pair this extension…</button>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Active tab snapshot</h2>
+      <div id="snapshotBody" hidden>
+        <div id="tabTitle" class="tab-title">—</div>
+        <a id="tabUrl" class="tab-url" href="#" target="_blank" rel="noreferrer noopener">—</a>
+        <div class="tab-meta">
+          <span id="tabCaptured" class="chip">—</span>
+          <span id="tabElements" class="chip">—</span>
+        </div>
+      </div>
+      <div id="snapshotEmpty" class="empty">No snapshot captured yet.</div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Actions</h2>
+      <div class="actions">
+        <button id="refreshBtn" class="secondary" type="button">Refresh status</button>
+        <button id="snapshotBtn" class="primary" type="button">Capture snapshot</button>
+      </div>
+      <p id="feedback" class="feedback"></p>
+    </section>
+
+    <details class="diag">
+      <summary>Diagnostics</summary>
+      <div class="diag-row"><span class="k">Bridge URL</span><span id="diagUrl" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Extension</span><span id="diagExt" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Socket code</span><span id="diagSocket" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Authenticated</span><span id="diagAuth" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Session ID</span><span id="diagSession" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Tab ID</span><span id="diagTab" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Generation</span><span id="diagGen" class="v">—</span></div>
+      <div class="diag-row"><span class="k">Last error</span><span id="diagError" class="v">—</span></div>
+      <p class="diag-hint">
+        If the bridge stays disconnected, confirm the ClarityOS Hub is running, check the pairing
+        code in the extension options, then review the service worker console from
+        <code>chrome://extensions</code>.
+      </p>
+    </details>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

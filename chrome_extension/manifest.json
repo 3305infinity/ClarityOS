@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "ClarityOS Browser Bridge",
+  "version": "1.0.0",
+  "description": "Stable DOM bridge for ClarityOS browser automation.",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*;"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "Readability.js",
+        "content_script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "ClarityOS Browser Bridge",
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,361 @@
+/* ClarityOS Browser Bridge — popup surface.
+   Dark by default, light when the OS asks for it. Keep every value in a token
+   so both themes stay in sync. */
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0d13;
+  --bg-glow: radial-gradient(120% 90% at 50% -20%, rgba(124, 92, 255, 0.22), transparent 60%);
+  --panel: #12151f;
+  --panel-soft: #171b28;
+  --border: #242a3b;
+  --border-soft: #1c2130;
+  --text: #eef1f6;
+  --muted: #8b93a7;
+  --accent: #7c5cff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(124, 92, 255, 0.16);
+  --ok: #4ade80;
+  --ok-soft: rgba(74, 222, 128, 0.14);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.14);
+  --bad: #f87171;
+  --bad-soft: rgba(248, 113, 113, 0.14);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f5f6fb;
+    --bg-glow: radial-gradient(120% 90% at 50% -20%, rgba(124, 92, 255, 0.16), transparent 60%);
+    --panel: #ffffff;
+    --panel-soft: #f7f8fd;
+    --border: #e2e6f1;
+    --border-soft: #edf0f7;
+    --text: #11141d;
+    --muted: #5f6678;
+    --accent: #5b45e0;
+    --accent-soft: rgba(91, 69, 224, 0.12);
+    --ok: #15803d;
+    --ok-soft: rgba(21, 128, 61, 0.12);
+    --warn: #a16207;
+    --warn-soft: rgba(161, 98, 7, 0.12);
+    --bad: #b91c1c;
+    --bad-soft: rgba(185, 28, 28, 0.12);
+    --shadow: 0 10px 24px rgba(17, 20, 29, 0.1);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 14px;
+  width: 360px;
+  min-width: 280px;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--bg-glow), var(--bg);
+  color: var(--text);
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mark {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(140deg, var(--accent), #4f46e5);
+  box-shadow: var(--shadow);
+}
+
+.header-text { min-width: 0; flex: 1; }
+
+.header h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.header .sub {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge.is-connected { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.badge.is-connecting { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+.badge.is-connecting .dot { animation: pulse 1.1s ease-in-out infinite; }
+.badge.is-error { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+.badge.is-loading .dot { animation: pulse 1.1s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+/* ── Cards ── */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border-soft);
+}
+
+.stat .label {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stat .value {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat .value.mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.value.ok { color: var(--ok); }
+.value.warn { color: var(--warn); }
+.value.bad { color: var(--bad); }
+
+.note {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 11px;
+  word-break: break-word;
+}
+
+.note.is-error {
+  color: var(--bad);
+  border-top-color: var(--bad-soft);
+}
+
+/* Shown only when the worker reports no pairing code: the options page is
+   otherwise buried under chrome://extensions → Details → Extension options. */
+.pair-btn {
+  width: 100%;
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pair-btn:hover { filter: brightness(1.12); }
+
+/* ── Active tab ── */
+
+.tab-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-url {
+  display: block;
+  margin-top: 3px;
+  color: var(--accent);
+  font-size: 11.5px;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-url:hover { text-decoration: underline; }
+
+.tab-meta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 11.5px;
+  text-align: center;
+  padding: 10px 4px;
+}
+
+[hidden] { display: none !important; }
+
+/* ── Actions ── */
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 9px 10px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+button.primary { background: var(--accent); color: var(--accent-ink); }
+button.secondary { background: var(--panel-soft); color: var(--text); border-color: var(--border); }
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:disabled { opacity: 0.55; cursor: progress; }
+
+.feedback {
+  margin-top: 8px;
+  min-height: 15px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.feedback.is-ok { color: var(--ok); }
+.feedback.is-error { color: var(--bad); }
+
+/* ── Diagnostics ── */
+
+details.diag {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+details.diag > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+details.diag > summary::-webkit-details-marker { display: none; }
+details.diag > summary::after { content: " ▾"; }
+details.diag[open] > summary::after { content: " ▴"; }
+
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.diag-row .k { color: var(--muted); flex: none; }
+
+.diag-row .v {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diag-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 320px) {
+  .grid, .actions { grid-template-columns: 1fr; }
+}

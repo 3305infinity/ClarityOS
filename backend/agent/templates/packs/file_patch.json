@@ -1,0 +1,57 @@
+{
+  "name": "file_patch",
+  "priority": 100,
+  "version": "2",
+  "tags": ["file", "patch", "two_step"],
+  "skill": {
+    "name": "file_patch_skill",
+    "description": "Read a file then replace one exact text snippet with another.",
+    "examples": [
+      "replace foo with bar in app.py",
+      "patch timeout to 60 in config.yaml",
+      "update this text in README.md"
+    ],
+    "capabilities_all": ["file_edit"],
+    "min_semantic_score": 0.14,
+    "semantic_weight": 8.0
+  },
+  "match": {
+    "intent_actions": ["modify", "create", "unknown"],
+    "regex_any": [
+      "(?:replace|patch|update)\\s+(?P<old_text>.+?)\\s+(?:with|to)\\s+(?P<new_text>.+?)\\s+(?:in|inside)\\s+(?P<path>[~/\\w./-]+\\.[a-zA-Z0-9]+)",
+      "(?:in|inside)\\s+(?P<path>[~/\\w./-]+\\.[a-zA-Z0-9]+)\\s+(?:replace|change|update)\\s+(?P<old_text>.+?)\\s+(?:with|to)\\s+(?P<new_text>.+)"
+    ]
+  },
+  "plan": {
+    "task_summary": "Patch file content",
+    "steps": [
+      {
+        "description": "Read the target file",
+        "tool": "read_file",
+        "args": {
+          "path": "{path}"
+        },
+        "success_criteria": "Current file contents loaded",
+        "wait_after": 0
+      },
+      {
+        "description": "Replace requested text",
+        "tool": "replace_in_file",
+        "args": {
+          "path": "{path}",
+          "old_text": "{old_text}",
+          "new_text": "{new_text}"
+        },
+        "success_criteria": "Requested text replaced",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["read_file", "replace_in_file"],
+    "forbidden_tools": ["run_shell"],
+    "min_steps": 2,
+    "max_steps": 3
+  },
+  "final_response": "Patched {path}."
+}

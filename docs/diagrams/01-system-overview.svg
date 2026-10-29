@@ -1,0 +1,268 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <!-- Frosted glass fill -->
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#f5f5f7" stop-opacity="0.75"/>
+    </linearGradient>
+    <!-- Accent blue gradient (matches --accent / --ai-blue) -->
+    <linearGradient id="accentBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#007aff"/>
+      <stop offset="100%" stop-color="#409cff"/>
+    </linearGradient>
+    <!-- Purple gradient (matches --ai-purple) -->
+    <linearGradient id="accentPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#af52de"/>
+      <stop offset="100%" stop-color="#c77dff"/>
+    </linearGradient>
+    <!-- Green gradient (matches --green) -->
+    <linearGradient id="accentGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34c759"/>
+      <stop offset="100%" stop-color="#5dd87a"/>
+    </linearGradient>
+    <!-- Peach / pink gradient -->
+    <linearGradient id="accentPeach" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff2d55"/>
+      <stop offset="100%" stop-color="#ff6482"/>
+    </linearGradient>
+    <!-- Dark card fill -->
+    <linearGradient id="darkCard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1d1d1f"/>
+      <stop offset="100%" stop-color="#2c2c2e"/>
+    </linearGradient>
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.10"/>
+    </filter>
+    <filter id="shadowSm" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+    <!-- Arrow marker -->
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#007aff"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#af52de"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#34c759"/>
+    </marker>
+    <marker id="arrowMuted" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6e6e73"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="820" rx="20" fill="#f5f5f7"/>
+
+  <!-- Title bar -->
+  <text x="550" y="48" text-anchor="middle" font-size="22" font-weight="700" fill="#1d1d1f" letter-spacing="-0.02em">Moonwalk · System Overview</text>
+  <text x="550" y="72" text-anchor="middle" font-size="13" fill="#6e6e73">End-to-end architecture from user input to task execution</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ROW 1: User + Electron Shell                -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- User -->
+  <g filter="url(#shadowSm)">
+    <rect x="60" y="110" width="160" height="72" rx="36" fill="url(#glass)" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+    <circle cx="112" cy="146" r="16" fill="url(#accentBlue)" opacity="0.12"/>
+    <text x="112" y="151" text-anchor="middle" font-size="18">🎤</text>
+    <text x="142" y="142" font-size="14" font-weight="600" fill="#1d1d1f">User</text>
+    <text x="142" y="158" font-size="10" fill="#6e6e73">Voice / Keyboard</text>
+  </g>
+
+  <!-- Electron Shell container -->
+  <g filter="url(#shadow)">
+    <rect x="310" y="100" width="480" height="180" rx="16" fill="url(#glass)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <rect x="310" y="100" width="480" height="32" rx="16" fill="url(#darkCard)"/>
+    <rect x="310" y="116" width="480" height="16" fill="url(#darkCard)"/>
+    <!-- Window dots -->
+    <circle cx="330" cy="116" r="5" fill="#ff3b30"/>
+    <circle cx="348" cy="116" r="5" fill="#ffcc00"/>
+    <circle cx="366" cy="116" r="5" fill="#34c759"/>
+    <text x="550" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.7)">Electron Shell · main.js</text>
+  </g>
+
+  <!-- Glass Pill (inside Electron) -->
+  <g filter="url(#shadowSm)">
+    <rect x="345" y="150" width="190" height="52" rx="26" fill="url(#glass)" stroke="rgba(0,122,255,0.15)" stroke-width="1.5"/>
+    <circle cx="380" cy="176" r="12" fill="url(#accentBlue)" opacity="0.15"/>
+    <text x="380" y="181" text-anchor="middle" font-size="14">🌙</text>
+    <text x="420" y="172" font-size="12" font-weight="600" fill="#1d1d1f">Glass Pill UI</text>
+    <text x="420" y="186" font-size="9" fill="#6e6e73">index.html + styles.css</text>
+  </g>
+
+  <!-- renderer.js (inside Electron) -->
+  <g filter="url(#shadowSm)">
+    <rect x="565" y="150" width="200" height="52" rx="12" fill="url(#glass)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <text x="665" y="172" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">renderer.js</text>
+    <text x="665" y="186" text-anchor="middle" font-size="9" fill="#6e6e73">WebSocket · AudioContext</text>
+  </g>
+
+  <!-- Preload bridge label -->
+  <text x="550" y="228" text-anchor="middle" font-size="9" fill="#6e6e73">preload.js bridge</text>
+
+  <!-- Glass Pill ↔ renderer arrow -->
+  <line x1="535" y1="176" x2="565" y2="176" stroke="#007aff" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <!-- User → Electron arrow -->
+  <path d="M220,146 L310,176" fill="none" stroke="#007aff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <text x="258" y="152" font-size="9" fill="#007aff" font-weight="500" transform="rotate(-10 258 152)">audio / text</text>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ROW 2: Python Backend                       -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- WebSocket label on connector -->
+  <path d="M665,202 L665,310" fill="none" stroke="#007aff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <rect x="628" y="245" width="74" height="22" rx="11" fill="#007aff" opacity="0.08"/>
+  <text x="665" y="260" text-anchor="middle" font-size="9" fill="#007aff" font-weight="600">ws://8000</text>
+
+  <!-- Python Backend container -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="310" width="980" height="220" rx="16" fill="url(#glass)" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>
+    <rect x="60" y="310" width="980" height="30" rx="16" fill="url(#darkCard)"/>
+    <rect x="60" y="324" width="980" height="16" fill="url(#darkCard)"/>
+    <text x="550" y="330" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,255,255,0.7)">Python Backend</text>
+  </g>
+
+  <!-- local_server.py -->
+  <g filter="url(#shadowSm)">
+    <rect x="560" y="355" width="190" height="56" rx="12" fill="white" stroke="rgba(0,122,255,0.20)" stroke-width="1.5"/>
+    <text x="655" y="378" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">local_server.py</text>
+    <text x="655" y="394" text-anchor="middle" font-size="9" fill="#6e6e73">WS Server · Session · TTS</text>
+  </g>
+
+  <!-- Agent Core -->
+  <g filter="url(#shadowSm)">
+    <rect x="90" y="355" width="180" height="56" rx="12" fill="white" stroke="rgba(175,82,222,0.25)" stroke-width="1.5"/>
+    <text x="180" y="378" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">MoonwalkAgentV2</text>
+    <text x="180" y="394" text-anchor="middle" font-size="9" fill="#af52de" font-weight="500">SPAV Loop · core_v2.py</text>
+  </g>
+
+  <!-- Milestone Executor -->
+  <g filter="url(#shadowSm)">
+    <rect x="90" y="425" width="180" height="44" rx="10" fill="white" stroke="rgba(175,82,222,0.15)" stroke-width="1"/>
+    <text x="180" y="448" text-anchor="middle" font-size="11" font-weight="500" fill="#1d1d1f">milestone_executor.py</text>
+    <text x="180" y="462" text-anchor="middle" font-size="9" fill="#6e6e73">Plan → Act → Verify</text>
+  </g>
+
+  <!-- Tools -->
+  <g filter="url(#shadowSm)">
+    <rect x="310" y="355" width="210" height="56" rx="12" fill="white" stroke="rgba(52,199,89,0.25)" stroke-width="1.5"/>
+    <text x="415" y="378" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">Tools Layer</text>
+    <text x="415" y="394" text-anchor="middle" font-size="9" fill="#6e6e73">mac · browser · gworkspace</text>
+  </g>
+
+  <!-- Browser ACI -->
+  <g filter="url(#shadowSm)">
+    <rect x="310" y="425" width="100" height="44" rx="10" fill="white" stroke="rgba(52,199,89,0.12)" stroke-width="1"/>
+    <text x="360" y="448" text-anchor="middle" font-size="10" font-weight="500" fill="#1d1d1f">Browser ACI</text>
+    <text x="360" y="460" text-anchor="middle" font-size="8" fill="#6e6e73">DOM + Vision</text>
+  </g>
+
+  <!-- Mac Tools -->
+  <g filter="url(#shadowSm)">
+    <rect x="420" y="425" width="100" height="44" rx="10" fill="white" stroke="rgba(52,199,89,0.12)" stroke-width="1"/>
+    <text x="470" y="448" text-anchor="middle" font-size="10" font-weight="500" fill="#1d1d1f">Mac Tools</text>
+    <text x="470" y="460" text-anchor="middle" font-size="8" fill="#6e6e73">AppleScript</text>
+  </g>
+
+  <!-- Voice / TTS -->
+  <g filter="url(#shadowSm)">
+    <rect x="790" y="355" width="170" height="56" rx="12" fill="white" stroke="rgba(255,45,85,0.20)" stroke-width="1.5"/>
+    <text x="875" y="378" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">Voice Pipeline</text>
+    <text x="875" y="394" text-anchor="middle" font-size="9" fill="#6e6e73">Porcupine · STT · TTS</text>
+  </g>
+
+  <!-- Perception -->
+  <g filter="url(#shadowSm)">
+    <rect x="560" y="425" width="190" height="44" rx="10" fill="white" stroke="rgba(0,122,255,0.12)" stroke-width="1"/>
+    <text x="655" y="448" text-anchor="middle" font-size="11" font-weight="500" fill="#1d1d1f">Perception Layer</text>
+    <text x="655" y="460" text-anchor="middle" font-size="9" fill="#6e6e73">Screenshots · A11y Tree</text>
+  </g>
+
+  <!-- Memory -->
+  <g filter="url(#shadowSm)">
+    <rect x="790" y="425" width="170" height="44" rx="10" fill="white" stroke="rgba(255,204,0,0.25)" stroke-width="1"/>
+    <text x="875" y="448" text-anchor="middle" font-size="11" font-weight="500" fill="#1d1d1f">Memory + RAG</text>
+    <text x="875" y="460" text-anchor="middle" font-size="9" fill="#6e6e73">Working · Cloud · RAG</text>
+  </g>
+
+  <!-- Internal arrows (backend) -->
+  <line x1="560" y1="383" x2="520" y2="383" stroke="#6e6e73" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrowMuted)"/>
+  <line x1="310" y1="383" x2="270" y2="383" stroke="#af52de" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+  <line x1="750" y1="383" x2="790" y2="383" stroke="#6e6e73" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrowMuted)"/>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ROW 3: External Services                    -->
+  <!-- ═══════════════════════════════════════════ -->
+
+  <!-- Gemini API -->
+  <g filter="url(#shadow)">
+    <rect x="100" y="600" width="220" height="80" rx="16" fill="white" stroke="rgba(175,82,222,0.25)" stroke-width="1.5"/>
+    <rect x="120" y="618" width="36" height="36" rx="10" fill="url(#accentPurple)" opacity="0.12"/>
+    <text x="138" y="641" text-anchor="middle" font-size="20">✦</text>
+    <text x="230" y="632" text-anchor="middle" font-size="14" font-weight="600" fill="#1d1d1f">Gemini API</text>
+    <text x="230" y="650" text-anchor="middle" font-size="10" fill="#6e6e73">Flash · Pro · Vision</text>
+    <text x="230" y="664" text-anchor="middle" font-size="9" fill="#af52de">generativelanguage.googleapis.com</text>
+  </g>
+
+  <!-- Google Cloud Platform -->
+  <g filter="url(#shadow)">
+    <rect x="380" y="600" width="220" height="80" rx="16" fill="white" stroke="rgba(52,199,89,0.25)" stroke-width="1.5"/>
+    <rect x="400" y="618" width="36" height="36" rx="10" fill="url(#accentGreen)" opacity="0.12"/>
+    <text x="418" y="641" text-anchor="middle" font-size="20">☁</text>
+    <text x="510" y="632" text-anchor="middle" font-size="14" font-weight="600" fill="#1d1d1f">Google Cloud</text>
+    <text x="510" y="650" text-anchor="middle" font-size="10" fill="#6e6e73">TTS Neural2 · GCS · Firestore</text>
+    <text x="510" y="664" text-anchor="middle" font-size="9" fill="#34c759">texttospeech · storage · firestore</text>
+  </g>
+
+  <!-- Chrome Extension -->
+  <g filter="url(#shadow)">
+    <rect x="660" y="600" width="220" height="80" rx="16" fill="white" stroke="rgba(0,122,255,0.20)" stroke-width="1.5"/>
+    <rect x="680" y="618" width="36" height="36" rx="10" fill="url(#accentBlue)" opacity="0.12"/>
+    <text x="698" y="641" text-anchor="middle" font-size="20">🧩</text>
+    <text x="790" y="632" text-anchor="middle" font-size="14" font-weight="600" fill="#1d1d1f">Chrome Extension</text>
+    <text x="790" y="650" text-anchor="middle" font-size="10" fill="#6e6e73">DOM Snapshots · Page Actions</text>
+    <text x="790" y="664" text-anchor="middle" font-size="9" fill="#007aff">content_script.js · background.js</text>
+  </g>
+
+  <!-- macOS APIs -->
+  <g filter="url(#shadow)">
+    <rect x="920" y="600" width="140" height="80" rx="16" fill="white" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
+    <text x="990" y="636" text-anchor="middle" font-size="14" font-weight="600" fill="#1d1d1f">macOS</text>
+    <text x="990" y="654" text-anchor="middle" font-size="10" fill="#6e6e73">AppleScript</text>
+    <text x="990" y="668" text-anchor="middle" font-size="10" fill="#6e6e73">Accessibility</text>
+  </g>
+
+  <!-- Arrows from backend → external services -->
+  <path d="M180,469 L180,500 L210,600" fill="none" stroke="#af52de" stroke-width="2" marker-end="url(#arrowPurple)"/>
+  <text x="165" y="540" font-size="9" fill="#af52de" font-weight="500">LLM calls</text>
+
+  <path d="M875,411 L875,470 L490,600" fill="none" stroke="#34c759" stroke-width="1.5" marker-end="url(#arrowGreen)"/>
+  <text x="720" y="540" font-size="9" fill="#34c759" font-weight="500">TTS · Storage</text>
+
+  <path d="M360,469 L360,500 L735,600" fill="none" stroke="#007aff" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <text x="500" y="504" font-size="9" fill="#007aff" font-weight="500">DOM bridge</text>
+
+  <path d="M470,469 L470,500 L960,600" fill="none" stroke="#6e6e73" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrowMuted)"/>
+  <text x="770" y="498" font-size="9" fill="#6e6e73">osascript</text>
+
+  <!-- Legend -->
+  <g transform="translate(60, 740)">
+    <text x="0" y="0" font-size="10" font-weight="600" fill="#1d1d1f">Legend</text>
+    <line x1="0" y1="18" x2="30" y2="18" stroke="#007aff" stroke-width="2"/>
+    <text x="38" y="22" font-size="9" fill="#6e6e73">Data flow</text>
+    <line x1="120" y1="18" x2="150" y2="18" stroke="#af52de" stroke-width="2"/>
+    <text x="158" y="22" font-size="9" fill="#6e6e73">LLM / Agent</text>
+    <line x1="240" y1="18" x2="270" y2="18" stroke="#34c759" stroke-width="2"/>
+    <text x="278" y="22" font-size="9" fill="#6e6e73">Cloud services</text>
+    <line x1="370" y1="18" x2="400" y2="18" stroke="#6e6e73" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="408" y="22" font-size="9" fill="#6e6e73">Internal / optional</text>
+  </g>
+
+  <!-- Version tag -->
+  <text x="1040" y="800" text-anchor="end" font-size="9" fill="#aeaeb2">Moonwalk v1.0.0</text>
+</svg>

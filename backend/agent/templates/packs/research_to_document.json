@@ -1,0 +1,147 @@
+{
+  "name": "research_to_document",
+  "priority": 140,
+  "version": "3",
+  "tags": ["research", "document", "multi_step"],
+  "skill": {
+    "name": "research_to_document_skill",
+    "description": "Research a topic deeply across multiple sources and produce a Google document with findings.",
+    "examples": [
+      "research housing systems in the UK and write a Google doc",
+      "find the best laptops and write a report document",
+      "investigate this topic and put it in a document",
+      "create a document regarding research about flats"
+    ],
+    "capabilities_all": ["research", "document_output"],
+    "capabilities_any": ["browser_read"],
+    "anti_patterns": ["save to file", "write to file"],
+    "min_semantic_score": 0.16,
+    "semantic_weight": 9.5
+  },
+  "match": {
+    "intent_actions": ["search", "create", "analyze", "unknown"],
+    "keywords_any": ["research", "investigate", "find", "study", "analyze", "analyse", "compare", "best", "top"],
+    "phrases_any": ["document", "report", "google doc", "doc", "write up", "write-up", "brief"],
+    "regex_any": [
+      "(research|investigate|find|study|analy[sz]e|compare|best|top).*(document|report|google\\s*doc|doc|write\\s*up|brief)",
+      "(document|report|google\\s*doc|doc|write\\s*up|brief).*(research|investigate|find|study|analy[sz]e|compare|best|top)"
+    ]
+  },
+  "plan": {
+    "task_summary": "Research topic across multiple sources and write a Google document",
+    "steps": [
+      {
+        "description": "Search web for the topic",
+        "tool": "web_search",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search results are visible",
+        "wait_after": 1
+      },
+      {
+        "description": "Read search results to identify top sources",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search result links identified",
+        "wait_after": 0
+      },
+      {
+        "description": "Click into the first promising search result",
+        "tool": "browser_click_match",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Navigated to source article",
+        "wait_after": 1
+      },
+      {
+        "description": "Read article content from first source",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Article text content extracted and stored",
+        "wait_after": 0
+      },
+      {
+        "description": "Scroll down to read more content from this source",
+        "tool": "browser_scroll",
+        "args": {
+          "direction": "down",
+          "amount": "page"
+        },
+        "success_criteria": "Scrolled for additional content",
+        "wait_after": 0
+      },
+      {
+        "description": "Read the additional content after scrolling",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Additional text content extracted",
+        "wait_after": 0
+      },
+      {
+        "description": "Search for a second angle on the topic",
+        "tool": "web_search",
+        "args": {
+          "query": "{query} comparison review"
+        },
+        "success_criteria": "Second search results visible",
+        "wait_after": 1,
+        "optional": true
+      },
+      {
+        "description": "Read second search results page",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Second search result links identified",
+        "wait_after": 0,
+        "optional": true
+      },
+      {
+        "description": "Click into a second source for more research",
+        "tool": "browser_click_match",
+        "args": {
+          "query": "{query} analysis"
+        },
+        "success_criteria": "Navigated to second source article",
+        "wait_after": 1,
+        "optional": true
+      },
+      {
+        "description": "Read text content from second source",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Second source text content extracted",
+        "wait_after": 0,
+        "optional": true
+      },
+      {
+        "description": "Create Google Doc with synthesized research findings",
+        "tool": "gdocs_create",
+        "args": {
+          "title": "{doc_title}",
+          "body": "Research findings will be synthesized from collected sources."
+        },
+        "success_criteria": "Google document created with research content",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["browser_read_page", "gdocs_create"],
+    "forbidden_tools": ["run_shell"],
+    "min_steps": 5,
+    "max_steps": 14
+  },
+  "final_response": "Research complete and written to a Google document."
+}

@@ -1,0 +1,105 @@
+{
+  "name": "moonwalk",
+  "version": "1.0.0",
+  "description": "ClarityOS — AI Desktop Assistant",
+  "author": "ClarityOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "build:dmg": "electron-builder --mac dmg",
+    "build:dir": "electron-builder --mac dir",
+    "build:signed": "electron-builder --mac --universal",
+    "release": "electron-builder --mac --universal --publish never",
+    "dist:upload": "node scripts/upload-gcs.mjs",
+    "dist:extension": "node scripts/package-extension.mjs",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "katex": "^0.16.37",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "electron": "^36.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.moonwalk.assistant",
+    "productName": "ClarityOS",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "afterSign": "build/notarize.cjs",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "node_modules/**/*",
+      "!node_modules/electron/**",
+      "!node_modules/electron-builder/**"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!__pycache__/**",
+          "!*.pyc",
+          "!.env"
+        ]
+      },
+      {
+        "from": "hey_moonwalk.ppn",
+        "to": "hey_moonwalk.ppn"
+      },
+      {
+        "from": "setup.sh",
+        "to": "setup.sh"
+      },
+      {
+        "from": "chrome_extension",
+        "to": "chrome_extension",
+        "filter": [
+          "**/*",
+          "!*.bak"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "identity": null,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false
+    },
+    "dmg": {
+      "title": "ClarityOS",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  }
+}

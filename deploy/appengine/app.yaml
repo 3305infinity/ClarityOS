@@ -1,0 +1,19 @@
+runtime: python312
+instance_class: F1
+
+automatic_scaling:
+  max_instances: 2
+  min_idle_instances: 0
+
+entrypoint: gunicorn -b :$PORT main:app
+
+handlers:
+  # Static assets (CSS/JS/images) if we add them later
+  - url: /static
+    static_dir: public/static
+    secure: always
+
+  # All other requests handled by Flask
+  - url: /.*
+    script: auto
+    secure: always

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moonwalk &mdash; Your intelligent desktop agent</title>
+    <style>
+        :root {
+            --text-dark: #111111;
+            --text-muted: #6e6e73;
+            --accent: #007aff;
+            --success: #34c759;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(0, 0, 0, 0.05);
+            --glass-shadow:
+                0 32px 64px -16px rgba(0, 0, 0, 0.15),
+                inset 0 1px 1px rgba(255, 255, 255, 1),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.02);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; overflow-x: hidden; background: #f5f5f7;
+            color: var(--text-dark);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* HERO */
+        .video-container {
+            position: relative; width: 100%; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            perspective: 2500px;
+            background-image: radial-gradient(circle at 50% 10%, #ffffff 0%, #e5e5ea 100%);
+            overflow: hidden;
+        }
+        .master-glow {
+            position: absolute; width: 900px; height: 700px;
+            filter: blur(100px); z-index: 0;
+            animation: pulse-glow 25s infinite;
+            transform: translateZ(-800px);
+        }
+        @keyframes pulse-glow {
+            0%,  20%   { background: radial-gradient(circle, rgba(0,122,255,.2), transparent 70%); }
+            20.1%,40%  { background: radial-gradient(circle, rgba(175,82,222,.2), transparent 70%); }
+            40.1%,60%  { background: radial-gradient(circle, rgba(52,199,89,.15), transparent 70%); }
+            60.1%,80%  { background: radial-gradient(circle, rgba(255,149,0,.15), transparent 70%); }
+            80.1%,100% { background: radial-gradient(circle, rgba(255,45,85,.15), transparent 70%); }
+        }
+
+        /* SCROLL INDICATOR */
+        .scroll-indicator {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            color: var(--text-muted); z-index: 100;
+            animation: floatDown 2s cubic-bezier(0.4,0,0.2,1) infinite;
+            pointer-events: none;
+        }
+        .scroll-text { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+        .scroll-indicator svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        @keyframes floatDown {
+            0%,100% { transform: translate(-50%,0); opacity: .4; }
+            50%     { transform: translate(-50%,8px); opacity: 1; }
+        }
+
+        /* SLIDES */
+        .slide {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; text-align: center;
+            will-change: transform, opacity, filter;
+            z-index: 10; transform-style: preserve-3d;
+            transition-timing-function: cubic-bezier(0.25,1,0.5,1);
+        }
+        .brand-logo { width: 450px; max-width: 90vw; }
+        .intro-text { font-size: 1.8rem; font-weight: 600; color: var(--text-muted); letter-spacing: .15em; text-transform: uppercase; margin: 0 0 -10px 0; }
+        h2 { font-size: 3rem; font-weight: 600; letter-spacing: -.02em; margin: 0 0 2rem 0; }
+        p  { font-size: 1.5rem; color: var(--text-muted); font-weight: 500; margin-top: 0; letter-spacing: -.01em; }
+
+        /* GLASS */
+        .glass-panel {
+            position: relative; background: var(--glass-bg);
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            box-shadow: var(--glass-shadow); border: 1px solid var(--glass-border);
+            overflow: hidden; transform-style: preserve-3d; backface-visibility: hidden;
+        }
+        .glass-panel::before {
+            content: ''; position: absolute; top: 0; left: -150%; width: 50%; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg); animation: sheenAnim 5s infinite; pointer-events: none; z-index: -1;
+        }
+        @keyframes sheenAnim {
+            0%,20% { left: -150%; opacity: 0; } 30% { opacity: 1; left: -50%; }
+            50%    { left: 150%; opacity: 0; } 100% { left: 150%; opacity: 0; }
+        }
+        .panel-content { position: relative; z-index: 1; width: 100%; height: 100%; padding: 24px; }
+        .modal-title    { font-size: 18px; font-weight: 650; margin-bottom: 6px; letter-spacing: -.02em; color: var(--text-dark); }
+        .modal-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }
+
+        /* PILL */
+        .glass-pill {
+            height: 64px; width: 420px; border-radius: 32px; margin-top: 3rem;
+            box-shadow: 0 32px 64px -12px rgba(0,122,255,.3), inset 0 1px 1px rgba(255,255,255,1);
+            border: 1px solid rgba(0,122,255,.2);
+        }
+        .glass-pill .panel-content { display: flex; align-items: center; padding: 0 24px; gap: 12px; }
+        .status-text { color: var(--accent); font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+        .mic-icon    { width: 22px; height: 22px; fill: var(--accent); flex-shrink: 0; }
+        .cursor      { display: inline-block; width: 2px; height: 18px; background: var(--accent); margin-left: 2px; animation: blink .9s infinite; }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* LIST */
+        .modal-list { width: 480px; border-radius: 24px; text-align: left; }
+        .list-card  { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 16px; background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.04); margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.02); }
+        .list-icon  { width: 36px; height: 36px; background: rgba(0,122,255,.08); color: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .list-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; color: var(--text-dark); }
+        .list-desc  { font-size: 13px; color: var(--text-muted); }
+
+        /* TABLE */
+        .modal-table   { width: 540px; border-radius: 24px; text-align: left; }
+        .table-wrapper { border-radius: 14px; background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.05); overflow: hidden; }
+        .data-table    { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th { background: rgba(0,0,0,.03); font-size: 12px; color: var(--text-muted); padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,.06); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+        .data-table td { padding: 14px 16px; font-size: 14px; color: var(--text-dark); border-bottom: 1px solid rgba(0,0,0,.04); font-variant-numeric: tabular-nums; }
+        .status-badge  { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; }
+
+        /* PRODUCTS */
+        .modal-products { width: 480px; border-radius: 24px; text-align: left; }
+        .product-card   { display: flex; gap: 16px; border-radius: 18px; background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.04); padding: 10px; }
+        .product-img    { width: 96px; height: 96px; border-radius: 12px; object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+        .product-info   { padding: 6px 8px 6px 0; display: flex; flex-direction: column; justify-content: center; }
+        .product-title  { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-bottom: 2px; }
+        .product-desc   { font-size: 13px; color: var(--text-muted); }
+        .product-price  { font-size: 15px; font-weight: 600; color: var(--text-dark); margin-top: 6px; display: block; }
+
+        /* CONFIRM */
+        .modal-confirm   { width: 420px; border-radius: 24px; text-align: left; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+        .btn-action      { padding: 12px 24px; border-radius: 99px; border: 1px solid rgba(0,0,0,.04); font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-cancel      { background: rgba(255,255,255,.5); color: var(--text-dark); box-shadow: 0 4px 12px -4px rgba(0,0,0,.1), inset 0 1px 1px rgba(255,255,255,.9); }
+        .btn-confirm     { background: var(--accent); color: #fff; box-shadow: 0 8px 20px -6px rgba(0,122,255,.4), inset 0 1px 1px rgba(255,255,255,.4); }
+
+        /* TIMELINE ANIMATIONS */
+        .slide-1 { animation: s1 25s infinite; }
+        @keyframes s1 {
+            0%   { opacity:0; transform:translateY(60px) translateZ(-400px) rotateX(-25deg); filter:blur(10px); }
+            4%   { opacity:1; transform:translateY(0) translateZ(0) rotateX(0); filter:blur(0); }
+            16%  { opacity:1; transform:translateY(-10px) translateZ(50px) rotateX(2deg); filter:blur(0); }
+            20%  { opacity:0; transform:translateY(-60px) translateZ(300px) rotateX(15deg); filter:blur(10px); }
+            100% { opacity:0; }
+        }
+        .slide-2 { animation: s2 25s infinite; }
+        @keyframes s2 {
+            0%,20% { opacity:0; transform:translateX(200px) translateZ(-500px) rotateY(-35deg); filter:blur(10px); }
+            24%    { opacity:1; transform:translateX(0) translateZ(0) rotateY(0); filter:blur(0); }
+            36%    { opacity:1; transform:translateX(-20px) translateZ(40px) rotateY(3deg); filter:blur(0); }
+            40%    { opacity:0; transform:translateX(-150px) translateZ(300px) rotateY(10deg); filter:blur(10px); }
+            100%   { opacity:0; }
+        }
+        .slide-3 { animation: s3 25s infinite; }
+        @keyframes s3 {
+            0%,40% { opacity:0; transform:translateY(60px) translateZ(-500px) rotateX(15deg) rotateY(15deg); filter:blur(10px); }
+            44%    { opacity:1; transform:translateY(0) translateZ(0) rotateX(0) rotateY(0); filter:blur(0); }
+            56%    { opacity:1; transform:translateY(-10px) translateZ(60px) rotateX(-1deg) rotateY(1deg); filter:blur(0); }
+            60%    { opacity:0; transform:translateY(-60px) translateZ(400px) rotateX(-10deg) rotateY(-10deg); filter:blur(10px); }
+            100%   { opacity:0; }
+        }
+        .slide-4 { animation: s4 25s infinite; }
+        @keyframes s4 {
+            0%,60% { opacity:0; transform:translateX(-200px) translateZ(-500px) rotateY(30deg); filter:blur(10px); }
+            64%    { opacity:1; transform:translateX(0) translateZ(0) rotateY(0); filter:blur(0); }
+            76%    { opacity:1; transform:translateX(20px) translateZ(30px) rotateY(-2deg); filter:blur(0); }
+            80%    { opacity:0; transform:translateX(150px) translateZ(300px) rotateY(-15deg); filter:blur(10px); }
+            100%   { opacity:0; }
+        }
+        .slide-5 { animation: s5 25s infinite; }
+        @keyframes s5 {
+            0%,80% { opacity:0; transform:translateZ(-500px) rotateZ(-10deg) rotateX(20deg); filter:blur(10px); }
+            84%    { opacity:1; transform:translateZ(0) rotateZ(0) rotateX(0); filter:blur(0); }
+            96%    { opacity:1; transform:translateZ(40px) rotateX(-1deg); filter:blur(0); }
+            100%   { opacity:0; transform:translateZ(400px) rotateX(-15deg); filter:blur(10px); }
+        }
+
+        /* CTA */
+        .download-section {
+            width: 100%; padding: 120px 20px 100px;
+            display: flex; flex-direction: column; align-items: center;
+            background: #ffffff; position: relative; z-index: 20; text-align: center;
+        }
+        .download-content { max-width: 800px; }
+        .download-content h2 { font-size: 3.5rem; margin-bottom: 1rem; letter-spacing: -.03em; color: var(--text-dark); }
+        .download-content p  { font-size: 1.4rem; color: var(--text-muted); margin-bottom: 3rem; font-weight: 500; }
+        .btn-download {
+            display: inline-flex; align-items: center; gap: 12px;
+            padding: 18px 36px; background: #111; color: #fff;
+            border-radius: 99px; font-size: 1.15rem; font-weight: 600;
+            text-decoration: none; border: none; cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0,0,0,.15);
+            transition: all .3s cubic-bezier(0.25,1,0.5,1);
+        }
+        .btn-download:hover  { transform:translateY(-2px) scale(1.02); box-shadow:0 16px 32px rgba(0,0,0,.2); background:#000; }
+        .btn-download:active { transform:translateY(1px); box-shadow:0 4px 12px rgba(0,0,0,.1); }
+
+        /* FOOTER */
+        .site-footer {
+            width: 100%; padding: 40px 20px; background: #fff;
+            display: flex; flex-direction: column; align-items: center;
+            border-top: 1px solid rgba(0,0,0,.06); position: relative; z-index: 20;
+        }
+        .footer-links { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .footer-link  { display: flex; align-items: center; gap: 8px; color: var(--text-muted); text-decoration: none; font-size: 15px; font-weight: 500; transition: color .2s; }
+        .footer-link:hover { color: var(--text-dark); }
+        .footer-link svg   { width: 20px; height: 20px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+<div class="video-container">
+    <div class="master-glow"></div>
+
+    <div class="scroll-indicator">
+        <span class="scroll-text">Scroll</span>
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+
+    <!-- Slide 1 -->
+    <div class="slide slide-1">
+        <h2 class="intro-text">Introducing</h2>
+        <div class="brand-logo">
+            <svg viewBox="0 0 450 120" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                <defs><style>
+                    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap');
+                    .mw-text { font-family:'Fredoka',-apple-system,sans-serif; font-weight:600; font-size:96px; fill:#111; letter-spacing:-.02em; }
+                </style></defs>
+                <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" class="mw-text">moonwalk</text>
+            </svg>
+        </div>
+        <p>Your intelligent desktop agent.</p>
+        <div class="glass-pill glass-panel">
+            <div class="panel-content">
+                <svg class="mic-icon" viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+                <span class="status-text">Plan a weekend trip to Kyoto</span><span class="cursor"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="slide slide-2">
+        <h2>Deep personal context.</h2>
+        <div class="modal-list glass-panel">
+            <div class="panel-content">
+                <div class="modal-title">Local Files &amp; Emails</div>
+                <div class="modal-subtitle">Found relevant matches across your accounts.</div>
+                <div class="list-card">
+                    <div class="list-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div>
+                        <div class="list-title">Flight_Confirmation_JAL.pdf</div>
+                        <div class="list-desc">PDF Document &bull; Received yesterday via Gmail</div>
+                    </div>
+                </div>
+                <div class="list-card">
+                    <div class="list-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <div>
+                        <div class="list-title">Kyoto_Saved_Places.txt</div>
+                        <div class="list-desc">Updated 2 hours ago from Apple Notes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="slide slide-3">
+        <h2>Structured intelligence.</h2>
+        <div class="modal-table glass-panel">
+            <div class="panel-content">
+                <div class="modal-title">Dining Availability</div>
+                <div class="modal-subtitle">Real-time reservations cross-checked for your dates.</div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead><tr><th>Restaurant</th><th>Cuisine</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>Kikunoi Honten</td><td>Kaiseki</td>
+                                <td><span class="status-badge"><svg width="8" height="8"><circle cx="4" cy="4" r="4" fill="#34c759"/></svg> Available (7:00 PM)</span></td>
+                            </tr>
+                            <tr>
+                                <td>Gion Sasaki</td><td>Sushi</td>
+                                <td><span class="status-badge" style="color:#86868b"><svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg> Waitlist Only</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4 -->
+    <div class="slide slide-4">
+        <h2>Visual comprehension.</h2>
+        <div class="modal-products glass-panel">
+            <div class="panel-content">
+                <div class="modal-title">Saved Locations</div>
+                <div class="modal-subtitle">Extracted from your Pinterest mood board.</div>
+                <div class="product-card">
+                    <img class="product-img" src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=150&q=80" alt="Kyoto Shrine">
+                    <div class="product-info">
+                        <div class="product-title">Fushimi Inari Taisha</div>
+                        <div class="product-desc">Shinto shrine &bull; 2-3 hours recommended</div>
+                        <span class="product-price">Free Entry</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5 -->
+    <div class="slide slide-5">
+        <h2>Total control.</h2>
+        <div class="modal-confirm glass-panel">
+            <div class="panel-content">
+                <div class="modal-title">Ready to book?</div>
+                <p style="font-size:14.5px;color:var(--text-dark);margin:8px 0 0 0;text-align:left;line-height:1.5;font-weight:400;">
+                    Your itinerary is optimized. Would you like Moonwalk to lock in these dinner reservations and update your calendar?
+                </p>
+                <div class="confirm-actions">
+                    <div class="btn-action btn-cancel">Cancel</div>
+                    <div class="btn-action btn-confirm">Confirm Bookings</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA -->
+<section class="download-section">
+    <div class="download-content">
+        <h2>Experience Moonwalk today.</h2>
+        <p>Available for macOS 13.0 and later. v__VERSION__ &mdash; Windows coming soon.</p>
+        <a href="__DMG_URL__" class="btn-download">
+            <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download for macOS
+        </a>
+    </div>
+</section>
+
+<footer class="site-footer">
+    <div class="footer-links">
+        <a href="https://www.github.com/oactodev/Moonwalk" target="_blank" class="footer-link">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+            GitHub
+        </a>
+        <a href="https://linkedin.com/in/enaihouwaspaul" target="_blank" class="footer-link">
+            <svg viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+            Enaiho Uwas Paul
+        </a>
+        <a href="https://www.linkedin.com/in/amansahcode/" target="_blank" class="footer-link">
+            <svg viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+            Amansah
+        </a>
+    </div>
+</footer>
+
+</body>
+</html>

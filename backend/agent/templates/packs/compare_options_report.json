@@ -1,0 +1,145 @@
+{
+  "name": "compare_options_report",
+  "priority": 135,
+  "version": "3",
+  "tags": ["research", "comparison", "ranking", "document"],
+  "skill": {
+    "name": "compare_options_report_skill",
+    "description": "Compare multiple options by visiting actual source pages and compile a ranked document report.",
+    "examples": [
+      "compare top UK housing options and create a report",
+      "find the best option and write a brief in Google docs",
+      "rank these choices and document why"
+    ],
+    "capabilities_all": ["comparison", "research", "document_output"],
+    "capabilities_any": ["browser_read"],
+    "min_semantic_score": 0.18,
+    "semantic_weight": 10.0
+  },
+  "match": {
+    "intent_actions": ["search", "analyze", "create", "unknown"],
+    "regex_any": [
+      "(compare|vs|versus|rank|ranking).*(document|report|write|brief|google\\s*doc)",
+      "(document|report|write|brief|google\\s*doc).*(compare|vs|versus|rank|ranking)"
+    ],
+    "keywords_any": ["compare", "vs", "versus", "rank", "ranking"],
+    "phrases_any": ["document", "report", "write", "brief", "google doc"],
+    "min_total_score": 150
+  },
+  "plan": {
+    "task_summary": "Compare options from multiple sources and compile a report",
+    "steps": [
+      {
+        "description": "Search for comparison sources",
+        "tool": "web_search",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search results visible",
+        "wait_after": 1
+      },
+      {
+        "description": "Read search results to find comparison articles",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Search results read with article links",
+        "wait_after": 0
+      },
+      {
+        "description": "Click into first comparison article",
+        "tool": "browser_click_match",
+        "args": {
+          "query": "{query} best comparison"
+        },
+        "success_criteria": "Navigated to first source",
+        "wait_after": 1
+      },
+      {
+        "description": "Read first source content in detail",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "First source text content extracted",
+        "wait_after": 0
+      },
+      {
+        "description": "Scroll down for more content",
+        "tool": "browser_scroll",
+        "args": {
+          "direction": "down",
+          "amount": "page"
+        },
+        "success_criteria": "Scrolled for more content",
+        "wait_after": 0
+      },
+      {
+        "description": "Read additional content from first source",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Additional first source text content extracted",
+        "wait_after": 0
+      },
+      {
+        "description": "Search for second comparison angle",
+        "tool": "web_search",
+        "args": {
+          "query": "{query} reviews rankings"
+        },
+        "success_criteria": "Second search opened",
+        "wait_after": 1,
+        "optional": true
+      },
+      {
+        "description": "Read second search result links",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Second search links identified",
+        "wait_after": 0,
+        "optional": true
+      },
+      {
+        "description": "Click into second source for comparison",
+        "tool": "browser_click_match",
+        "args": {
+          "query": "{query} review comparison"
+        },
+        "success_criteria": "Navigated to second comparison source",
+        "wait_after": 1,
+        "optional": true
+      },
+      {
+        "description": "Read text from second comparison source",
+        "tool": "browser_read_page",
+        "args": {
+          "query": "{query}"
+        },
+        "success_criteria": "Second source text content extracted",
+        "wait_after": 0,
+        "optional": true
+      },
+      {
+        "description": "Write comparison report to Google Doc",
+        "tool": "gdocs_create",
+        "args": {
+          "title": "{doc_title}",
+          "body": "Comparison report will be synthesized from collected research."
+        },
+        "success_criteria": "Report document created",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["browser_read_page", "gdocs_create"],
+    "min_steps": 5,
+    "max_steps": 14
+  },
+  "final_response": "Comparison report created in Google Docs."
+}

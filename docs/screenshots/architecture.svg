@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="680" viewBox="0 0 900 680">
+  <defs>
+    <!-- Glassmorphism filters -->
+    <filter id="glass-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.10)"/>
+    </filter>
+    <filter id="node-shadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.08)"/>
+    </filter>
+    <filter id="glow-blue" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="rgba(0,122,255,0.25)"/>
+    </filter>
+    <filter id="glow-green" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="rgba(52,199,89,0.25)"/>
+    </filter>
+    <filter id="glow-purple" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="rgba(175,82,222,0.25)"/>
+    </filter>
+
+    <!-- Arrow marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#007aff"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(0,0,0,0.2)"/>
+    </marker>
+
+    <!-- Gradient backgrounds -->
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8f9fa"/>
+      <stop offset="100%" stop-color="#eef1f5"/>
+    </linearGradient>
+
+    <style>
+      .font { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif; }
+      .mono { font-family: 'SF Mono', 'Menlo', 'Monaco', monospace; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="680" fill="url(#bg-grad)" rx="0"/>
+
+  <!-- Title -->
+  <text x="450" y="38" class="font" font-size="13" font-weight="600" fill="#86868b" text-anchor="middle" letter-spacing="1.5">MOONWALK ARCHITECTURE</text>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- macOS Desktop region                    -->
+  <!-- ═══════════════════════════════════════ -->
+  <rect x="40" y="56" width="820" height="270" rx="20" ry="20"
+        fill="rgba(255,255,255,0.55)" stroke="rgba(0,0,0,0.06)" stroke-width="1"
+        filter="url(#glass-shadow)"/>
+  <rect x="41" y="57" width="818" height="268" rx="19" ry="19"
+        fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>
+  <text x="68" y="84" class="font" font-size="11" font-weight="600" fill="#86868b" letter-spacing="0.8">macOS DESKTOP</text>
+
+  <!-- Electron node -->
+  <rect x="72" y="104" width="240" height="190" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(0,122,255,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <!-- Blue accent bar -->
+  <rect x="72" y="104" width="240" height="4" rx="2" fill="#007aff" opacity="0.6"/>
+
+  <!-- Electron icon (simplified window) -->
+  <rect x="92" y="128" width="22" height="16" rx="3" fill="none" stroke="#007aff" stroke-width="1.5"/>
+  <line x1="92" y1="134" x2="114" y2="134" stroke="#007aff" stroke-width="1" opacity="0.4"/>
+  <circle cx="97" cy="131" r="1.5" fill="#ff5f57"/>
+  <circle cx="103" cy="131" r="1.5" fill="#febc2e"/>
+  <circle cx="109" cy="131" r="1.5" fill="#28c840"/>
+
+  <text x="122" y="141" class="font" font-size="16" font-weight="600" fill="#1d1d1f">Electron</text>
+  <text x="226" y="141" class="mono" font-size="11" font-weight="500" fill="#86868b">v36.2</text>
+
+  <text x="92" y="168" class="font" font-size="12" font-weight="400" fill="#6e6e73">Transparent frameless window</text>
+  <text x="92" y="186" class="font" font-size="12" font-weight="400" fill="#6e6e73">Glass-pill overlay UI</text>
+  <text x="92" y="204" class="font" font-size="12" font-weight="400" fill="#6e6e73">Audio capture + streaming</text>
+  <text x="92" y="222" class="font" font-size="12" font-weight="400" fill="#6e6e73">Ghost mouse passthrough</text>
+  <text x="92" y="240" class="font" font-size="12" font-weight="400" fill="#6e6e73">Global hotkeys</text>
+
+  <!-- Shortcuts badges -->
+  <rect x="92" y="254" width="68" height="22" rx="6" fill="rgba(0,122,255,0.08)"/>
+  <text x="126" y="269" class="mono" font-size="10" font-weight="600" fill="#007aff" text-anchor="middle">⌘⇧Space</text>
+  <rect x="168" y="254" width="58" height="22" rx="6" fill="rgba(0,122,255,0.08)"/>
+  <text x="197" y="269" class="mono" font-size="10" font-weight="600" fill="#007aff" text-anchor="middle">⌥Space</text>
+
+  <!-- Python Backend node -->
+  <rect x="400" y="104" width="240" height="190" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(52,199,89,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="400" y="104" width="240" height="4" rx="2" fill="#34c759" opacity="0.6"/>
+
+  <!-- Python icon (snake-ish) -->
+  <circle cx="422" cy="131" r="8" fill="none" stroke="#34c759" stroke-width="1.5"/>
+  <text x="419" y="135" class="font" font-size="10" font-weight="700" fill="#34c759">⌁</text>
+
+  <text x="436" y="141" class="font" font-size="16" font-weight="600" fill="#1d1d1f">Python Backend</text>
+  <text x="420" y="168" class="font" font-size="12" font-weight="400" fill="#6e6e73">SPAV Agent core loop</text>
+  <text x="420" y="186" class="font" font-size="12" font-weight="400" fill="#6e6e73">Milestone executor</text>
+  <text x="420" y="204" class="font" font-size="12" font-weight="400" fill="#6e6e73">Perception + verifier</text>
+  <text x="420" y="222" class="font" font-size="12" font-weight="400" fill="#6e6e73">Tool registry (30+ tools)</text>
+  <text x="420" y="240" class="font" font-size="12" font-weight="400" fill="#6e6e73">Accessibility API bridge</text>
+
+  <!-- Port badge -->
+  <rect x="420" y="254" width="72" height="22" rx="6" fill="rgba(52,199,89,0.08)"/>
+  <text x="456" y="269" class="mono" font-size="10" font-weight="600" fill="#34c759" text-anchor="middle">WS :8000</text>
+
+  <!-- macOS APIs node -->
+  <rect x="716" y="104" width="120" height="120" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(175,82,222,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="716" y="104" width="120" height="4" rx="2" fill="#af52de" opacity="0.6"/>
+
+  <!-- gear icon -->
+  <circle cx="740" cy="134" r="8" fill="none" stroke="#af52de" stroke-width="1.5"/>
+  <circle cx="740" cy="134" r="3" fill="#af52de" opacity="0.3"/>
+
+  <text x="754" y="138" class="font" font-size="13" font-weight="600" fill="#1d1d1f">macOS</text>
+  <text x="736" y="162" class="font" font-size="11" font-weight="400" fill="#6e6e73">osascript</text>
+  <text x="736" y="178" class="font" font-size="11" font-weight="400" fill="#6e6e73">AX API</text>
+  <text x="736" y="194" class="font" font-size="11" font-weight="400" fill="#6e6e73">CGEvent</text>
+  <text x="736" y="210" class="font" font-size="11" font-weight="400" fill="#6e6e73">Screen cap</text>
+
+  <!-- ── Arrows: Electron ↔ Python ── -->
+  <!-- Forward arrow (top) -->
+  <line x1="312" y1="175" x2="400" y2="175" stroke="#007aff" stroke-width="2" marker-end="url(#arrow)" opacity="0.7"/>
+  <rect x="332" y="162" width="44" height="16" rx="4" fill="rgba(0,122,255,0.08)"/>
+  <text x="354" y="174" class="mono" font-size="9" font-weight="600" fill="#007aff" text-anchor="middle">WS</text>
+
+  <!-- Return arrow (bottom) -->
+  <line x1="400" y1="210" x2="312" y2="210" stroke="#007aff" stroke-width="2" marker-end="url(#arrow)" opacity="0.7"/>
+  <rect x="332" y="200" width="44" height="16" rx="4" fill="rgba(0,122,255,0.08)"/>
+  <text x="354" y="212" class="mono" font-size="9" font-weight="600" fill="#007aff" text-anchor="middle">JSON</text>
+
+  <!-- Arrow: Python → macOS -->
+  <line x1="640" y1="175" x2="716" y2="175" stroke="#af52de" stroke-width="2" marker-end="url(#arrow)" opacity="0.5"/>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Connector: Desktop → Cloud              -->
+  <!-- ═══════════════════════════════════════ -->
+  <line x1="450" y1="326" x2="450" y2="380" stroke="#007aff" stroke-width="2" stroke-dasharray="6 4" opacity="0.35"/>
+  <rect x="412" y="342" width="76" height="22" rx="11" fill="rgba(0,122,255,0.06)" stroke="rgba(0,122,255,0.15)" stroke-width="1"/>
+  <text x="450" y="357" class="font" font-size="10" font-weight="600" fill="#007aff" text-anchor="middle">Cloud Mode</text>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- Google Cloud Platform region            -->
+  <!-- ═══════════════════════════════════════ -->
+  <rect x="40" y="380" width="820" height="260" rx="20" ry="20"
+        fill="rgba(255,255,255,0.55)" stroke="rgba(0,0,0,0.06)" stroke-width="1"
+        filter="url(#glass-shadow)"/>
+  <rect x="41" y="381" width="818" height="258" rx="19" ry="19"
+        fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1"/>
+  <text x="68" y="408" class="font" font-size="11" font-weight="600" fill="#86868b" letter-spacing="0.8">GOOGLE CLOUD PLATFORM</text>
+
+  <!-- Cloud Run node -->
+  <rect x="72" y="424" width="220" height="180" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(0,122,255,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="72" y="424" width="220" height="4" rx="2" fill="#007aff" opacity="0.6"/>
+
+  <!-- Cloud icon -->
+  <path d="M100 448 C96 440, 106 434, 112 438 C114 432, 126 432, 128 438 C134 434, 142 440, 138 448 Z"
+        fill="none" stroke="#007aff" stroke-width="1.5"/>
+
+  <text x="148" y="452" class="font" font-size="15" font-weight="600" fill="#1d1d1f">Cloud Run</text>
+  <text x="92" y="478" class="font" font-size="12" font-weight="400" fill="#6e6e73">Auth (GCP ID + shared key)</text>
+  <text x="92" y="496" class="font" font-size="12" font-weight="400" fill="#6e6e73">Per-user agent pool</text>
+  <text x="92" y="514" class="font" font-size="12" font-weight="400" fill="#6e6e73">Auto-eviction (10 min)</text>
+  <text x="92" y="532" class="font" font-size="12" font-weight="400" fill="#6e6e73">Health endpoint</text>
+
+  <rect x="92" y="548" width="60" height="22" rx="6" fill="rgba(0,122,255,0.08)"/>
+  <text x="122" y="563" class="mono" font-size="10" font-weight="600" fill="#007aff" text-anchor="middle">:8080</text>
+
+  <!-- Firestore node -->
+  <rect x="360" y="424" width="160" height="100" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(255,149,0,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="360" y="424" width="160" height="4" rx="2" fill="#ff9500" opacity="0.6"/>
+  <!-- DB icon -->
+  <ellipse cx="388" cy="448" rx="8" ry="4" fill="none" stroke="#ff9500" stroke-width="1.5"/>
+  <line x1="380" y1="448" x2="380" y2="456" stroke="#ff9500" stroke-width="1.5"/>
+  <line x1="396" y1="448" x2="396" y2="456" stroke="#ff9500" stroke-width="1.5"/>
+  <ellipse cx="388" cy="456" rx="8" ry="4" fill="none" stroke="#ff9500" stroke-width="1.5"/>
+
+  <text x="404" y="454" class="font" font-size="14" font-weight="600" fill="#1d1d1f">Firestore</text>
+  <text x="380" y="480" class="font" font-size="12" font-weight="400" fill="#6e6e73">Conversation memory</text>
+  <text x="380" y="498" class="font" font-size="12" font-weight="400" fill="#6e6e73">User preferences</text>
+
+  <!-- GCS node -->
+  <rect x="360" y="540" width="160" height="70" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(0,122,255,0.12)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="360" y="540" width="160" height="4" rx="2" fill="#5ac8fa" opacity="0.6"/>
+  <!-- Bucket icon -->
+  <rect x="382" y="562" width="14" height="12" rx="2" fill="none" stroke="#5ac8fa" stroke-width="1.5"/>
+  <line x1="382" y1="568" x2="396" y2="568" stroke="#5ac8fa" stroke-width="1" opacity="0.5"/>
+
+  <text x="404" y="574" class="font" font-size="14" font-weight="600" fill="#1d1d1f">GCS</text>
+  <text x="380" y="596" class="font" font-size="12" font-weight="400" fill="#6e6e73">File storage + uploads</text>
+
+  <!-- Chrome Extension node -->
+  <rect x="600" y="424" width="230" height="160" rx="16" ry="16"
+        fill="rgba(255,255,255,0.7)" stroke="rgba(52,199,89,0.15)" stroke-width="1"
+        filter="url(#node-shadow)"/>
+  <rect x="600" y="424" width="230" height="4" rx="2" fill="#34c759" opacity="0.6"/>
+
+  <!-- Chrome icon (simplified) -->
+  <circle cx="626" cy="450" r="9" fill="none" stroke="#34c759" stroke-width="1.5"/>
+  <circle cx="626" cy="450" r="3.5" fill="#34c759" opacity="0.3"/>
+
+  <text x="642" y="455" class="font" font-size="14" font-weight="600" fill="#1d1d1f">Chrome Extension</text>
+  <text x="620" y="480" class="font" font-size="12" font-weight="400" fill="#6e6e73">Manifest V3 service worker</text>
+  <text x="620" y="498" class="font" font-size="12" font-weight="400" fill="#6e6e73">Content script injection</text>
+  <text x="620" y="516" class="font" font-size="12" font-weight="400" fill="#6e6e73">Web search + extraction</text>
+  <text x="620" y="534" class="font" font-size="12" font-weight="400" fill="#6e6e73">Form fill + page interaction</text>
+
+  <rect x="620" y="550" width="80" height="22" rx="6" fill="rgba(52,199,89,0.08)"/>
+  <text x="660" y="565" class="mono" font-size="10" font-weight="600" fill="#34c759" text-anchor="middle">WS :8765</text>
+
+  <!-- ── Arrows in cloud ── -->
+  <!-- Cloud Run → Firestore -->
+  <line x1="292" y1="474" x2="360" y2="474" stroke="rgba(0,0,0,0.15)" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <!-- Cloud Run → GCS -->
+  <line x1="292" y1="540" x2="360" y2="565" stroke="rgba(0,0,0,0.15)" stroke-width="1.5" marker-end="url(#arrow-gray)"/>
+  <!-- Cloud Run → Extension -->
+  <line x1="292" y1="510" x2="600" y2="510" stroke="#34c759" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+</svg>

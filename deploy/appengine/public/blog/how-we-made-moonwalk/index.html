@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Moonwalk - Behind the Scenes #GeminiLiveAgentChallenge.</title>
+    <style>
+        /* ══════════════════════════════════════════
+           BASE RESET & TYPOGRAPHY
+           ══════════════════════════════════════════ */
+        :root {
+            --text-dark: #1d1d1f;
+            --text-muted: #86868b;
+            --accent: #007aff;
+            --bg-page: #f5f5f7;
+            --bg-card: rgba(255, 255, 255, 0.65);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-page);
+            color: var(--text-dark);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.6;
+        }
+
+        /* ══════════════════════════════════════════
+           NAVIGATION BAR (Glass)
+           ══════════════════════════════════════════ */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 100;
+        }
+
+        .nav-logo svg { height: 24px; width: auto; }
+        
+        .nav-links { display: flex; gap: 24px; }
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--accent); }
+
+        /* ══════════════════════════════════════════
+           BLOG LAYOUT
+           ══════════════════════════════════════════ */
+        .blog-container {
+            max-width: 680px;
+            margin: 120px auto 100px;
+            padding: 0 20px;
+        }
+
+        .blog-header { margin-bottom: 48px; text-align: center; }
+        
+        .blog-tag {
+            font-size: 13px; font-weight: 700;
+            color: var(--accent); text-transform: uppercase;
+            letter-spacing: 0.1em; margin-bottom: 16px; display: block;
+        }
+
+        .blog-title {
+            font-size: 3.5rem; font-weight: 700;
+            letter-spacing: -0.04em; line-height: 1.1; margin-bottom: 24px;
+        }
+
+        .blog-meta {
+            font-size: 15px; color: var(--text-muted);
+            display: flex; justify-content: center; gap: 16px; align-items: center;
+        }
+
+        .blog-meta img {
+            width: 32px; height: 32px; border-radius: 50%;
+        }
+
+        /* Content Styling */
+        .blog-content h2 {
+            font-size: 2rem; font-weight: 600;
+            letter-spacing: -0.02em; margin: 48px 0 20px;
+        }
+
+        .blog-content p {
+            font-size: 1.15rem; color: #333336; margin-bottom: 24px;
+        }
+
+        .blog-content ul {
+            margin: 0 0 24px 24px; font-size: 1.15rem; color: #333336;
+        }
+        
+        .blog-content li { margin-bottom: 12px; }
+
+        /* Highlight/Architecture Block */
+        .info-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 20px;
+            padding: 32px;
+            margin: 40px 0;
+            box-shadow: 0 16px 32px -8px rgba(0,0,0,0.05);
+        }
+
+        .info-card h3 { font-size: 1.2rem; margin-bottom: 12px; }
+        .info-card p { margin-bottom: 0; font-size: 1.05rem; }
+
+        .architecture-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;
+        }
+        
+        .arch-node {
+            background: #ffffff; padding: 16px; border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.04); text-align: center; font-weight: 600; font-size: 14px;
+        }
+
+        .arch-node span { display: block; font-size: 12px; color: var(--text-muted); font-weight: 400; margin-top: 4px;}
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-logo">
+            <svg viewBox="0 0 450 120" xmlns="http://www.w3.org/2000/svg">
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap');
+                    .mw-text { font-family: 'Fredoka', -apple-system, sans-serif; font-weight: 600; font-size: 96px; fill: #111111; letter-spacing: -0.02em; }
+                </style>
+                <text x="0" y="50%" dominant-baseline="central" class="mw-text">moonwalk</text>
+            </svg>
+        </div>
+        <div class="nav-links">
+            <a href="#">Demo</a>
+            <a href="#">Architecture</a>
+            <a href="https://github.com/oactodev/Moonwalk" target="_blank">GitHub</a>
+        </div>
+    </nav>
+
+    <main class="blog-container">
+        
+        <header class="blog-header">
+            <span class="blog-tag">Behind the Scenes</span>
+            <h1 class="blog-title">Building Moonwalk: Escaping the Gravity of Bad UI.</h1>
+            <div class="blog-meta">
+                <img src="https://ui-avatars.com/api/?name=Moonwalk+Team&background=007aff&color=fff" alt="Team Avatar">
+                <span>By The Moonwalk Team</span>
+                <span>•</span>
+                <span>#GeminiLiveAgentChallenge.</span>
+            </div>
+        </header>
+
+        <article class="blog-content">
+            <p>Assistants are present within every part of our day-to-day. They are supposed to make tasks feel approachable and less daunting. Yet, for years, desktop assistants have felt rigid—more like glorified search engines than actual helpers.</p>
+            
+            <p>We took inspiration from the recent hype around **Openclaw**, a new kind of intelligent assistant that lives on your computer. But we wanted to go further. We realized that Openclaw uses an architecture similar to coding agents from **Antigravity**. In Antigravity, Gemini's multimodal capabilities are utilized during browser live tests for an incredibly fast, low-latency experience. We wanted that same seamless "I can see what you are doing" magic, but humanized for everyday desktop tasks.</p>
+
+            <p>We imagined a fully conversational agent with personality and intelligence. Whether it's helping a user stuck on a hard math problem or booking a ticket to Rome, we wanted to build an agent that makes interacting with your computer feel like there are no gravity forces holding you back. Hence, **Moonwalk**.</p>
+
+            <h2>The Multi-Model Architecture</h2>
+            <p>To make Moonwalk voice-first and genuinely conversational, it had to be fast. Human speech doesn't wait for loading spinners. To achieve this, we didn't just use one LLM; we used an orchestrated fleet of Gemini models.</p>
+
+            <div class="info-card">
+                <h3>Our Gemini Routing Engine</h3>
+                <div class="architecture-grid">
+                    <div class="arch-node">
+                        Gemini 2.5 Flash
+                        <span>The Fast Router</span>
+                    </div>
+                    <div class="arch-node">
+                        Gemini 3.1 Pro
+                        <span>Deep Reasoning & Code</span>
+                    </div>
+                    <div class="arch-node">
+                        Gemini 3 Flash
+                        <span>Multimodal & Vision</span>
+                    </div>
+                    <div class="arch-node">
+                        Gemini 2.5 Pro
+                        <span>Secure Fallback</span>
+                    </div>
+                </div>
+            </div>
+
+            <p>When you say <em>"Hey Moonwalk,"</em> your audio is transcribed and immediately hits **Gemini 2.5 Flash**, which acts as our router. If the task is simple, it answers directly. If it requires looking at your screen, it routes to **Gemini 3 Flash**. If you ask it to analyze a massive local codebase or draft a complex itinerary, it hands the prompt off to the heavyweight **Gemini 3.1 Pro**.</p>
+
+            <h2>Memory That Actually Remembers</h2>
+            <p>Moonwalk doesn't just act; it directly learns. We wanted to escape the "goldfish memory" problem of traditional chatbots.</p>
+            
+            <p>Each interaction shapes the agent to create a personalized experience. By hosting user memory logs securely on a **Google Cloud Bucket**, Moonwalk remembers your preferences, dislikes, and past requests. You can say, <em>"Moonwalk, fill out this job application using the CV we wrote last week,"</em> or <em>"Text my parents the shopping list they forgot,"</em> and Moonwalk knows exactly what you are talking about.</p>
+
+            <h2>The Hackathon Hustle</h2>
+            <p>Building an autonomous agent in a weekend is no small feat. Here are the biggest challenges we faced:</p>
+            <ul>
+                <li><strong>Routing Latency:</strong> Introducing a routing layer initially slowed things down. We had to heavily optimize our prompt payloads and use strict JSON schemas to ensure the handoff between the 2.5 Flash router and the 3.1 Pro execution model happened in milliseconds.</li>
+                <li><strong>Contextual Flooding:</strong> Pulling memory from the Google Cloud Bucket was easy; pulling the <em>right</em> memory was hard. We had to build a strict retrieval system so Moonwalk wouldn't accidentally read your grocery list when trying to book a flight.</li>
+            </ul>
+
+            <h2>What's Next?</h2>
+            <p>We built Moonwalk to personalize the computer experience by giving you a hands-free, agentic workflow. But we are just getting started.</p>
+            <p>Because our memory architecture is hosted on the cloud, our immediate next step is building an iOS/Android companion app. We want Moonwalk to travel with you, passing context seamlessly from your desktop to your phone. We are also expanding Moonwalk's toolset to navigate complex web apps autonomously.</p>
+
+            <p>Moonwalk removes the friction between thought and execution. It's time to expect more from our computers.</p>
+
+        </article>
+
+    </main>
+
+    <footer style="text-align: center; padding: 40px; border-top: 1px solid rgba(0,0,0,0.05); color: var(--text-muted); font-size: 14px;">
+        <p>.</p>
+    </footer>
+
+</body>
+</html>

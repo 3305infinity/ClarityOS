@@ -1,0 +1,58 @@
+{
+  "name": "current_page_to_document",
+  "priority": 118,
+  "version": "1",
+  "tags": ["browser", "research", "document"],
+  "skill": {
+    "name": "current_page_to_document_skill",
+    "description": "Summarize the current browser page and write the output to a Google document.",
+    "examples": [
+      "summarize this page into a Google doc",
+      "write up the current article into a document",
+      "make a report from this website"
+    ],
+    "capabilities_all": ["browser_read", "document_output"],
+    "capabilities_any": ["browser_context"],
+    "min_semantic_score": 0.2,
+    "semantic_weight": 9.0
+  },
+  "match": {
+    "intent_actions": ["search", "create", "analyze", "unknown"],
+    "require_browser": true,
+    "regex_any": [
+      "(summari[sz]e|analy[sz]e|explain|write\\s*up).*(this|current).*(page|article|website).*(document|report|google\\s*doc|doc|brief)",
+      "(document|report|google\\s*doc|doc|brief).*(this|current).*(page|article|website)"
+    ]
+  },
+  "plan": {
+    "task_summary": "Summarize the current page into a Google document",
+    "steps": [
+      {
+        "description": "Read the current page content",
+        "tool": "browser_read_page",
+        "args": {
+          "viewport_only": false,
+          "max_items": 120
+        },
+        "success_criteria": "Page content extracted",
+        "wait_after": 0
+      },
+      {
+        "description": "Create Google Doc with page summary",
+        "tool": "gdocs_create",
+        "args": {
+          "title": "{doc_title}",
+          "body": "{step1_result}"
+        },
+        "success_criteria": "Google Doc created with summary",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["browser_read_page", "gdocs_create"],
+    "min_steps": 2,
+    "max_steps": 4
+  },
+  "final_response": "Created a Google document with the summary of the current page."
+}

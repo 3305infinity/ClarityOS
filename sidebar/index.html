@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ClarityOS Sidebar</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header id="bar">
+  <div class="drag">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="name">ClarityOS</span>
+    <span id="chip" class="chip state-idle"><i></i><span id="chip-text">Idle</span></span>
+  </div>
+  <div class="bar-btns">
+    <button id="b-theme" class="ico" title="Switch between light and dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
+    <button id="b-pin" class="ico" title="Always on top" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 7 4 3v2H6v-2l4-3-1-7z"/></svg>
+    </button>
+    <button id="b-collapse" class="ico" title="Collapse">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5l7 7-7 7"/><path d="M5 5l7 7-7 7"/></svg>
+    </button>
+    <button id="b-hide" class="ico" title="Hide (Ctrl+Shift+A)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>
+    </button>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button class="tab on" data-tab="chat">Chat</button>
+  <button class="tab" data-tab="actions">Actions</button>
+  <button class="tab" data-tab="apps">Apps</button>
+</nav>
+
+<main id="panels">
+  <!-- ── Chat ── -->
+  <section id="p-chat" class="panel on">
+    <div id="log" role="log" aria-live="polite">
+      <div class="empty">
+        <p class="e-title">Ask about anything on your screen</p>
+        <p class="e-sub">ClarityOS can read your screen, launch apps and act in your browser. Consequential actions ask first.</p>
+      </div>
+    </div>
+    <div id="composer">
+      <textarea id="in" rows="1" placeholder="Ask ClarityOS…" aria-label="Message"></textarea>
+      <div class="c-btns">
+        <button id="b-mic" class="pillbtn" title="Dictate a task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/>
+          </svg>
+          Speak
+        </button>
+        <button id="b-screen" class="pillbtn" title="Capture and ask about your screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          Screen
+        </button>
+        <button id="b-send" class="send" title="Send (Enter)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+        </button>
+        <button id="b-stop" class="stop" hidden title="Stop (Esc)">Stop</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Actions ── -->
+  <section id="p-actions" class="panel">
+    <p class="sec-h">Screen</p>
+    <button class="act" data-cmd="Summarise what is currently on my screen.">Summarise my screen</button>
+    <button class="act" data-cmd="Read the form on my screen and tell me what each field expects.">Read the form on screen</button>
+    <button class="act" data-cmd="Explain the error visible on my screen and how to fix it.">Explain this error</button>
+    <p class="sec-h">Browser</p>
+    <button class="act" data-cmd="Summarise the page open in my browser.">Summarise this page</button>
+    <button class="act" data-cmd="List the links and buttons on the page open in my browser.">List page controls</button>
+    <p class="sec-h">System</p>
+    <button class="act" data-cmd="List the applications currently running on this PC.">Running apps</button>
+    <button class="act" data-cmd="What is in my clipboard?">Read clipboard</button>
+  </section>
+
+  <!-- ── Apps ── -->
+  <section id="p-apps" class="panel">
+    <p class="sec-h">Launch</p>
+    <div class="grid" id="appgrid"></div>
+    <p class="hint">Launching uses the ClarityOS Windows helper. If an app is missing, type its name in Chat instead.</p>
+  </section>
+</main>
+
+<div id="toast" hidden></div>
+
+<!-- Approval prompt — the same approval protocol the main window uses -->
+<div id="approve" hidden>
+  <div class="ap-card">
+    <p class="ap-t">Approval needed</p>
+    <p class="ap-why" id="ap-why"></p>
+    <pre class="ap-sum" id="ap-sum"></pre>
+    <div class="ap-btns">
+      <button id="ap-no" class="deny">Deny</button>
+      <button id="ap-yes" class="allow">Allow once</button>
+    </div>
+  </div>
+</div>
+
+<script src="sidebar.js"></script>
+</body>
+</html>

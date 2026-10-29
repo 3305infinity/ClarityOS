@@ -1,0 +1,37 @@
+{
+    "connections": {
+        "primary": {
+            "host": "db-primary.internal",
+            "port": 5432,
+            "credentials": {
+                "username": "admin",
+                "password": "prod_secret_42",
+                "auth_method": "scram-sha-256"
+            },
+            "pool": {
+                "min_size": 2,
+                "max_size": 10,
+                "timeout": 30
+            }
+        },
+        "replica": {
+            "host": "db-replica.internal",
+            "port": 5432,
+            "credentials": {
+                "username": "reader",
+                "password": "read_only_99",
+                "auth_method": "scram-sha-256"
+            },
+            "pool": {
+                "min_size": 1,
+                "max_size": 5,
+                "timeout": 15
+            }
+        }
+    },
+    "migrations": {
+        "auto_run": false,
+        "directory": "./migrations",
+        "table": "schema_versions"
+    }
+}

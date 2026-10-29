@@ -1,0 +1,560 @@
+// ═══════════════════════════════════════════════════════════════
+//  Moonwalk — Content Script
+//  Captures interactive DOM elements and executes browser actions.
+// ═══════════════════════════════════════════════════════════════
+
+const INTERACTIVE_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "textarea",
+  "select",
+  "summary",
+  "[contenteditable='true']",
+  "[contenteditable='']",
+  "[tabindex]:not([tabindex='-1'])",
+  "img[alt]",
+  "video",
+  "[role='button']",
+  "[role='link']",
+  "[role='textbox']",
+  "[role='searchbox']",
+  "[role='combobox']",
+  "[role='tab']",
+  "[role='menuitem']",
+  "[role='option']",
+  "[role='radio']",
+  "[role='checkbox']",
+  "[role='switch']",
+  "[role='slider']",
+  "[role='treeitem']",
+  "[role='gridcell']",
+].join(",");
+
+// ── Helpers ──
+
+function textOf(node) {
+  return (node?.innerText || node?.textContent || "").trim().replace(/\s+/g, " ").slice(0, 160);
+}
+
+function isVisible(el) {
+  const style = window.getComputedStyle(el);
+  if (style.visibility === "hidden" || style.display === "none" || parseFloat(style.opacity) === 0) {
+    return false;
+  }
+  const rect = el.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function isInViewport(el) {
+  const rect = el.getBoundingClientRect();
+  return (
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < window.innerHeight &&
+    rect.left < window.innerWidth
+  );
+}
+
+function roleOf(el) {
+  return el.getAttribute("role") || el.tagName.toLowerCase();
+}
+
+function actionTypesFor(el) {
+  const tag = el.tagName.toLowerCase();
+  const type = (el.getAttribute("type") || "").toLowerCase();
+  const role = roleOf(el).toLowerCase();
+  const actions = new Set();
+
+  if (
+    ["button", "a", "summary"].includes(tag) ||
+    ["button", "link", "tab", "menuitem", "switch", "treeitem", "gridcell"].includes(role)
+  ) {
+    actions.add("click");
+  }
+  if (
+    ["input", "textarea"].includes(tag) ||
+    ["textbox", "searchbox", "combobox"].includes(role) ||
+    el.isContentEditable
+  ) {
+    actions.add("click");
+    actions.add("type");
+  }
+  if (tag === "select" || ["combobox", "listbox", "option"].includes(role)) {
+    actions.add("select");
+  }
+  if (tag === "input" && ["checkbox", "radio"].includes(type)) {
+    actions.add("click");
+  }
+  if (tag === "input" && type === "range") {
+    actions.add("click");
+  }
+  if (role === "slider") {
+    actions.add("click");
+  }
+  if (tag === "img" || tag === "video") {
+    actions.add("click");
+  }
+  // tabindex elements that are none of the above are at least clickable
+  if (actions.size === 0 && el.hasAttribute("tabindex")) {
+    actions.add("click");
+  }
+
+  return [...actions];
+}
+
+function domPath(el) {
+  const parts = [];
+  let current = el;
+  while (current && current.nodeType === Node.ELEMENT_NODE && parts.length < 8) {
+    const tag = current.tagName.toLowerCase();
+    const siblings = current.parentElement
+      ? [...current.parentElement.children].filter((child) => child.tagName === current.tagName)
+      : [current];
+    const index = siblings.indexOf(current);
+    parts.unshift(`${tag}:${index}`);
+    current = current.parentElement;
+  }
+  return parts.join(">");
+}
+
+function ancestorLabels(el) {
+  const labels = [];
+  let current = el.parentElement;
+  let depth = 0;
+  while (current && labels.length < 3 && depth < 6) {
+    depth++;
+    // Prefer explicit aria-label on ancestors (concise, semantic)
+    const ariaLabel = (current.getAttribute("aria-label") || "").trim();
+    if (ariaLabel) {
+      labels.push(ariaLabel.slice(0, 80));
+      current = current.parentElement;
+      continue;
+    }
+    // Only use innerText if it's short — skip huge wrapper nodes
+    const innerText = textOf(current);
+    if (innerText && innerText.length <= 120) {
+      labels.push(innerText.slice(0, 80));
+    }
+    current = current.parentElement;
+  }
+  return labels;
+}
+
+function dataAttributes(el) {
+  const result = {};
+  for (const attr of el.attributes) {
+    if (attr.name.startsWith("data-") && attr.value) {
+      const key = attr.name.slice(5);
+      if (key.length <= 30 && attr.value.length <= 80) {
+        result[key] = attr.value;
+      }
+    }
+  }
+  return result;
+}
+
+function serializeElement(el, index) {
+  const rect = el.getBoundingClientRect();
+  const text = textOf(el);
+  const ariaLabel = (el.getAttribute("aria-label") || "").trim();
+  const name = (el.getAttribute("name") || "").trim();
+  const placeholder = (el.getAttribute("placeholder") || "").trim();
+  const href = (el.getAttribute("href") || "").trim();
+  const alt = (el.getAttribute("alt") || "").trim();
+  const title = (el.getAttribute("title") || "").trim();
+  const role = roleOf(el);
+  const path = domPath(el);
+  const labels = ancestorLabels(el);
+  const dataAttrs = dataAttributes(el);
+  const viewport = isInViewport(el);
+  const refId = `mw_${index}_${btoa(path).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12)}`;
+
+  return {
+    ref_id: refId,
+    role,
+    tag: el.tagName.toLowerCase(),
+    text: text || alt || title,
+    aria_label: ariaLabel,
+    name,
+    placeholder,
+    href,
+    value: typeof el.value === "string" ? el.value.slice(0, 120) : "",
+    context_text: labels.join(" | "),
+    frame_path: "main",
+    dom_path: path,
+    bounds: {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    },
+    visible: true,
+    enabled: !el.disabled,
+    checked: !!el.checked,
+    selected: !!el.selected,
+    in_viewport: viewport,
+    action_types: actionTypesFor(el),
+    fingerprint: {
+      role,
+      text: text || alt || title,
+      aria_label: ariaLabel,
+      name,
+      placeholder,
+      href,
+      ancestor_labels: labels,
+      frame_path: "main",
+      dom_path: path,
+      sibling_index: index,
+      stable_attributes: {
+        id: el.id || "",
+        class: (el.className || "").toString().slice(0, 120),
+        type: el.getAttribute("type") || "",
+        ...dataAttrs,
+      },
+    },
+  };
+}
+
+// ── Element Collection (deduplicated) ──
+
+function collectElements() {
+  const seen = new Set();
+  const results = [];
+  const nodes = document.querySelectorAll(INTERACTIVE_SELECTOR);
+
+  for (const el of nodes) {
+    if (results.length >= 300) break;
+    if (seen.has(el)) continue;
+    if (!isVisible(el)) continue;
+    seen.add(el);
+    results.push(serializeElement(el, results.length));
+  }
+
+  return results;
+}
+
+function buildSnapshot(sessionId, tabId) {
+  return {
+    session_id: sessionId,
+    tab_id: tabId,
+    url: window.location.href,
+    title: document.title,
+    generation: Date.now(),
+    frame_id: "main",
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: Math.round(window.scrollX),
+      scrollY: Math.round(window.scrollY),
+    },
+    elements: collectElements(),
+    opaque_regions: [],
+  };
+}
+
+// ── Action Execution ──
+
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function collectActionCandidates() {
+  const seen = new Set();
+  const results = [];
+  const nodes = document.querySelectorAll(INTERACTIVE_SELECTOR);
+
+  for (const el of nodes) {
+    if (results.length >= 400) break;
+    if (seen.has(el)) continue;
+    if (!isVisible(el)) continue;
+    seen.add(el);
+    results.push({ element: el, payload: serializeElement(el, results.length) });
+  }
+
+  return results;
+}
+
+function scoreCandidate(action, payload) {
+  const metadata = action?.metadata || {};
+  const requestedAction = String(action?.action || "");
+  if (
+    requestedAction &&
+    Array.isArray(payload.action_types) &&
+    payload.action_types.length &&
+    !payload.action_types.includes(requestedAction)
+  ) {
+    return -1;
+  }
+
+  let score = 0;
+  if (payload.ref_id === action?.ref_id) score += 1000;
+  if (metadata.dom_path && payload.dom_path === metadata.dom_path) score += 300;
+  if (metadata.tag && payload.tag === metadata.tag) score += 40;
+  if (metadata.role && payload.role === metadata.role) score += 40;
+
+  const expectedLabels = [
+    metadata.label,
+    metadata.text,
+    metadata.aria_label,
+    metadata.name,
+    metadata.placeholder,
+    metadata.href,
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
+
+  const actualLabels = [
+    payload.text,
+    payload.aria_label,
+    payload.name,
+    payload.placeholder,
+    payload.href,
+    payload.context_text,
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
+
+  for (const expected of expectedLabels) {
+    for (const actual of actualLabels) {
+      if (actual === expected) score += 120;
+      else if (actual.includes(expected) || expected.includes(actual)) score += 60;
+    }
+  }
+
+  // Prefer in-viewport elements for disambiguation
+  if (payload.in_viewport) score += 15;
+
+  return score;
+}
+
+function findTargetForAction(action) {
+  const candidates = collectActionCandidates();
+  let best = null;
+
+  for (const candidate of candidates) {
+    const score = scoreCandidate(action, candidate.payload);
+    if (score < 0) continue;
+    if (!best || score > best.score) {
+      best = { ...candidate, score };
+    }
+  }
+
+  if (!best || best.score <= 0) {
+    return null;
+  }
+  return best;
+}
+
+function dispatchInputEvents(el) {
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function setElementValue(el, value) {
+  if (el instanceof HTMLInputElement) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter ? setter.call(el, value) : (el.value = value);
+    return;
+  }
+  if (el instanceof HTMLTextAreaElement) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+    setter ? setter.call(el, value) : (el.value = value);
+    return;
+  }
+  if (el.isContentEditable) {
+    el.textContent = value;
+  }
+}
+
+function executeClick(el) {
+  el.scrollIntoView({ block: "center", inline: "center", behavior: "auto" });
+  el.focus?.({ preventScroll: true });
+  if (typeof el.click === "function") {
+    el.click();
+    return;
+  }
+  el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+}
+
+function executeType(el, action) {
+  const text = String(action?.text || "");
+  el.scrollIntoView({ block: "center", inline: "center", behavior: "auto" });
+  el.focus?.({ preventScroll: true });
+  if (action?.clear_first) {
+    setElementValue(el, "");
+    dispatchInputEvents(el);
+  }
+  setElementValue(el, text);
+  dispatchInputEvents(el);
+}
+
+function executeSelect(el, action) {
+  if (!(el instanceof HTMLSelectElement)) {
+    throw new Error("Target element is not a select control.");
+  }
+  const optionText = normalizeText(action?.option);
+  const option = [...el.options].find((candidate) => {
+    return normalizeText(candidate.textContent) === optionText || normalizeText(candidate.value) === optionText;
+  });
+  if (!option) {
+    throw new Error(`Option not found: ${action?.option || ""}`);
+  }
+  el.value = option.value;
+  dispatchInputEvents(el);
+}
+
+async function executeAction(action, sessionId, tabId) {
+  const match = findTargetForAction(action);
+  if (!match) {
+    return {
+      ok: false,
+      message: `Could not resolve target for ${action?.ref_id || "unknown ref"}.`,
+      executedRefId: "",
+      matchedBy: "none",
+    };
+  }
+
+  const { element, payload } = match;
+  if (!payload.enabled) {
+    return {
+      ok: false,
+      message: `Target ${payload.ref_id} is disabled.`,
+      executedRefId: payload.ref_id,
+      matchedBy: payload.ref_id === action?.ref_id ? "ref_id" : "heuristic",
+    };
+  }
+
+  try {
+    if (action?.action === "click") {
+      executeClick(element);
+    } else if (action?.action === "type") {
+      executeType(element, action);
+    } else if (action?.action === "select") {
+      executeSelect(element, action);
+    } else {
+      throw new Error(`Unsupported action: ${action?.action || "unknown"}`);
+    }
+
+    // The MutationObserver will automatically send an updated snapshot
+    // after the DOM settles — no redundant manual snapshot here.
+    return {
+      ok: true,
+      message: `${action.action} executed on ${payload.ref_id}`,
+      executedRefId: payload.ref_id,
+      matchedBy: payload.ref_id === action?.ref_id ? "ref_id" : "heuristic",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: String(error?.message || error),
+      executedRefId: payload.ref_id,
+      matchedBy: payload.ref_id === action?.ref_id ? "ref_id" : "heuristic",
+    };
+  }
+}
+
+// ── Snapshot Sending (debounced) ──
+
+let _snapshotDebounceTimer = null;
+
+async function sendSnapshot(sessionId, tabId) {
+  const snapshot = buildSnapshot(sessionId, tabId);
+  try {
+    await chrome.runtime.sendMessage({
+      type: "moonwalk_snapshot",
+      snapshot,
+    });
+  } catch (error) {
+    console.debug("[Moonwalk Content] Snapshot send failed", error);
+  }
+}
+
+function debouncedSnapshot(sessionId, tabId, delayMs = 300) {
+  if (_snapshotDebounceTimer) clearTimeout(_snapshotDebounceTimer);
+  _snapshotDebounceTimer = setTimeout(() => {
+    _snapshotDebounceTimer = null;
+    sendSnapshot(sessionId, tabId);
+  }, delayMs);
+}
+
+// ── MutationObserver — auto-snapshot on meaningful DOM changes ──
+
+let _observerActive = false;
+let _observerSessionId = "";
+let _observerTabId = "";
+let _mutationBatch = 0;
+const MUTATION_BATCH_THRESHOLD = 5;
+const MUTATION_DEBOUNCE_MS = 400;
+
+function startMutationObserver(sessionId, tabId) {
+  if (_observerActive) return; // already watching
+  _observerActive = true;
+  _observerSessionId = sessionId;
+  _observerTabId = tabId;
+
+  const observer = new MutationObserver((mutations) => {
+    let dominated = false;
+    for (const m of mutations) {
+      if (m.type === "childList" && (m.addedNodes.length > 0 || m.removedNodes.length > 0)) {
+        dominated = true;
+        break;
+      }
+      if (m.type === "attributes") {
+        const attr = m.attributeName || "";
+        if (["disabled", "aria-hidden", "hidden", "style", "class", "aria-expanded", "aria-selected", "checked"].includes(attr)) {
+          dominated = true;
+          break;
+        }
+      }
+    }
+
+    if (!dominated) return;
+
+    _mutationBatch++;
+    if (_mutationBatch >= MUTATION_BATCH_THRESHOLD) {
+      _mutationBatch = 0;
+      debouncedSnapshot(_observerSessionId, _observerTabId, MUTATION_DEBOUNCE_MS);
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["disabled", "aria-hidden", "hidden", "style", "class", "aria-expanded", "aria-selected", "checked"],
+  });
+}
+
+// ── Message Handling ──
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "moonwalk_collect_snapshot") {
+    const sid = message.sessionId || _observerSessionId;
+    const tid = message.tabId || _observerTabId;
+    _observerSessionId = sid;
+    _observerTabId = tid;
+    sendSnapshot(sid, tid);
+    // Start observing on first snapshot request
+    startMutationObserver(sid, tid);
+    sendResponse?.({ ok: true });
+    return true;
+  }
+  if (message?.type === "moonwalk_execute_action") {
+    executeAction(message.action, message.sessionId, message.tabId)
+      .then((result) => sendResponse?.(result))
+      .catch((error) =>
+        sendResponse?.({
+          ok: false,
+          message: String(error?.message || error),
+          executedRefId: "",
+          matchedBy: "none",
+        }),
+      );
+    return true;
+  }
+  return false;
+});

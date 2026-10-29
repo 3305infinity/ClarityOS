@@ -1,0 +1,37 @@
+{
+  "agent_name": "ax_first",
+  "artifacts": {},
+  "failure_reason": "Gemini API error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_INVALID', 'domain': 'googleapis.com', 'metadata': {'service': 'generativelanguage.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'API key not valid. Please pass a valid API key.'}]}}",
+  "failures": [
+    {
+      "details": {},
+      "reason": "Gemini API error: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'API_KEY_INVALID', 'domain': 'googleapis.com', 'metadata': {'service': 'generativelanguage.googleapis.com'}}, {'@type': 'type.googleapis.com/google.rpc.LocalizedMessage', 'locale': 'en-US', 'message': 'API key not valid. Please pass a valid API key.'}]}}",
+      "stage": "llm"
+    }
+  ],
+  "final_state_summary": "Run did not complete successfully.",
+  "latency_ms": 1111,
+  "metadata": {
+    "provider": "gemini (gemini-3-flash-preview)",
+    "run_mode": "live",
+    "scenario": {
+      "max_steps": 4,
+      "name": "open_notes",
+      "preconditions": [
+        "Notes is installed on the Mac."
+      ],
+      "seed_context": {
+        "target_app": "Notes"
+      },
+      "success_checks": [
+        "Notes is frontmost."
+      ],
+      "task": "Open Notes and make sure it is the active app.",
+      "timeout_s": 45
+    }
+  },
+  "scenario_name": "open_notes",
+  "step_count": 0,
+  "success": false,
+  "tool_calls": []
+}

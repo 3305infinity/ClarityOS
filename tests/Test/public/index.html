@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Moonwalk Agentic IDE</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="backdrop backdrop-a"></div>
+    <div class="backdrop backdrop-b"></div>
+
+    <div class="app-shell">
+      <header class="topbar panel">
+        <div class="brand-block">
+          <p class="eyebrow">Moonwalk</p>
+          <h1>Agentic IDE</h1>
+        </div>
+
+        <div class="workspace-block">
+          <p class="workspace-label">Workspace Root</p>
+          <p class="workspace-path" id="workspaceRoot">Loading…</p>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="chip-row">
+            <span class="status-chip" id="providerChip">agent: pending</span>
+            <span class="status-chip" id="terminalChip">terminal: pending</span>
+            <span class="status-chip" id="dirtyChip">clean</span>
+          </div>
+          <p class="status-message" id="globalStatus">Booting workspace…</p>
+        </div>
+      </header>
+
+      <div class="workspace-grid">
+        <aside class="panel sidebar-panel">
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <p class="panel-kicker">Workspace</p>
+              <h2>Explorer</h2>
+            </div>
+
+            <div class="segmented-control">
+              <button class="segment is-active" id="explorerModeButton" type="button">
+                Explorer
+              </button>
+              <button class="segment" id="searchModeButton" type="button">
+                Search
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-actions">
+            <button class="ghost-button" id="refreshTreeButton" type="button">Refresh</button>
+            <button class="ghost-button" id="newFileButton" type="button">New File</button>
+            <button class="ghost-button" id="newFolderButton" type="button">New Folder</button>
+            <button class="ghost-button" id="renameButton" type="button">Rename</button>
+            <button class="ghost-button danger" id="deleteButton" type="button">Delete</button>
+          </div>
+
+          <section class="sidebar-pane" id="explorerPane">
+            <div class="sidebar-empty hidden" id="explorerEmpty">
+              No files yet. Create one from the toolbar.
+            </div>
+            <div class="tree-root" id="treeRoot"></div>
+          </section>
+
+          <section class="sidebar-pane hidden" id="searchPane">
+            <label class="field">
+              <span class="field-label">Workspace Search</span>
+              <div class="field-row">
+                <input
+                  class="text-input"
+                  id="searchInput"
+                  placeholder="Search text across files"
+                  type="search"
+                />
+                <button class="primary-button" id="runSearchButton" type="button">Go</button>
+              </div>
+            </label>
+
+            <div class="search-results" id="searchResults"></div>
+          </section>
+        </aside>
+
+        <main class="main-column">
+          <section class="panel editor-panel">
+            <div class="panel-head editor-head">
+              <div class="panel-title-group">
+                <p class="panel-kicker">Code</p>
+                <h2>Editor</h2>
+              </div>
+
+              <div class="editor-actions">
+                <button class="ghost-button" id="revertButton" type="button">Revert</button>
+                <button class="primary-button" id="saveButton" type="button">Save</button>
+              </div>
+            </div>
+
+            <div class="tab-strip" id="tabStrip"></div>
+
+            <div class="editor-shell" id="editorShell">
+              <div class="editor-placeholder" id="editorPlaceholder">
+                <p>Select a file in the explorer to open it here.</p>
+                <p>Use the agent panel for autonomous workspace actions.</p>
+              </div>
+
+              <div class="editor-surface hidden" id="editorSurface">
+                <div class="editor-meta" id="editorMeta"></div>
+                <div class="editor-frame">
+                  <div class="editor-gutter" id="editorGutter"></div>
+                  <textarea
+                    autocapitalize="off"
+                    autocomplete="off"
+                    autocorrect="off"
+                    class="editor-textarea"
+                    id="editorTextarea"
+                    spellcheck="false"
+                    wrap="off"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel terminal-panel">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <p class="panel-kicker">Runtime</p>
+                <h2>Terminal</h2>
+              </div>
+
+              <div class="terminal-actions">
+                <button class="ghost-button" id="clearTerminalButton" type="button">Clear View</button>
+                <button class="ghost-button" id="restartTerminalButton" type="button">Restart</button>
+              </div>
+            </div>
+
+            <div class="terminal-output" id="terminalOutput"></div>
+
+            <div class="terminal-entry">
+              <textarea
+                class="terminal-input"
+                id="terminalInput"
+                placeholder="Type a command and press Enter"
+                rows="2"
+              ></textarea>
+              <button class="primary-button" id="sendTerminalButton" type="button">Send</button>
+            </div>
+          </section>
+        </main>
+
+        <aside class="panel agent-panel">
+          <div class="panel-head">
+            <div class="panel-title-group">
+              <p class="panel-kicker">Automation</p>
+              <h2>Agent</h2>
+            </div>
+          </div>
+
+          <div class="agent-body">
+            <label class="field">
+              <span class="field-label">Prompt</span>
+              <textarea
+                class="agent-prompt"
+                id="agentPrompt"
+                placeholder="Describe the task or use /analyze, /search, /read, /run, /write, /mkdir"
+                rows="6"
+              >/analyze</textarea>
+            </label>
+
+            <div class="agent-quick-actions" id="quickPrompts"></div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span class="field-label">Agent CWD</span>
+                <input class="text-input" id="agentCwdInput" placeholder="." type="text" />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Base URL</span>
+                <input
+                  class="text-input"
+                  id="agentBaseUrlInput"
+                  placeholder="https://api.openai.com/v1"
+                  type="url"
+                />
+              </label>
+
+              <label class="field">
+                <span class="field-label">Model</span>
+                <input
+                  class="text-input"
+                  id="agentModelInput"
+                  placeholder="gpt-4.1-mini"
+                  type="text"
+                />
+              </label>
+
+              <label class="field">
+                <span class="field-label">API Key</span>
+                <input
+                  class="text-input"
+                  id="agentApiKeyInput"
+                  placeholder="Optional. Leave blank for local planner."
+                  type="password"
+                />
+              </label>
+            </div>
+
+            <div class="agent-actions">
+              <button class="primary-button" id="runAgentButton" type="button">Run Agent</button>
+              <button class="ghost-button" id="clearAgentButton" type="button">Clear Stream</button>
+            </div>
+
+            <div class="agent-stream" id="agentStream"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

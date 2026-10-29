@@ -1,0 +1,82 @@
+{
+  "name": "browser_form_fill",
+  "priority": 95,
+  "version": "2",
+  "tags": ["browser", "form", "refs"],
+  "skill": {
+    "name": "browser_form_fill_skill",
+    "description": "Fill a browser form using stable ref ids and submit it.",
+    "examples": [
+      "fill this form and submit using refs",
+      "type into mw_12, select option in mw_13 and click mw_14",
+      "complete form fields then submit"
+    ],
+    "capabilities_all": ["form_fill", "browser_action"],
+    "capabilities_any": ["browser_context"],
+    "min_semantic_score": 0.2,
+    "semantic_weight": 7.5
+  },
+  "match": {
+    "intent_actions": ["execute", "modify", "unknown"],
+    "require_browser": true,
+    "regex_any": [
+      "type\\s+(?P<field_value>.+?)\\s+into\\s+(?P<field_ref>mw_\\d+)\\s+select\\s+(?P<option_value>.+?)\\s+in\\s+(?P<select_ref>mw_\\d+)\\s+and\\s+(?:submit|click)\\s+(?P<submit_ref>mw_\\d+)",
+      "fill\\s+(?P<field_ref>mw_\\d+)\\s+with\\s+(?P<field_value>.+?)\\s+then\\s+select\\s+(?P<option_value>.+?)\\s+in\\s+(?P<select_ref>mw_\\d+)\\s+and\\s+(?:submit|click)\\s+(?P<submit_ref>mw_\\d+)"
+    ]
+  },
+  "plan": {
+    "task_summary": "Fill and submit browser form",
+    "steps": [
+      {
+        "description": "Capture browser snapshot",
+        "tool": "browser_snapshot",
+        "args": {},
+        "success_criteria": "Snapshot captured",
+        "wait_after": 0
+      },
+      {
+        "description": "Type value into target form field",
+        "tool": "browser_type_ref",
+        "args": {
+          "ref_id": "{field_ref}",
+          "text": "{field_value}"
+        },
+        "success_criteria": "Field value entered",
+        "wait_after": 0
+      },
+      {
+        "description": "Select option from dropdown",
+        "tool": "browser_select_ref",
+        "args": {
+          "ref_id": "{select_ref}",
+          "option": "{option_value}"
+        },
+        "success_criteria": "Option selected",
+        "wait_after": 0
+      },
+      {
+        "description": "Refresh reference map before submit",
+        "tool": "browser_refresh_refs",
+        "args": {},
+        "success_criteria": "References refreshed",
+        "wait_after": 0,
+        "optional": true
+      },
+      {
+        "description": "Submit the form",
+        "tool": "browser_click_ref",
+        "args": {
+          "ref_id": "{submit_ref}"
+        },
+        "success_criteria": "Form submitted",
+        "wait_after": 0
+      }
+    ]
+  },
+  "constraints": {
+    "required_tools": ["browser_snapshot", "browser_type_ref", "browser_select_ref", "browser_click_ref"],
+    "min_steps": 4,
+    "max_steps": 6
+  },
+  "final_response": "Form completed and submitted."
+}
