@@ -281,7 +281,7 @@ def test_antigravity_searcher():
 def main():
     """Run all tests."""
     print("=" * 60)
-    print("  MOONWALK AGENT V2 — COMPONENT TESTS")
+    print("  CLARITYOS AGENT V2 — COMPONENT TESTS")
     print("=" * 60)
     
     results = []

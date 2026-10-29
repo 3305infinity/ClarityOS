@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ═══════════════════════════════════════════════════════════════
-//  Moonwalk — Upload DMG + Chrome Extension to GCS
+//  ClarityOS — Upload DMG + Chrome Extension to GCS
 //
 //  Usage:
 //    npm run dist:upload
 //
 //  Environment variables:
 //    GCP_PROJECT  — GCP project ID (default: from deploy script)
-//    GCS_BUCKET   — Bucket name (default: ${GCP_PROJECT}-moonwalk-releases)
+//    GCS_BUCKET   — Bucket name (default: ${GCP_PROJECT}-clarityos-releases)
 //    GCS_PREFIX   — Object prefix (default: releases/)
 // ═══════════════════════════════════════════════════════════════
 
@@ -17,12 +17,12 @@ import { join, basename } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const DIST = join(ROOT, "dist");
-const EXT_ZIP = join(DIST, "moonwalk-browser-bridge.zip");
+const EXT_ZIP = join(DIST, "clarityos-browser-bridge.zip");
 
 const GCP_PROJECT = process.env.GCP_PROJECT || "gen-lang-client-0333982983";
-const GCS_BUCKET = process.env.GCS_BUCKET || "getmoonwalk.top";
+const GCS_BUCKET = process.env.GCS_BUCKET || "getclarityos.top";
 const GCS_PREFIX = process.env.GCS_PREFIX || "releases/";
-const PUBLIC_BASE = process.env.PUBLIC_BASE || `https://getmoonwalk.top`;
+const PUBLIC_BASE = process.env.PUBLIC_BASE || `https://getclarityos.top`;
 const VERSION = JSON.parse(
   execSync("cat package.json", { cwd: ROOT, encoding: "utf8" })
 ).version;
@@ -55,7 +55,7 @@ function uploadFile(localPath, gcsKey) {
 
 // ── Main ──
 
-console.log(`\n🌙 Moonwalk Release Uploader v${VERSION}\n`);
+console.log(`\n🌙 ClarityOS Release Uploader v${VERSION}\n`);
 
 // 1. Ensure gcloud is available
 try {
@@ -91,16 +91,16 @@ if (dmgs.length > 0) {
   const primary = dmgs.find((d) => d.includes("universal")) || dmgs[0];
   const latestUrl = uploadFile(
     join(DIST, primary),
-    "latest/Moonwalk-latest.dmg"
+    "latest/ClarityOS-latest.dmg"
   );
-  urls.push({ name: "Moonwalk-latest.dmg (alias)", url: latestUrl });
+  urls.push({ name: "ClarityOS-latest.dmg (alias)", url: latestUrl });
 }
 
 // 4. Upload Chrome extension zip
 if (existsSync(EXT_ZIP)) {
-  const extUrl = uploadFile(EXT_ZIP, `v${VERSION}/moonwalk-browser-bridge.zip`);
-  urls.push({ name: "moonwalk-browser-bridge.zip", url: extUrl });
-  const latestExtUrl = uploadFile(EXT_ZIP, "latest/moonwalk-browser-bridge.zip");
+  const extUrl = uploadFile(EXT_ZIP, `v${VERSION}/clarityos-browser-bridge.zip`);
+  urls.push({ name: "clarityos-browser-bridge.zip", url: extUrl });
+  const latestExtUrl = uploadFile(EXT_ZIP, "latest/clarityos-browser-bridge.zip");
   urls.push({ name: "Extension (latest alias)", url: latestExtUrl });
 } else {
   console.log(
@@ -119,10 +119,10 @@ if (!existsSync(templatePath)) {
 
 // Find the canonical DMG and extension URLs already uploaded
 const dmgEntry = urls.find(u => u.name.includes("universal") || (u.name.endsWith(".dmg") && !u.name.includes("alias")));
-const extEntry = urls.find(u => u.name === "moonwalk-browser-bridge.zip");
+const extEntry = urls.find(u => u.name === "clarityos-browser-bridge.zip");
 
-const dmgUrl = dmgEntry?.url ?? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}latest/Moonwalk-latest.dmg`;
-const extUrl = extEntry?.url ?? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}latest/moonwalk-browser-bridge.zip`;
+const dmgUrl = dmgEntry?.url ?? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}latest/ClarityOS-latest.dmg`;
+const extUrl = extEntry?.url ?? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}latest/clarityos-browser-bridge.zip`;
 
 const landingHtml = readFileSync(templatePath, "utf8")
   .replaceAll("__VERSION__", VERSION)
@@ -140,7 +140,7 @@ urls.push({ name: "Download Page", url: pageUrl });
 // 5b. Upload blog pages
 const blogDir = new URL(".", import.meta.url).pathname;
 const blogFiles = [
-  { src: join(blogDir, "blog-how-we-made-moonwalk.html"), dest: "blog/how-we-made-moonwalk/index.html" },
+  { src: join(blogDir, "blog-how-we-made-clarityos.html"), dest: "blog/how-we-made-clarityos/index.html" },
 ];
 for (const { src, dest } of blogFiles) {
   if (existsSync(src)) {
@@ -152,7 +152,7 @@ for (const { src, dest } of blogFiles) {
 
 // 6. Summary
 console.log(`\n${"═".repeat(60)}`);
-console.log(`  🌙 Moonwalk v${VERSION} — Published to GCS`);
+console.log(`  🌙 ClarityOS v${VERSION} — Published to GCS`);
 console.log(`${"═".repeat(60)}\n`);
 console.log(`  📥 Download page:`);
   console.log(`     ${PUBLIC_BASE}/${GCS_PREFIX}index.html\n`);

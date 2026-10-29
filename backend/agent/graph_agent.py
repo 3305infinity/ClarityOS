@@ -5,7 +5,7 @@ Makes the agent's top-level pipeline an explicit, inspectable state machine:
 
     understand → plan → validate → execute → evaluate → respond
 
-Today that pipeline lives implicitly inside `MoonwalkAgentV2.process()`, a long
+Today that pipeline lives implicitly inside `ClarityOSAgentV2.process()`, a long
 method where the stages, the retry bounds and the exit conditions are tangled
 together with UI streaming and pending-state bookkeeping. LangGraph does not
 replace any of that work — every node *delegates* to the component that already
@@ -14,7 +14,7 @@ does the job:
     understand  →  ModelRouter.route()          (model/tier selection)
     plan        →  TaskPlanner.create_plan()    (milestone planning)
     validate    →  local checks only            (new: bounded plan correction)
-    execute     →  MoonwalkAgentV2._execute_milestone_plan()
+    execute     →  ClarityOSAgentV2._execute_milestone_plan()
                    └─ MilestoneExecutor → tool_registry.execute()  (guarded)
     evaluate    →  local checks only
     respond     →  returns the text the caller already expects
@@ -34,7 +34,7 @@ by `VoiceToolGuard` (Electron) or `Hub.install_guard` (website). So the
 PolicyEngine and ApprovalBroker apply unchanged, and a denied approval still
 returns `policy.user_denied` without running anything.
 
-The graph is opt-in. See `MOONWALK_USE_LANGGRAPH` in is_enabled().
+The graph is opt-in. See `CLARITYOS_USE_LANGGRAPH` in is_enabled().
 """
 
 from __future__ import annotations
@@ -56,12 +56,12 @@ __all__ = ["ClarityState", "GraphRunContext", "is_enabled", "is_available", "run
 
 def is_enabled() -> bool:
     """
-    MOONWALK_USE_LANGGRAPH = 1 | true | yes | on   (default: OFF)
+    CLARITYOS_USE_LANGGRAPH = 1 | true | yes | on   (default: OFF)
 
     Off by default so the original agent path stays the shipping behaviour
     until this has been exercised on real traffic.
     """
-    return (os.environ.get("MOONWALK_USE_LANGGRAPH", "") or "").strip().lower() in ("1", "true", "yes", "on")
+    return (os.environ.get("CLARITYOS_USE_LANGGRAPH", "") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def is_available() -> bool:
@@ -122,7 +122,7 @@ class ClarityState(TypedDict, total=False):
 @dataclass
 class GraphRunContext:
     """Live handles the nodes need but which must not be stored in graph state."""
-    agent: Any                      # MoonwalkAgentV2
+    agent: Any                      # ClarityOSAgentV2
     context: Any                    # perception.ContextSnapshot
     world_state: Any = None
     provider: Any = None
@@ -383,7 +383,7 @@ def build_graph(ctx: GraphRunContext):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  Entry point used by MoonwalkAgentV2
+#  Entry point used by ClarityOSAgentV2
 # ═══════════════════════════════════════════════════════════════
 
 async def run_graph(agent: Any, user_text: str, context: Any, ws_callback: Any = None) -> tuple:

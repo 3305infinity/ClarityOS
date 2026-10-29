@@ -1,4 +1,4 @@
-# Moonwalk Windows helper launcher.  Run from anywhere:   .\windows_helper\start.ps1  [-AllowShell]
+# ClarityOS Windows helper launcher.  Run from anywhere:   .\windows_helper\start.ps1  [-AllowShell]
 param([switch]$AllowShell, [string]$Hub = "ws://127.0.0.1:8787/helper", [string]$Token = "")
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot

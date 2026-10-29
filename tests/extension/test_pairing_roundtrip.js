@@ -135,7 +135,7 @@ async function evaluate(target, expression, awaitPromise = true) {
     check("worker reads the same storage area and key", JSON.parse(usesIt).sameCode === true, usesIt);
 
     const afterSave = JSON.parse(await evaluate(options, `(async () => JSON.stringify(
-      await chrome.runtime.sendMessage({ type: "moonwalk_get_status" })))()`));
+      await chrome.runtime.sendMessage({ type: "clarityos_get_status" })))()`));
     check("worker no longer reports 'No pairing code set'",
       !/No pairing code/i.test(afterSave.lastBridgeError || ""),
       `lastBridgeError=${JSON.stringify(afterSave.lastBridgeError)}`);
@@ -155,7 +155,7 @@ async function evaluate(target, expression, awaitPromise = true) {
     const opts2 = options; // the options page survives; only the worker restarted
     const rawAfterRestart = await evaluate(opts2, `(async () => {
       try {
-        return JSON.stringify(await chrome.runtime.sendMessage({ type: "moonwalk_get_status" }));
+        return JSON.stringify(await chrome.runtime.sendMessage({ type: "clarityos_get_status" }));
       } catch (e) { return JSON.stringify({ sendError: String(e && e.message || e) }); }
     })()`);
     let afterRestart;

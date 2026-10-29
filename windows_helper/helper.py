@@ -1,7 +1,7 @@
 r"""
-Moonwalk Windows helper
+ClarityOS Windows helper
 =======================
-A small, user-started program that lets the Moonwalk Hub control THIS Windows PC.
+A small, user-started program that lets the ClarityOS Hub control THIS Windows PC.
 
   * connects OUT to the hub (default ws://127.0.0.1:8787/helper) with a private token
   * runs only the tool groups you allow:   perceive (screenshots, UI tree)  input (mouse/keyboard/apps)
@@ -10,7 +10,7 @@ A small, user-started program that lets the Moonwalk Hub control THIS Windows PC
   * kill-switch: press  Ctrl + Alt + Esc  (or slam the mouse into the top-left corner) to stop at once
   * reconnects automatically if the hub restarts
 
-    py helper.py                         # same PC as the hub: token is read from %APPDATA%\Moonwalk\tokens.json
+    py helper.py                         # same PC as the hub: token is read from %APPDATA%\ClarityOS\tokens.json
     py helper.py --hub wss://host/helper --token <helper token>
 """
 from __future__ import annotations
@@ -36,10 +36,10 @@ KILL_COMBO_NAME = "Ctrl+Alt+Esc"
 
 
 def default_token() -> str:
-    env = os.environ.get("MOONWALK_HELPER_TOKEN", "").strip()
+    env = os.environ.get("CLARITYOS_HELPER_TOKEN", "").strip()
     if env:
         return env
-    base = os.environ.get("MOONWALK_USER_DIR") or os.path.join(os.environ.get("APPDATA", str(Path.home())), "Moonwalk")
+    base = os.environ.get("CLARITYOS_USER_DIR") or os.path.join(os.environ.get("APPDATA", str(Path.home())), "ClarityOS")
     try:
         return json.loads(Path(base, "tokens.json").read_text(encoding="utf-8")).get("helper", "")
     except (OSError, ValueError):
@@ -173,7 +173,7 @@ async def main_async(args) -> None:
     if not token:
         print("No helper token found. Start the hub once (it creates tokens.json) or pass --token.")
         return
-    print(f"Moonwalk Windows helper {desktop.VERSION}  |  allowed: {', '.join(sorted(allow)) or 'nothing'}")
+    print(f"ClarityOS Windows helper {desktop.VERSION}  |  allowed: {', '.join(sorted(allow)) or 'nothing'}")
     print(f"Kill-switch: {KILL_COMBO_NAME}  (or move the mouse to the top-left screen corner)")
     if desktop.is_admin():
         print("NOTE: running as Administrator — this lets you control elevated apps; only do this on purpose.")
@@ -192,8 +192,8 @@ async def main_async(args) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Moonwalk Windows helper")
-    p.add_argument("--hub", default=os.environ.get("MOONWALK_HUB_URL", "ws://127.0.0.1:8787/helper"))
+    p = argparse.ArgumentParser(description="ClarityOS Windows helper")
+    p.add_argument("--hub", default=os.environ.get("CLARITYOS_HUB_URL", "ws://127.0.0.1:8787/helper"))
     p.add_argument("--token", default="")
     p.add_argument("--allow", default="perceive,input", help="comma list of: perceive,input,shell")
     p.add_argument("--allow-shell", action="store_true", help="also allow PowerShell commands (hub still asks you each time)")

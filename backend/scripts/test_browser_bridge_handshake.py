@@ -9,9 +9,9 @@ import sys
 
 import websockets
 
-HOST = os.environ.get("MOONWALK_BROWSER_BRIDGE_HOST", "127.0.0.1")
-PORT = int(os.environ.get("MOONWALK_BROWSER_BRIDGE_PORT", "8765"))
-TOKEN = os.environ.get("MOONWALK_BROWSER_BRIDGE_TOKEN", "dev-bridge-token")
+HOST = os.environ.get("CLARITYOS_BROWSER_BRIDGE_HOST", "127.0.0.1")
+PORT = int(os.environ.get("CLARITYOS_BROWSER_BRIDGE_PORT", "8765"))
+TOKEN = os.environ.get("CLARITYOS_BROWSER_BRIDGE_TOKEN", "dev-bridge-token")
 
 
 async def main():

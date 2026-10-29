@@ -1,5 +1,5 @@
 """
-Moonwalk — daily-quota bookkeeping
+ClarityOS — daily-quota bookkeeping
 ==================================
 Process-wide record of which Gemini models have spent their daily allowance.
 

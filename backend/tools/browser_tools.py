@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Ref Tools
+ClarityOS — Browser Ref Tools
 ============================
 Agent-facing tools for stable, verified browser element access.
 """

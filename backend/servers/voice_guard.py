@@ -1,5 +1,5 @@
 """
-Moonwalk — policy guard for the Electron voice path
+ClarityOS — policy guard for the Electron voice path
 ===================================================
 The hub (website) wraps `registry.execute` with `Hub.install_guard`, so every
 tool call from that front-end passes the PolicyEngine first. The Electron voice

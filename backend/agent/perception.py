@@ -1,5 +1,5 @@
 """
-Moonwalk — 3-Layer Perception Engine
+ClarityOS — 3-Layer Perception Engine
 =====================================
 L1: AppleScript  → active app, window title, browser URL (always, ~50ms)
 L2: Browser DOM  → page content, selected text (when browser is active)
@@ -92,7 +92,7 @@ def _is_usable(value: str) -> bool:
 # ClarityOS's own windows. Typing in the sidebar makes it the foreground
 # window, so "what is the user looking at" must never resolve to ourselves.
 _OWN_WINDOW_MARKERS: tuple[str, ...] = (
-    "clarityos sidebar", "clarityos", "moonwalk",
+    "clarityos sidebar", "clarityos", "clarityos",
 )
 
 # Last foreground app that was not one of our own windows.
@@ -218,7 +218,7 @@ async def get_browser_page_content(app_name: str) -> Optional[str]:
 #  Layer 3 — Vision (screenshot for Gemini multimodal)
 # ═══════════════════════════════════════════════════════════════
 
-SCREENSHOT_DIR = os.path.join(tempfile.gettempdir(), "moonwalk")
+SCREENSHOT_DIR = os.path.join(tempfile.gettempdir(), "clarityos")
 
 def _capture_screen_windows(filepath: str) -> Optional[str]:
     """

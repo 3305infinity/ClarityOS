@@ -1,5 +1,5 @@
 """
-Moonwalk — model configuration (single source of truth)
+ClarityOS — model configuration (single source of truth)
 =======================================================
 Every Gemini model id used anywhere in the backend is resolved here.
 

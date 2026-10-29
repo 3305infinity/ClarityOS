@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-//  Moonwalk — Background Service Worker
-//  Manages WebSocket bridge to the Moonwalk backend, action
+//  ClarityOS — Background Service Worker
+//  Manages WebSocket bridge to the ClarityOS backend, action
 //  polling, snapshot forwarding, and keepalive pings.
 // ═══════════════════════════════════════════════════════════════
 
 // Defaults — overridden by chrome.storage.sync settings
 const DEFAULT_BRIDGE_URL = "ws://127.0.0.1:8765";
-const DEFAULT_BRIDGE_TOKEN = "";  // no default: pair via Moonwalk website → Settings → Connections
+const DEFAULT_BRIDGE_TOKEN = "";  // no default: pair via ClarityOS website → Settings → Connections
 const EXTENSION_NAME = "ClarityOS companion";
 
 const ACTION_POLL_INTERVAL_MS = 5000;  // Fallback only — actions pushed via WebSocket
@@ -119,7 +119,7 @@ async function ensureContentScript(tabId) {
 }
 
 function log(...args) {
-  console.log("[Moonwalk Bridge]", ...args);
+  console.log("[ClarityOS Bridge]", ...args);
 }
 
 // ── Keepalive ──
@@ -205,10 +205,10 @@ async function executeActionOnTab(action) {
       );
     }
 
-    // ── Scroll action: relay to content script via moonwalk_scroll ──
+    // ── Scroll action: relay to content script via clarityos_scroll ──
     if (action?.action === "scroll") {
       const scrollResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_scroll",
+        type: "clarityos_scroll",
         direction: metadata.direction || "down",
         amount: metadata.amount || "page",
         sessionId: action?.session_id || sessionId,
@@ -235,7 +235,7 @@ async function executeActionOnTab(action) {
     // ── Highlight action: visually mark elements the agent is reading ──
     if (action?.action === "highlight") {
       const highlightResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_highlight",
+        type: "clarityos_highlight",
         agentIds: metadata.agent_ids || [],
         duration: Number(metadata.duration || 3000),
         mode: metadata.mode || "reading",
@@ -264,7 +264,7 @@ async function executeActionOnTab(action) {
     // ── Scanning mode: page-wide AI reading/analysis visual ──
     if (action?.action === "scanning_start") {
       const scanResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_scanning_start",
+        type: "clarityos_scanning_start",
         label: metadata.label || "AI analyzing page…",
         duration: Number(metadata.duration || 4000),
       });
@@ -281,7 +281,7 @@ async function executeActionOnTab(action) {
     }
     if (action?.action === "scanning_stop") {
       const stopResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_scanning_stop",
+        type: "clarityos_scanning_stop",
       });
       return buildActionResult(
         action,
@@ -296,7 +296,7 @@ async function executeActionOnTab(action) {
     // ── Extract Data action: safely extract specific DOM strings without eval() ──
     if (action?.action === "extract_data") {
       const evalResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_extract_data",
+        type: "clarityos_extract_data",
         target: action?.text || "",
         sessionId: action?.session_id || sessionId,
         tabId: String(tab.id),
@@ -317,7 +317,7 @@ async function executeActionOnTab(action) {
 
     if (action?.action === "extract_readability") {
       const readabilityResult = await chrome.tabs.sendMessage(tab.id, {
-        type: "moonwalk_extract_readability",
+        type: "clarityos_extract_readability",
         sessionId: action?.session_id || sessionId,
         tabId: String(tab.id),
       });
@@ -347,7 +347,7 @@ async function executeActionOnTab(action) {
             const pageX = (b.x || 0) + (b.width || 0) / 2;
             const pageY = (b.y || 0) + (b.height || 0) / 2;
             chrome.tabs.sendMessage(tab.id, {
-              type: "moonwalk_show_click_pointer",
+              type: "clarityos_show_click_pointer",
               pageX,
               pageY,
             }).catch(() => {});
@@ -357,7 +357,7 @@ async function executeActionOnTab(action) {
     }
 
     const result = await chrome.tabs.sendMessage(tab.id, {
-      type: "moonwalk_execute_action",
+      type: "clarityos_execute_action",
       action,
       sessionId: action?.session_id || sessionId,
       tabId: String(tab.id),
@@ -365,7 +365,7 @@ async function executeActionOnTab(action) {
 
     // After a successful click, fire the burst animation
     if (result?.ok && isClickLike) {
-      chrome.tabs.sendMessage(tab.id, { type: "moonwalk_trigger_click_burst" }).catch(() => {});
+      chrome.tabs.sendMessage(tab.id, { type: "clarityos_trigger_click_burst" }).catch(() => {});
     }
 
     // After a successful action, the content script's MutationObserver
@@ -461,7 +461,7 @@ async function requestSnapshotFromTab(tabId, sessionIdOverride = sessionId) {
   }
 
   const payload = {
-    type: "moonwalk_collect_snapshot",
+    type: "clarityos_collect_snapshot",
     sessionId: sessionIdOverride,
     tabId: String(tab.id),
   };
@@ -784,7 +784,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 // ── Internal Message Handling ──
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === "moonwalk_snapshot") {
+  if (message?.type === "clarityos_snapshot") {
     latestSnapshotByTab.set(message.snapshot?.tab_id || sender.tab?.id || "unknown", message.snapshot);
     const ok = sendToBridge({
       type: "browser_snapshot",
@@ -794,7 +794,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "moonwalk_dom_change") {
+  if (message?.type === "clarityos_dom_change") {
     // Forward DOM mutation events from content script to the backend bridge
     const ok = sendToBridge({
       type: "browser_dom_change",
@@ -804,7 +804,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "moonwalk_request_pairing") {
+  if (message?.type === "clarityos_request_pairing") {
     // Explicit user action: open a socket and ask the hub for approval.
     pairingRequested = true;
     lastBridgeError = "";
@@ -817,12 +817,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "moonwalk_get_status") {
+  if (message?.type === "clarityos_get_status") {
     sendResponse(bridgeStatus());
     return true;
   }
 
-  if (message?.type === "moonwalk_request_snapshot") {
+  if (message?.type === "clarityos_request_snapshot") {
     // Report what actually happened, not merely that the attempt finished.
     pushActiveTabSnapshot()
       .then((result) =>
@@ -841,13 +841,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "moonwalk_ping_bridge") {
+  if (message?.type === "clarityos_ping_bridge") {
     const ok = sendToBridge({ type: "browser_ping" });
     sendResponse({ ok, authenticated, sessionId });
     return true;
   }
 
-  if (message?.type === "moonwalk_settings_updated") {
+  if (message?.type === "clarityos_settings_updated") {
     // Settings changed from options page — reconnect with new config
     loadSettings().then(() => {
       if (bridgeSocket) {

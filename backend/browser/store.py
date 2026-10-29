@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Snapshot Store
+ClarityOS — Browser Snapshot Store
 =================================
 In-memory state for browser sessions, snapshots, stable refs,
 and a tab ledger that tracks every known open tab.

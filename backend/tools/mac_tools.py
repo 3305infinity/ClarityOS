@@ -1,5 +1,5 @@
 """
-Moonwalk — macOS GUI Tools
+ClarityOS — macOS GUI Tools
 ============================
 Tools for controlling the macOS desktop: launching apps, clicking,
 typing, keyboard shortcuts, screen reading, and window management.
@@ -1400,7 +1400,7 @@ async def _fast_visual_locate(
     """
     global _display_origin
 
-    screenshot_dir = os.path.join(tempfile.gettempdir(), "moonwalk")
+    screenshot_dir = os.path.join(tempfile.gettempdir(), "clarityos")
     os.makedirs(screenshot_dir, exist_ok=True)
     fpath = os.path.join(screenshot_dir, f"vfind_{int(time.time())}.png")
 
@@ -1540,7 +1540,7 @@ async def _fast_visual_locate(
 async def read_screen(question: str = "") -> str:
     global _display_origin, _screen_cache
     # Capture screenshot
-    screenshot_dir = os.path.join(tempfile.gettempdir(), "moonwalk")
+    screenshot_dir = os.path.join(tempfile.gettempdir(), "clarityos")
     os.makedirs(screenshot_dir, exist_ok=True)
     filepath = os.path.join(screenshot_dir, f"screen_{int(time.time())}.png")
     
@@ -2856,7 +2856,7 @@ async def browser_fill(selector: str, value: str, submit: bool = False) -> str:
 #  Image Tools — download, capture, clipboard, paste
 # ═══════════════════════════════════════════════════════════════
 
-_IMAGE_DIR = os.path.join(tempfile.gettempdir(), "moonwalk", "images")
+_IMAGE_DIR = os.path.join(tempfile.gettempdir(), "clarityos", "images")
 
 
 def _ensure_image_dir():
@@ -2908,7 +2908,7 @@ async def save_image(url: str, filename: str = "") -> str:
 
     try:
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Moonwalk/1.0"
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ClarityOS/1.0"
         })
 
         loop = asyncio.get_event_loop()

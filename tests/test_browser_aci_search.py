@@ -157,7 +157,7 @@ def test_get_page_summary_uses_readability_fast_path(monkeypatch):
             "ok": True,
             "title": "UK housing market overview",
             "excerpt": "An annual review of supply, affordability, and tenure trends across the UK housing market.",
-            "byline": "Moonwalk Research Desk",
+            "byline": "ClarityOS Research Desk",
             "site_name": "Example Housing",
             "lang": "en-GB",
             "text": (
@@ -186,7 +186,7 @@ def test_get_page_summary_uses_readability_fast_path(monkeypatch):
     assert payload["summary_strategy"] == "readability"
     assert payload["content"].startswith("UK housing market overview")
     assert payload["content_length"] == 282
-    assert payload["byline"] == "Moonwalk Research Desk"
+    assert payload["byline"] == "ClarityOS Research Desk"
     assert payload["degraded_mode"] is False
 
 

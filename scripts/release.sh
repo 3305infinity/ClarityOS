@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Moonwalk — Build, Sign, Notarize & Upload to GCS
+#  ClarityOS — Build, Sign, Notarize & Upload to GCS
 # ═══════════════════════════════════════════════════════════════
 #
 #  One-command release pipeline:
@@ -34,9 +34,9 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-info()    { echo -e "${GREEN}[Moonwalk]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[Moonwalk]${NC} $1"; }
-fail()    { echo -e "${RED}[Moonwalk]${NC} $1"; exit 1; }
+info()    { echo -e "${GREEN}[ClarityOS]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[ClarityOS]${NC} $1"; }
+fail()    { echo -e "${RED}[ClarityOS]${NC} $1"; exit 1; }
 banner()  { echo -e "\n${CYAN}═══════════════════════════════════════════════${NC}\n${BOLD}  $1${NC}\n${CYAN}═══════════════════════════════════════════════${NC}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -45,7 +45,7 @@ cd "$PROJECT_ROOT"
 
 VERSION=$(node -e "console.log(require('./package.json').version)")
 
-banner "Moonwalk Release v${VERSION}"
+banner "ClarityOS Release v${VERSION}"
 
 # ── Pre-flight Checks ──
 

@@ -1,5 +1,5 @@
 """
-Moonwalk — Mac Client (Local Daemon)
+ClarityOS — Mac Client (Local Daemon)
 ======================================
 Runs on the user's MacBook. Handles:
   1. Audio capture → Wake word detection → Speech-to-text (all local)
@@ -52,7 +52,7 @@ import agent.perception as perception
 # ═══════════════════════════════════════════════════════════════
 
 # Cloud Orchestrator WebSocket URL
-CLOUD_URL = os.environ.get("MOONWALK_CLOUD_URL", "ws://localhost:8080")
+CLOUD_URL = os.environ.get("CLARITYOS_CLOUD_URL", "ws://localhost:8080")
 
 # Picovoice Access Key for wake word
 PICOVOICE_ACCESS_KEY = os.environ.get(
@@ -95,13 +95,13 @@ class VoiceProcessor:
         try:
             if PICOVOICE_ACCESS_KEY and PICOVOICE_ACCESS_KEY != "YOUR_KEY_HERE":
                 project_root = os.path.abspath(os.path.join(_backend_dir, ".."))
-                custom_ppn = os.path.join(project_root, "hey_moonwalk.ppn")
+                custom_ppn = os.path.join(project_root, "hey_clarityos.ppn")
                 if os.path.exists(custom_ppn):
                     self.porcupine = pvporcupine.create(
                         access_key=PICOVOICE_ACCESS_KEY,
                         keyword_paths=[custom_ppn]
                     )
-                    print("[Voice] Porcupine initialized with 'Hey Moonwalk'")
+                    print("[Voice] Porcupine initialized with 'Hey ClarityOS'")
                 else:
                     self.porcupine = pvporcupine.create(
                         access_key=PICOVOICE_ACCESS_KEY,
@@ -175,8 +175,8 @@ class MacClient:
                 ) as cloud_ws:
                     # ── Auth handshake ──
                     # Load credentials (user_id + auth_token) from .env or cred file
-                    auth_token = os.environ.get("MOONWALK_CLOUD_TOKEN", "")
-                    user_id = os.environ.get("MOONWALK_USER_ID", "local-user")
+                    auth_token = os.environ.get("CLARITYOS_CLOUD_TOKEN", "")
+                    user_id = os.environ.get("CLARITYOS_USER_ID", "local-user")
                     await cloud_ws.send(json.dumps({
                         "type": "auth",
                         "method": "token",

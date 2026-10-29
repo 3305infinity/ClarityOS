@@ -1,5 +1,5 @@
 """
-Moonwalk — Few-Shot Example Bank
+ClarityOS — Few-Shot Example Bank
 ==================================
 Stores successful (request → plan) pairs and retrieves the most relevant
 ones for LLM planning via text similarity. This acts as the agent's 
@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 
 
 # ── Storage ──
-MOONWALK_DIR = os.path.expanduser("~/.moonwalk")
-EXAMPLE_BANK_PATH = os.path.join(MOONWALK_DIR, "example_bank.json")
+CLARITYOS_DIR = os.path.expanduser("~/.clarityos")
+EXAMPLE_BANK_PATH = os.path.join(CLARITYOS_DIR, "example_bank.json")
 MAX_EXAMPLES = 200  # Cap to prevent unbounded growth
 MIN_SIMILARITY = 0.25  # Minimum similarity threshold to consider a match
 
@@ -149,7 +149,7 @@ class ExampleBank:
     """
 
     def __init__(self):
-        os.makedirs(MOONWALK_DIR, exist_ok=True)
+        os.makedirs(CLARITYOS_DIR, exist_ok=True)
         self._examples: List[PlanExample] = self._load()
         # Pre-tokenize for fast similarity search
         self._token_cache: dict[int, List[str]] = {}

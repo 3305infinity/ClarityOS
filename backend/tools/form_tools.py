@@ -1,5 +1,5 @@
 """
-Moonwalk — Form Fill Tools
+ClarityOS — Form Fill Tools
 ============================
 Compound tool that uses vault memory data to intelligently fill web forms.
 

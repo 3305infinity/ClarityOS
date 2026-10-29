@@ -1,13 +1,13 @@
 """
-Moonwalk — Pluggable Speech-to-Text
+ClarityOS — Pluggable Speech-to-Text
 ====================================
 One interface, several engines. Pick one with env vars (see WINDOWS_GUIDE.md):
 
-    MOONWALK_STT_PROVIDER = google | gnani | sarvam      (default: google)
-    MOONWALK_STT_FALLBACK = google | gnani | sarvam | "" (default: google when the
+    CLARITYOS_STT_PROVIDER = google | gnani | sarvam      (default: google)
+    CLARITYOS_STT_FALLBACK = google | gnani | sarvam | "" (default: google when the
                             primary is not google, so a network/API hiccup never
                             leaves the mic dead)
-    MOONWALK_STT_LANGUAGE = BCP-47 code, e.g. en-IN, hi-IN, ta-IN
+    CLARITYOS_STT_LANGUAGE = BCP-47 code, e.g. en-IN, hi-IN, ta-IN
 
 Engines
   google  – free Google Web Speech via the `SpeechRecognition` package (original behaviour)
@@ -34,7 +34,7 @@ import wave
 from typing import Optional
 
 SAMPLE_RATE = 16000
-HTTP_TIMEOUT_S = float(os.environ.get("MOONWALK_STT_TIMEOUT", "20"))
+HTTP_TIMEOUT_S = float(os.environ.get("CLARITYOS_STT_TIMEOUT", "20"))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -108,7 +108,7 @@ class GoogleSTT(STTProvider):
     name = "google"
 
     def __init__(self, language: Optional[str] = None):
-        self.language = language or os.environ.get("MOONWALK_STT_LANGUAGE", "en-US")
+        self.language = language or os.environ.get("CLARITYOS_STT_LANGUAGE", "en-US")
         self._recognizer = None
 
     def _blocking_transcribe(self, wav_bytes: bytes) -> str:
@@ -144,11 +144,11 @@ class GnaniSTT(STTProvider):
 
     def __init__(self, api_key: Optional[str] = None, language: Optional[str] = None):
         self.api_key = api_key or os.environ.get("GNANI_API_KEY", "")
-        self.language = language or os.environ.get("MOONWALK_STT_LANGUAGE", "en-IN")
+        self.language = language or os.environ.get("CLARITYOS_STT_LANGUAGE", "en-IN")
         # "transcribe" = ITN on: "five thousand rupees" -> "₹5,000". Better for commands.
         # "verbatim"   = raw spoken form.
         self.format = os.environ.get("GNANI_STT_FORMAT", "transcribe")
-        # Optional word boosting: comma-separated single words (letters only), e.g. "Moonwalk,Gmail"
+        # Optional word boosting: comma-separated single words (letters only), e.g. "ClarityOS,Gmail"
         self.bias_list = os.environ.get("GNANI_STT_BIAS_WORDS", "").strip()
         self.bias_score = os.environ.get("GNANI_STT_BIAS_SCORE", "1.0")
 
@@ -194,14 +194,14 @@ class SarvamSTT(STTProvider):
     REST: POST /speech-to-text (multipart). Handles Indian languages + English and
     code-mixed speech. Default model saaras:v3 (mode "transcribe"); set
     SARVAM_STT_MODE=codemix for Hinglish-style output.
-    If MOONWALK_STT_LANGUAGE is unset the model auto-detects the language.
+    If CLARITYOS_STT_LANGUAGE is unset the model auto-detects the language.
     """
     name = "sarvam"
     URL = "https://api.sarvam.ai/speech-to-text"
 
     def __init__(self, api_key: Optional[str] = None, language: Optional[str] = None):
         self.api_key = api_key or os.environ.get("SARVAM_API_KEY", "")
-        self.language = language or os.environ.get("MOONWALK_STT_LANGUAGE", "")
+        self.language = language or os.environ.get("CLARITYOS_STT_LANGUAGE", "")
         self.model = os.environ.get("SARVAM_STT_MODEL", "saaras:v3")
         self.mode = os.environ.get("SARVAM_STT_MODE", "transcribe")
 
@@ -264,14 +264,14 @@ _singleton: Optional[STTProvider] = None
 
 
 def build_stt_provider() -> STTProvider:
-    primary_name = os.environ.get("MOONWALK_STT_PROVIDER", "google").strip().lower()
+    primary_name = os.environ.get("CLARITYOS_STT_PROVIDER", "google").strip().lower()
     if primary_name not in _PROVIDERS:
-        print(f"[STT] Unknown MOONWALK_STT_PROVIDER '{primary_name}' — using google")
+        print(f"[STT] Unknown CLARITYOS_STT_PROVIDER '{primary_name}' — using google")
         primary_name = "google"
     primary = _PROVIDERS[primary_name]()
 
     fallback_name = os.environ.get(
-        "MOONWALK_STT_FALLBACK", "google" if primary_name != "google" else ""
+        "CLARITYOS_STT_FALLBACK", "google" if primary_name != "google" else ""
     ).strip().lower()
     if fallback_name and fallback_name != primary_name and fallback_name in _PROVIDERS:
         provider: STTProvider = FallbackSTT(primary, _PROVIDERS[fallback_name]())

@@ -1,7 +1,7 @@
 """
 python -m hub            (run from the backend/ folder; start-hub.ps1 does this for you)
 
-Starts the Moonwalk Hub on 127.0.0.1 and opens the website with your private token in the
+Starts the ClarityOS Hub on 127.0.0.1 and opens the website with your private token in the
 URL *fragment* (#token=…) — fragments are never sent to servers or written to access logs.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ if _BACKEND not in sys.path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ClarityOS Hub")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("MOONWALK_HUB_PORT", "8787")))
+    parser.add_argument("--port", type=int, default=int(os.environ.get("CLARITYOS_HUB_PORT", "8787")))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--no-open", action="store_true", help="don't open the browser")
     args = parser.parse_args()

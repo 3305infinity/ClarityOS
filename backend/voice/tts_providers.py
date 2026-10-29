@@ -1,15 +1,15 @@
 """
-Moonwalk — Alternative TTS engines
+ClarityOS — Alternative TTS engines
 ===================================
-Used by voice/tts.py when MOONWALK_TTS_PROVIDER is not "google".
+Used by voice/tts.py when CLARITYOS_TTS_PROVIDER is not "google".
 
-    MOONWALK_TTS_PROVIDER = google | gnani | sarvam | windows   (default: google)
+    CLARITYOS_TTS_PROVIDER = google | gnani | sarvam | windows   (default: google)
 
 "windows" is the built-in Windows synthesizer: no API key, no Google Cloud
 credentials, works offline. voice/tts.py falls back to it automatically when the
 configured cloud engine cannot start, so the assistant is never silent.
-    MOONWALK_TTS_WINDOWS_VOICE   optional installed voice name (e.g. "Microsoft Zira Desktop")
-    MOONWALK_TTS_SPEED           0.5–2.0, mapped onto SAPI's -10..10 rate scale
+    CLARITYOS_TTS_WINDOWS_VOICE   optional installed voice name (e.g. "Microsoft Zira Desktop")
+    CLARITYOS_TTS_SPEED           0.5–2.0, mapped onto SAPI's -10..10 rate scale
 
 Gnani Timbre   POST https://api.vachana.ai/api/v1/tts/inference   (returns binary WAV)
     GNANI_API_KEY            required (sent as X-API-Key-ID)
@@ -41,7 +41,7 @@ import os
 import re
 from typing import Optional
 
-HTTP_TIMEOUT_S = float(os.environ.get("MOONWALK_TTS_TIMEOUT", "30"))
+HTTP_TIMEOUT_S = float(os.environ.get("CLARITYOS_TTS_TIMEOUT", "30"))
 
 # Per-request character budget for each engine (sentences are packed up to this size).
 MAX_CHARS = {"gnani": 1500, "sarvam": 2500, "windows": 2000}
@@ -221,9 +221,9 @@ class WindowsSapiTTS:
     name = "windows"
 
     def __init__(self):
-        self.voice = os.environ.get("MOONWALK_TTS_WINDOWS_VOICE", "").strip()
+        self.voice = os.environ.get("CLARITYOS_TTS_WINDOWS_VOICE", "").strip()
         try:
-            self.speed = float(os.environ.get("MOONWALK_TTS_SPEED", "1.0"))
+            self.speed = float(os.environ.get("CLARITYOS_TTS_SPEED", "1.0"))
         except (TypeError, ValueError):
             self.speed = 1.0
 
@@ -261,7 +261,7 @@ class WindowsSapiTTS:
         import subprocess
         import tempfile
 
-        fd, out_path = tempfile.mkstemp(suffix=".wav", prefix="moonwalk_tts_")
+        fd, out_path = tempfile.mkstemp(suffix=".wav", prefix="clarityos_tts_")
         os.close(fd)
         try:
             proc = subprocess.run(

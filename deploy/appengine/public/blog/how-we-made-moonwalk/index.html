@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Building Moonwalk - Behind the Scenes #GeminiLiveAgentChallenge.</title>
+    <title>Building ClarityOS - Behind the Scenes #GeminiLiveAgentChallenge.</title>
     <style>
         /* ══════════════════════════════════════════
            BASE RESET & TYPOGRAPHY
@@ -143,13 +143,13 @@
                     @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap');
                     .mw-text { font-family: 'Fredoka', -apple-system, sans-serif; font-weight: 600; font-size: 96px; fill: #111111; letter-spacing: -0.02em; }
                 </style>
-                <text x="0" y="50%" dominant-baseline="central" class="mw-text">moonwalk</text>
+                <text x="0" y="50%" dominant-baseline="central" class="mw-text">clarityos</text>
             </svg>
         </div>
         <div class="nav-links">
             <a href="#">Demo</a>
             <a href="#">Architecture</a>
-            <a href="https://github.com/oactodev/Moonwalk" target="_blank">GitHub</a>
+            <a href="https://github.com/oactodev/ClarityOS" target="_blank">GitHub</a>
         </div>
     </nav>
 
@@ -157,10 +157,10 @@
         
         <header class="blog-header">
             <span class="blog-tag">Behind the Scenes</span>
-            <h1 class="blog-title">Building Moonwalk: Escaping the Gravity of Bad UI.</h1>
+            <h1 class="blog-title">Building ClarityOS: Escaping the Gravity of Bad UI.</h1>
             <div class="blog-meta">
-                <img src="https://ui-avatars.com/api/?name=Moonwalk+Team&background=007aff&color=fff" alt="Team Avatar">
-                <span>By The Moonwalk Team</span>
+                <img src="https://ui-avatars.com/api/?name=ClarityOS+Team&background=007aff&color=fff" alt="Team Avatar">
+                <span>By The ClarityOS Team</span>
                 <span>•</span>
                 <span>#GeminiLiveAgentChallenge.</span>
             </div>
@@ -171,10 +171,10 @@
             
             <p>We took inspiration from the recent hype around **Openclaw**, a new kind of intelligent assistant that lives on your computer. But we wanted to go further. We realized that Openclaw uses an architecture similar to coding agents from **Antigravity**. In Antigravity, Gemini's multimodal capabilities are utilized during browser live tests for an incredibly fast, low-latency experience. We wanted that same seamless "I can see what you are doing" magic, but humanized for everyday desktop tasks.</p>
 
-            <p>We imagined a fully conversational agent with personality and intelligence. Whether it's helping a user stuck on a hard math problem or booking a ticket to Rome, we wanted to build an agent that makes interacting with your computer feel like there are no gravity forces holding you back. Hence, **Moonwalk**.</p>
+            <p>We imagined a fully conversational agent with personality and intelligence. Whether it's helping a user stuck on a hard math problem or booking a ticket to Rome, we wanted to build an agent that makes interacting with your computer feel like there are no gravity forces holding you back. Hence, **ClarityOS**.</p>
 
             <h2>The Multi-Model Architecture</h2>
-            <p>To make Moonwalk voice-first and genuinely conversational, it had to be fast. Human speech doesn't wait for loading spinners. To achieve this, we didn't just use one LLM; we used an orchestrated fleet of Gemini models.</p>
+            <p>To make ClarityOS voice-first and genuinely conversational, it had to be fast. Human speech doesn't wait for loading spinners. To achieve this, we didn't just use one LLM; we used an orchestrated fleet of Gemini models.</p>
 
             <div class="info-card">
                 <h3>Our Gemini Routing Engine</h3>
@@ -198,25 +198,25 @@
                 </div>
             </div>
 
-            <p>When you say <em>"Hey Moonwalk,"</em> your audio is transcribed and immediately hits **Gemini 2.5 Flash**, which acts as our router. If the task is simple, it answers directly. If it requires looking at your screen, it routes to **Gemini 3 Flash**. If you ask it to analyze a massive local codebase or draft a complex itinerary, it hands the prompt off to the heavyweight **Gemini 3.1 Pro**.</p>
+            <p>When you say <em>"Hey ClarityOS,"</em> your audio is transcribed and immediately hits **Gemini 2.5 Flash**, which acts as our router. If the task is simple, it answers directly. If it requires looking at your screen, it routes to **Gemini 3 Flash**. If you ask it to analyze a massive local codebase or draft a complex itinerary, it hands the prompt off to the heavyweight **Gemini 3.1 Pro**.</p>
 
             <h2>Memory That Actually Remembers</h2>
-            <p>Moonwalk doesn't just act; it directly learns. We wanted to escape the "goldfish memory" problem of traditional chatbots.</p>
+            <p>ClarityOS doesn't just act; it directly learns. We wanted to escape the "goldfish memory" problem of traditional chatbots.</p>
             
-            <p>Each interaction shapes the agent to create a personalized experience. By hosting user memory logs securely on a **Google Cloud Bucket**, Moonwalk remembers your preferences, dislikes, and past requests. You can say, <em>"Moonwalk, fill out this job application using the CV we wrote last week,"</em> or <em>"Text my parents the shopping list they forgot,"</em> and Moonwalk knows exactly what you are talking about.</p>
+            <p>Each interaction shapes the agent to create a personalized experience. By hosting user memory logs securely on a **Google Cloud Bucket**, ClarityOS remembers your preferences, dislikes, and past requests. You can say, <em>"ClarityOS, fill out this job application using the CV we wrote last week,"</em> or <em>"Text my parents the shopping list they forgot,"</em> and ClarityOS knows exactly what you are talking about.</p>
 
             <h2>The Hackathon Hustle</h2>
             <p>Building an autonomous agent in a weekend is no small feat. Here are the biggest challenges we faced:</p>
             <ul>
                 <li><strong>Routing Latency:</strong> Introducing a routing layer initially slowed things down. We had to heavily optimize our prompt payloads and use strict JSON schemas to ensure the handoff between the 2.5 Flash router and the 3.1 Pro execution model happened in milliseconds.</li>
-                <li><strong>Contextual Flooding:</strong> Pulling memory from the Google Cloud Bucket was easy; pulling the <em>right</em> memory was hard. We had to build a strict retrieval system so Moonwalk wouldn't accidentally read your grocery list when trying to book a flight.</li>
+                <li><strong>Contextual Flooding:</strong> Pulling memory from the Google Cloud Bucket was easy; pulling the <em>right</em> memory was hard. We had to build a strict retrieval system so ClarityOS wouldn't accidentally read your grocery list when trying to book a flight.</li>
             </ul>
 
             <h2>What's Next?</h2>
-            <p>We built Moonwalk to personalize the computer experience by giving you a hands-free, agentic workflow. But we are just getting started.</p>
-            <p>Because our memory architecture is hosted on the cloud, our immediate next step is building an iOS/Android companion app. We want Moonwalk to travel with you, passing context seamlessly from your desktop to your phone. We are also expanding Moonwalk's toolset to navigate complex web apps autonomously.</p>
+            <p>We built ClarityOS to personalize the computer experience by giving you a hands-free, agentic workflow. But we are just getting started.</p>
+            <p>Because our memory architecture is hosted on the cloud, our immediate next step is building an iOS/Android companion app. We want ClarityOS to travel with you, passing context seamlessly from your desktop to your phone. We are also expanding ClarityOS's toolset to navigate complex web apps autonomously.</p>
 
-            <p>Moonwalk removes the friction between thought and execution. It's time to expect more from our computers.</p>
+            <p>ClarityOS removes the friction between thought and execution. It's time to expect more from our computers.</p>
 
         </article>
 

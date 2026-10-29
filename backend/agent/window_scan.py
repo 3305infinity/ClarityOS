@@ -26,7 +26,7 @@ from typing import Optional, Tuple
 # Process names ClarityOS itself runs under.
 _OWN_PROCESSES = {"electron.exe", "clarityos.exe"}
 # Title fragments that mark one of our own windows.
-_OWN_TITLE_MARKERS = ("clarityos", "moonwalk")
+_OWN_TITLE_MARKERS = ("clarityos", "clarityos")
 # Shell windows that are visible but are not "an application the user is using".
 _SHELL_TITLES = {
     "program manager", "windows input experience", "search",

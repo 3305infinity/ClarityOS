@@ -1,5 +1,5 @@
 """
-Moonwalk — Agent Core V2
+ClarityOS — Agent Core V2
 =========================
 Sense-Plan-Act-Verify (SPAV) architecture for improved tool calling.
 
@@ -29,7 +29,7 @@ print = partial(print, flush=True)
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
-# Moonwalk V2 modules
+# ClarityOS V2 modules
 from agent.world_state import WorldState, UserIntent, IntentParser, EntityExtractor, IntentAction
 from agent.planner import ExecutionStep, StepStatus
 from agent.planner import MilestonePlan, Milestone, MilestoneStatus
@@ -96,7 +96,7 @@ WEB_FLOW_TOOLS = {
 }
 
 # Simplified system prompt for V2 (planning is done separately)
-SYSTEM_PROMPT_V2 = """You are Moonwalk, a macOS desktop assistant.
+SYSTEM_PROMPT_V2 = """You are ClarityOS, a macOS desktop assistant.
 
 ## Personality & Tone
 - Warm, helpful, and efficient — like a capable friend, not a corporate bot.
@@ -184,7 +184,7 @@ class PendingExecutionState:
 #  Agent V2 Class
 # ═══════════════════════════════════════════════════════════════
 
-class MoonwalkAgentV2:
+class ClarityOSAgentV2:
     """
     V2 Agent with Sense-Plan-Act-Verify architecture.
     
@@ -455,14 +455,14 @@ class MoonwalkAgentV2:
             parts = turn.get("parts", [])
             text = " ".join(p.get("text", "") for p in parts if isinstance(p, dict))
             if text:
-                history_text += f"{'User' if role == 'user' else 'Moonwalk'}: {text}\n"
+                history_text += f"{'User' if role == 'user' else 'ClarityOS'}: {text}\n"
 
         profile_hint = ""
         if user_name:
             profile_hint = f"The user's name is {user_name}. Use it naturally (not every time).\n"
 
         system = (
-            "You are Moonwalk, a friendly macOS desktop assistant. "
+            "You are ClarityOS, a friendly macOS desktop assistant. "
             "Keep responses short (1-2 sentences max), natural, and warm. "
             "Sound like a helpful friend, not a corporate bot. "
             "You're voice-first — write responses that sound natural when spoken aloud. "
@@ -561,22 +561,25 @@ class MoonwalkAgentV2:
         # started. Say what was actually observed instead.
         if "may still be loading" in result_text.lower():
             # A cold start (Spotify, Teams, VS Code…) routinely takes longer
-            # than open_app's 3s foreground wait. Rather than guess either way,
-            # look for the process before saying anything.
-            # Report what was observed. The launch command succeeded; the
-            # window simply had not taken focus within open_app's 3s wait,
-            # which is routine for a cold start. Previously this was reported
-            # as a flat "Opened Spotify." even when nothing appeared.
-            message = (f"I started {app_name} — it was still loading, so it may take "
-                       f"a few more seconds to appear. Tell me if it doesn't open.")
-            print(f"[AgentV2] Direct action launched but unconfirmed: {result_text[:200]}")
-            if ws_callback:
-                await ws_callback({
-                    "type": "response",
-                    "payload": {"text": message, "display": "pill", "app": app_name.lower()},
-                })
-            self.conversation.add_model(message)
-            return (message, False)
+            # than open_app's 3s foreground wait, so this string means "not
+            # confirmed yet", not "failed". _confirm_app_running polls the
+            # process list to settle it — it existed for exactly this and was
+            # never actually called, so every cold start was reported as
+            # "it may take a few more seconds", including the ones already on
+            # screen. Ask the OS instead of hedging.
+            if await self._confirm_app_running(app_name, attempts=4, delay=1.0):
+                print(f"[AgentV2] Direct action confirmed running: {app_name}")
+            else:
+                message = (f"I started {app_name} — it was still loading, so it may take "
+                           f"a few more seconds to appear. Tell me if it doesn't open.")
+                print(f"[AgentV2] Direct action launched but unconfirmed: {result_text[:200]}")
+                if ws_callback:
+                    await ws_callback({
+                        "type": "response",
+                        "payload": {"text": message, "display": "pill", "app": app_name.lower()},
+                    })
+                self.conversation.add_model(message)
+                return (message, False)
 
         message = describe_direct_open(app_name)
         if ws_callback:
@@ -598,7 +601,10 @@ class MoonwalkAgentV2:
         """
         import asyncio as _asyncio
 
-        tokens = [t for t in re.split(r"\W+", app_name.lower()) if len(t) > 2] or [app_name.lower()]
+        # `re` is imported as `_re` in this module — this line raised NameError
+        # on every call, which nothing noticed because the helper was never
+        # wired up to a caller.
+        tokens = [t for t in _re.split(r"\W+", app_name.lower()) if len(t) > 2] or [app_name.lower()]
         for _ in range(max(1, attempts)):
             await _asyncio.sleep(delay)
             try:
@@ -630,7 +636,7 @@ class MoonwalkAgentV2:
         if not graph_agent.is_enabled():
             return None
         if not graph_agent.is_available():
-            print("[AgentV2] MOONWALK_USE_LANGGRAPH is set but langgraph is not installed — "
+            print("[AgentV2] CLARITYOS_USE_LANGGRAPH is set but langgraph is not installed — "
                   "using the original agent path")
             return None
 
@@ -826,9 +832,9 @@ class MoonwalkAgentV2:
         plan_tools = self._planned_tool_names(pending.plan)
         is_web_flow_plan = bool(plan_tools.intersection(WEB_FLOW_TOOLS))
         if old_app and new_app and old_app != new_app:
-            # Approval can be spoken/typed via Moonwalk's Electron panel while the
+            # Approval can be spoken/typed via ClarityOS's Electron panel while the
             # original browser task context is still valid. Don't invalidate for that.
-            if is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in {"electron", "moonwalk"}:
+            if is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in {"electron", "clarityos"}:
                 pass
             elif is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in BROWSER_APP_NAMES:
                 pass
@@ -1055,7 +1061,7 @@ class MoonwalkAgentV2:
                 return direct_result
 
             # ══════════════════════════════════════════════════════════
-            # Optional: LangGraph orchestration (MOONWALK_USE_LANGGRAPH=1)
+            # Optional: LangGraph orchestration (CLARITYOS_USE_LANGGRAPH=1)
             # ══════════════════════════════════════════════════════════
             # Opt-in and deliberately narrow: only fresh requests, never a
             # follow-up to a pending plan or a suspended execution, because
@@ -3169,7 +3175,7 @@ class MoonwalkAgentV2:
 
 def create_agent(version: str = "v2", use_planning: bool = True, persist: bool = True):
     """
-    Create the active Moonwalk agent runtime.
+    Create the active ClarityOS agent runtime.
     
     Args:
         version: Deprecated compatibility argument. V2 is always used.
@@ -3178,8 +3184,8 @@ def create_agent(version: str = "v2", use_planning: bool = True, persist: bool =
                 Set False for benchmarks / tests.
         
     Returns:
-        MoonwalkAgentV2 instance
+        ClarityOSAgentV2 instance
     """
     if str(version or "v2").lower() != "v2":
         print(f"[AgentV2] Ignoring deprecated agent version '{version}' and using V2.")
-    return MoonwalkAgentV2(use_planning=use_planning, persist=persist)
+    return ClarityOSAgentV2(use_planning=use_planning, persist=persist)

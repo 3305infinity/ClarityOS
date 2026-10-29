@@ -6,7 +6,7 @@ import subprocess
 from PIL import Image
 
 SRC = "/Users/enaihouwaspaul/Downloads/icon.png"
-ICONSET = "/tmp/moonwalk.iconset"
+ICONSET = "/tmp/clarityos.iconset"
 PROJECT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 ICNS_OUT = os.path.join(PROJECT, "build", "icon.icns")
 PNG_OUT = os.path.join(PROJECT, "build", "icon.png")

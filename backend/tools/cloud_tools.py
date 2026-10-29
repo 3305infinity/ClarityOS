@@ -1,5 +1,5 @@
 """
-Moonwalk — Cloud-Safe Tools
+ClarityOS — Cloud-Safe Tools
 ==============================
 Tools that can run entirely in the cloud without access to macOS:
 web content fetching, sandboxed Python execution, and reasoning.

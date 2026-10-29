@@ -1,5 +1,5 @@
 """
-Moonwalk Hub — HTTP / WebSocket server (FastAPI)
+ClarityOS Hub — HTTP / WebSocket server (FastAPI)
 
     GET  /                      the website (static, no secrets in it)
     /api/*                      REST, requires  Authorization: Bearer <ui token>
@@ -30,7 +30,7 @@ from hub import config as cfg
 from hub.core import Client, Hub
 from hub.security import bearer_from_header, constant_eq, host_allowed, origin_allowed
 
-DEFAULT_PORT = int(os.environ.get("MOONWALK_HUB_PORT", "8787"))
+DEFAULT_PORT = int(os.environ.get("CLARITYOS_HUB_PORT", "8787"))
 AUTH_TIMEOUT_S = 5.0
 
 GNANI_VOICES = {   # Timbre v2.5 (one preferred language each) — from Gnani's voice catalog
@@ -44,7 +44,7 @@ GNANI_VOICES = {   # Timbre v2.5 (one preferred language each) — from Gnani's 
 
 
 def _web_dir() -> Path:
-    env = os.environ.get("MOONWALK_WEB_DIR")
+    env = os.environ.get("CLARITYOS_WEB_DIR")
     if env:
         return Path(env)
     return Path(__file__).resolve().parents[2] / "web_app"
@@ -137,7 +137,7 @@ def create_app(hub: Optional[Hub] = None, port: int = DEFAULT_PORT, web_dir: Opt
             bridge.close()
         hub.store.close()
 
-    app = FastAPI(title="Moonwalk Hub", version=cfg.VERSION, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="ClarityOS Hub", version=cfg.VERSION, lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     if hub is not None:
         app.state.hub = hub
 
@@ -308,7 +308,7 @@ def create_app(hub: Optional[Hub] = None, port: int = DEFAULT_PORT, web_dir: Opt
     async def api_export():
         data = H().store.export_all()
         return Response(json.dumps(data, ensure_ascii=False, indent=2), media_type="application/json",
-                        headers={"Content-Disposition": 'attachment; filename="moonwalk-task-log.json"'})
+                        headers={"Content-Disposition": 'attachment; filename="clarityos-task-log.json"'})
 
     @app.get("/api/workflows")
     async def api_workflows():

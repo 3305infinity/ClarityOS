@@ -141,7 +141,7 @@ async def summarize_page_with_flash(snapshot) -> Dict[str, Any]:
         )
 
     system_prompt = (
-        "You are Moonwalk's browser page interpreter. Analyze the provided browser snapshot and return ONLY JSON. "
+        "You are ClarityOS's browser page interpreter. Analyze the provided browser snapshot and return ONLY JSON. "
         "Use only the provided elements and ref_ids. Do not invent information. "
         "Classify the page, summarize it, and identify a few important headings or targets.\n\n"
         "Return JSON with this schema:\n"
@@ -188,7 +188,7 @@ async def summarize_scraped_page_with_flash(
         )
 
     system_prompt = (
-        "You are Moonwalk's background web page summarizer. Analyze the provided scraped page text and return ONLY JSON. "
+        "You are ClarityOS's background web page summarizer. Analyze the provided scraped page text and return ONLY JSON. "
         "Ignore cookie notices, navigation chrome, boilerplate menus, account prompts, and footer clutter unless they are central to the page. "
         "Produce a concise factual summary plus the most important section headings and follow-up targets.\n\n"
         "Return JSON with this schema:\n"
@@ -237,7 +237,7 @@ async def extract_structured_items_with_flash(
         )
 
     system_prompt = (
-        "You are Moonwalk's browser structured-data extractor. Analyze the provided browser snapshot and return ONLY JSON. "
+        "You are ClarityOS's browser structured-data extractor. Analyze the provided browser snapshot and return ONLY JSON. "
         "Use only provided elements and ref_ids. Extract distinct items that best satisfy the requested item_type and query. "
         "Ignore page chrome, search navigation, utility actions, account controls, and 'About this result'-style noise unless the user explicitly asked for them.\n\n"
         "Return JSON with this schema:\n"
@@ -282,7 +282,7 @@ async def decide_web_route_with_flash(
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
     system_prompt = (
-        "You are Moonwalk's web gateway route planner. Choose the best route for a web information request. "
+        "You are ClarityOS's web gateway route planner. Choose the best route for a web information request. "
         "Return ONLY JSON. Available routes are 'browser_aci' and 'background_fetch'. "
         "Prefer browser_aci when the task benefits from live browser interaction, live search result exploration, "
         "dynamic pages, or when browser context is clearly relevant. Prefer background_fetch for direct URL reads, "
@@ -358,7 +358,7 @@ async def choose_search_result_with_flash(
         )
 
     system_prompt = (
-        "You are Moonwalk's browser search-result chooser. Choose the single best result to follow next. "
+        "You are ClarityOS's browser search-result chooser. Choose the single best result to follow next. "
         "Return ONLY JSON. Prefer authoritative, relevant sources. Use the provided items only.\n\n"
         "Return JSON with this schema:\n"
         "{"

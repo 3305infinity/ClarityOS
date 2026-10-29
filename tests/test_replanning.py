@@ -165,7 +165,7 @@ def test_replan_preserves_completed_deliverables():
 
 def main():
     print("=" * 60)
-    print("  MOONWALK — REPLANNING TESTS")
+    print("  CLARITYOS — REPLANNING TESTS")
     print("=" * 60)
 
     results = []

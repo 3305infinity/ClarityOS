@@ -1,5 +1,5 @@
 """
-Moonwalk — Canonical runtime state store.
+ClarityOS — Canonical runtime state store.
 """
 
 from __future__ import annotations

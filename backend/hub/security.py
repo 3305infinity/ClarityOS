@@ -16,7 +16,7 @@ def _extra(env: str) -> set[str]:
 
 def allowed_hosts(port: int) -> set[str]:
     base = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
-    return base | _extra("MOONWALK_ALLOWED_HOSTS")
+    return base | _extra("CLARITYOS_ALLOWED_HOSTS")
 
 
 def host_allowed(host_header: Optional[str], port: int) -> bool:
@@ -25,7 +25,7 @@ def host_allowed(host_header: Optional[str], port: int) -> bool:
 
 
 def allowed_origins(port: int) -> set[str]:
-    return {f"http://127.0.0.1:{port}", f"http://localhost:{port}"} | _extra("MOONWALK_ALLOWED_ORIGINS")
+    return {f"http://127.0.0.1:{port}", f"http://localhost:{port}"} | _extra("CLARITYOS_ALLOWED_ORIGINS")
 
 
 def origin_allowed(origin: Optional[str], port: int, *, allow_extension: bool = False,

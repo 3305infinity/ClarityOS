@@ -1,5 +1,5 @@
 """
-Moonwalk — Task Planner V2
+ClarityOS — Task Planner V2
 ===========================
 Milestone-first task planner for the unified execution loop.
 """

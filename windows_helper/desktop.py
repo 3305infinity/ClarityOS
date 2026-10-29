@@ -1,5 +1,5 @@
 """
-Moonwalk Windows helper — desktop tool implementations.
+ClarityOS Windows helper — desktop tool implementations.
 
 Design rules
   * Windows 10/11 only for actual actions. The module imports cleanly on any OS so its pure logic
@@ -219,11 +219,43 @@ def _pid(hwnd: int) -> int:
 
 
 def _proc_name(pid: int) -> str:
+    """Executable name for a pid, e.g. "spotify.exe".
+
+    psutil is declared in windows_helper/requirements.txt, but these tools now
+    also run in-process inside backend/.venv (servers/windows_local_tools.py),
+    where it is not installed. The import failed silently for every process, so
+    get_running_apps() filtered everything out and reported "No visible
+    applications found" on a desktop full of windows — which in turn made every
+    app-launch confirmation fail.
+    """
+    if not pid:
+        return ""
     try:
         import psutil
         return psutil.Process(pid).name()
+    except ImportError:
+        pass
     except Exception:
         return ""
+
+    # Win32 fallback: no third-party package needed.
+    import ctypes
+    from ctypes import wintypes
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    k32 = ctypes.windll.kernel32
+    handle = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+    if not handle:
+        return ""
+    try:
+        size = wintypes.DWORD(260)
+        buf = ctypes.create_unicode_buffer(size.value)
+        if k32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+            return buf.value.rsplit("\\", 1)[-1]
+        return ""
+    except Exception:
+        return ""
+    finally:
+        k32.CloseHandle(handle)
 
 
 def _pid_elevated(pid: int) -> bool:
@@ -260,12 +292,12 @@ def assert_can_control_foreground() -> None:
     name = re.sub(r"\.exe$", "", _proc_name(pid), flags=re.I).lower()
     title = _text(hwnd).lower()
     if name in _SECURE_PROCS or "user account control" in title:
-        raise ToolError("A Windows security prompt (UAC / sign-in) is in front. Moonwalk never interacts with these — "
+        raise ToolError("A Windows security prompt (UAC / sign-in) is in front. ClarityOS never interacts with these — "
                         "please respond to it yourself, then ask me to continue.")
     if not is_admin() and _pid_elevated(pid):
         raise ToolError(f"'{friendly_name(name)}' is running as Administrator, and Windows blocks normal programs from "
-                        "controlling it. Moonwalk will not bypass this. Close it and reopen it normally, or start the "
-                        "Moonwalk helper as Administrator yourself if you really want that.")
+                        "controlling it. ClarityOS will not bypass this. Close it and reopen it normally, or start the "
+                        "ClarityOS helper as Administrator yourself if you really want that.")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -334,7 +366,7 @@ def capture_region_screenshot(x: int, y: int, width: int, height: int) -> str:
     with mss.mss() as sct:
         shot = sct.grab({"left": int(x), "top": int(y), "width": int(width), "height": int(height)})
         img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
-    d = os.path.join(tempfile.gettempdir(), "moonwalk")
+    d = os.path.join(tempfile.gettempdir(), "clarityos")
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, f"region_{int(time.time())}.png")
     img.save(path)
@@ -715,7 +747,7 @@ def copy_image_to_clipboard(source: str) -> str:
         import httpx
         r = httpx.get(source, timeout=20, follow_redirects=True)
         r.raise_for_status()
-        path = os.path.join(tempfile.gettempdir(), f"moonwalk_img_{int(time.time())}")
+        path = os.path.join(tempfile.gettempdir(), f"clarityos_img_{int(time.time())}")
         with open(path, "wb") as f:
             f.write(r.content[:15_000_000])
     path = os.path.expandvars(os.path.expanduser(path))

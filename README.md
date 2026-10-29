@@ -16,7 +16,7 @@ Built with Electron + Python. Thinks with Gemini. Acts through a local Hub, a Wi
 - **Local Hub** — a dashboard at `127.0.0.1:8787` for conversation, activity, settings and connections
 - **Multi-modal responses** — cards, tables, rich text, step timelines, image viewer
 - **Platform-aware planning** — plans target Windows shells and apps, not a borrowed macOS environment
-- **LangGraph (opt-in)** — set `MOONWALK_USE_LANGGRAPH=1` to run the graph agent instead of the linear loop
+- **LangGraph (opt-in)** — set `CLARITYOS_USE_LANGGRAPH=1` to run the graph agent instead of the linear loop
 ---
 
 
@@ -154,6 +154,23 @@ Keys are never written to logs, prompts, or the UI.
 
 ---
 
+## Upgrading from the previous name
+
+The project used to ship under a different codename. If you have an older
+install, nothing needs to be done by hand:
+
+- **Settings, credentials, pairing tokens and the Hub database** are copied into
+  the new `%APPDATA%\ClarityOS` folder on first launch. The old folder is left
+  untouched, so you can roll back by reinstalling the previous build.
+- **API keys in Windows Credential Manager** are still read from the old service
+  name when no new entry exists; anything you save from now on goes to
+  `ClarityOS`.
+- **Environment variables** renamed from the old `*_` prefix to `CLARITYOS_*`.
+  Legacy names in `backend/.env` still work — they are mapped at startup and a
+  one-line notice tells you how many were used. Rename them when convenient.
+
+---
+
 ## Architecture
 ```
 Sidebar / overlay ──WS :8000──►  Voice server  ──►  Agent  ──►  Tool registry
@@ -250,7 +267,7 @@ node tests\extension\test_end_to_end.js
 
 The `tests\extension\*` suites launch a real headless Chrome and load the real
 unpacked extension — they are not mocks. `test_end_to_end.js` requires the Hub
-to be running and reads the pairing code from `%APPDATA%\Moonwalk\tokens.json`
+to be running and reads the pairing code from `%APPDATA%\ClarityOS\tokens.json`
 without printing it.
 
 ---
@@ -277,7 +294,7 @@ See [docs/GUIDE.md](docs/GUIDE.md) for the full deployment guide.
 
 ## Security Notes
 
-- Random per-install tokens (ui / helper / bridge) in `%APPDATA%\Moonwalk\tokens.json` —
+- Random per-install tokens (ui / helper / bridge) in `%APPDATA%\ClarityOS\tokens.json` —
   no default or hard-coded secrets.
 - `Host` and `Origin` are validated on every API call and WebSocket
   (DNS-rebinding and cross-site WebSocket defence); the extension bridge accepts

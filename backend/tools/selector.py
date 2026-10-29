@@ -1,5 +1,5 @@
 """
-Moonwalk — Tool Selector V2
+ClarityOS — Tool Selector V2
 ============================
 Intelligent tool selection using keyword matching and semantic categorization.
 Reduces the 30+ tools down to a relevant subset for each request.
@@ -58,12 +58,12 @@ def _is_mixed_local_workflow(text: str, context_app: str = "") -> bool:
 
 
 _TOOL_GATEWAY_CONTEXT: contextvars.ContextVar[dict] = contextvars.ContextVar(
-    "moonwalk_tool_gateway_context",
+    "clarityos_tool_gateway_context",
     default={},
 )
 
 _WEB_PROGRESS_CALLBACK: contextvars.ContextVar = contextvars.ContextVar(
-    "moonwalk_web_progress_callback",
+    "clarityos_web_progress_callback",
     default=None,
 )
 

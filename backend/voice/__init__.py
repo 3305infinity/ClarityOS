@@ -1,5 +1,5 @@
 """
-Moonwalk — Voice Module
+ClarityOS — Voice Module
 ========================
 Text-to-Speech via Google Cloud TTS (Neural2 voices).
 Provides streamed sentence-by-sentence synthesis for

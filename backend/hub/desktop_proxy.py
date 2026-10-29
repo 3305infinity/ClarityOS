@@ -133,7 +133,7 @@ def install(link: HelperLink, registry) -> None:
         shot = await capture_screen(link)
         if not shot:
             return None
-        d = os.path.join(tempfile.gettempdir(), "moonwalk")
+        d = os.path.join(tempfile.gettempdir(), "clarityos")
         os.makedirs(d, exist_ok=True)
         path = os.path.join(d, f"screen_{int(time.time())}.jpg")
         with open(path, "wb") as f:

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ═══════════════════════════════════════════════════════════════
-//  Moonwalk — Package Chrome Extension for Distribution
+//  ClarityOS — Package Chrome Extension for Distribution
 //
 //  Creates a customer-ready .zip of the Chrome extension with
 //  an install guide (README) inside it.
@@ -9,7 +9,7 @@
 //    npm run dist:extension
 //
 //  Output:
-//    dist/moonwalk-browser-bridge.zip
+//    dist/clarityos-browser-bridge.zip
 // ═══════════════════════════════════════════════════════════════
 
 import { execSync } from "node:child_process";
@@ -19,7 +19,7 @@ import { join, basename } from "node:path";
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const EXT_SRC = join(ROOT, "chrome_extension");
 const DIST = join(ROOT, "dist");
-const STAGING = join(DIST, "moonwalk-browser-bridge");
+const STAGING = join(DIST, "clarityos-browser-bridge");
 
 // ── Clean & create staging directory ──
 if (existsSync(STAGING)) {
@@ -49,7 +49,7 @@ console.log("📦 Copying extension files...");
 copyDir(EXT_SRC, STAGING);
 
 // ── Write the customer-friendly README inside the zip ──
-const readmeContent = `# 🌙 Moonwalk Browser Bridge — Chrome Extension
+const readmeContent = `# 🌙 ClarityOS Browser Bridge — Chrome Extension
 
 ## Quick Install (2 minutes)
 
@@ -64,38 +64,38 @@ You've already done this! This folder contains the extension.
 ### Step 3: Install the Extension
 1. Click the "Load unpacked" button (top-left)
 2. Select THIS folder (the one containing this README)
-3. The "Moonwalk Browser Bridge" extension will appear in your list
+3. The "ClarityOS Browser Bridge" extension will appear in your list
 
 ### Step 4: Pin the Extension
 1. Click the puzzle piece icon 🧩 in Chrome's toolbar
-2. Click the pin 📌 next to "Moonwalk Browser Bridge"
+2. Click the pin 📌 next to "ClarityOS Browser Bridge"
 
-### Step 5: Connect to Moonwalk
-The extension connects automatically to the Moonwalk desktop app.
+### Step 5: Connect to ClarityOS
+The extension connects automatically to the ClarityOS desktop app.
 If you need to change settings:
-1. Right-click the Moonwalk extension icon → "Options"
+1. Right-click the ClarityOS extension icon → "Options"
 2. The default Bridge URL is \`ws://127.0.0.1:8765\` (local mode)
 3. Click "Save Settings"
 
 ### Troubleshooting
-- **Extension not connecting?** Make sure the Moonwalk desktop app is running
+- **Extension not connecting?** Make sure the ClarityOS desktop app is running
 - **"Developer mode" warning?** This is normal for extensions not from the Chrome Web Store. Click "Dismiss" each time Chrome starts.
-- **Need help?** Contact support@moonwalk.ai
+- **Need help?** Contact support@clarityos.ai
 
 ---
-*Moonwalk Browser Bridge v1.0.0*
+*ClarityOS Browser Bridge v1.0.0*
 `;
 
 writeFileSync(join(STAGING, "INSTALL.md"), readmeContent);
 console.log("📝 Added INSTALL.md guide");
 
 // ── Create zip ──
-const zipPath = join(DIST, "moonwalk-browser-bridge.zip");
+const zipPath = join(DIST, "clarityos-browser-bridge.zip");
 if (existsSync(zipPath)) {
   execSync(`rm "${zipPath}"`);
 }
 
-execSync(`cd "${DIST}" && zip -r "${zipPath}" "moonwalk-browser-bridge/"`, {
+execSync(`cd "${DIST}" && zip -r "${zipPath}" "clarityos-browser-bridge/"`, {
   stdio: "inherit",
 });
 

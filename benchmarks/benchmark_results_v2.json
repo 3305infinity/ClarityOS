@@ -616,7 +616,7 @@
               "tool": "write_file",
               "args": {
                 "path": "/tmp/hello.py",
-                "content": "print('Hello, Moonwalk!')"
+                "content": "print('Hello, ClarityOS!')"
               },
               "result": "Successfully wrote to file."
             },
@@ -625,7 +625,7 @@
               "args": {
                 "command": "python /tmp/hello.py"
               },
-              "result": "Hello, Moonwalk!"
+              "result": "Hello, ClarityOS!"
             },
             {
               "tool": "send_response",
@@ -639,14 +639,14 @@
           "conversation_history": [
             {
               "role": "user",
-              "content": "Create a Python script at /tmp/hello.py that prints 'Hello, Moonwalk!' and then run it."
+              "content": "Create a Python script at /tmp/hello.py that prints 'Hello, ClarityOS!' and then run it."
             },
             {
               "role": "model",
               "content": "Script created and executed!"
             }
           ],
-          "prompt": "Create a Python script at /tmp/hello.py that prints 'Hello, Moonwalk!' and then run it.",
+          "prompt": "Create a Python script at /tmp/hello.py that prints 'Hello, ClarityOS!' and then run it.",
           "prompt_tokens": 0,
           "completion_tokens": 0,
           "total_tokens": 0,

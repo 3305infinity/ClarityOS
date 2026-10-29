@@ -1,5 +1,5 @@
 {
-  "name": "moonwalk",
+  "name": "clarityos",
   "version": "1.0.0",
   "description": "ClarityOS — AI Desktop Assistant",
   "author": "ClarityOS",
@@ -24,7 +24,7 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.moonwalk.assistant",
+    "appId": "com.clarityos.assistant",
     "productName": "ClarityOS",
     "directories": {
       "output": "dist",
@@ -51,8 +51,8 @@
         ]
       },
       {
-        "from": "hey_moonwalk.ppn",
-        "to": "hey_moonwalk.ppn"
+        "from": "hey_clarityos.ppn",
+        "to": "hey_clarityos.ppn"
       },
       {
         "from": "setup.sh",

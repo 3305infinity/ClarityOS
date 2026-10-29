@@ -284,11 +284,11 @@
             "scenarios": [
                 {
                     "id": "3.1",
-                    "prompt": "Create a Python script at /tmp/hello.py that prints 'Hello, Moonwalk!' and then run it.",
+                    "prompt": "Create a Python script at /tmp/hello.py that prints 'Hello, ClarityOS!' and then run it.",
                     "difficulty": "medium",
                     "mock_responses": {
                         "write_file": "Successfully wrote to file.",
-                        "run_shell": "Hello, Moonwalk!",
+                        "run_shell": "Hello, ClarityOS!",
                         "send_response": "RESPONSE:Script created and executed successfully!"
                     },
                     "expected_tools_ordered": [
@@ -299,7 +299,7 @@
                         "write_file": {
                             "content": {
                                 "type": "substring_match",
-                                "value": "Hello, Moonwalk!"
+                                "value": "Hello, ClarityOS!"
                             },
                             "path": {
                                 "type": "substring_match",

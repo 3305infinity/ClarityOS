@@ -20,8 +20,8 @@ const BRIDGE_PORT = 8765;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function tokensPath() {
-  const envDir = process.env.MOONWALK_USER_DIR;
-  const base = envDir || path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Moonwalk");
+  const envDir = process.env.CLARITYOS_USER_DIR;
+  const base = envDir || path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "ClarityOS");
   return path.join(base, "tokens.json");
 }
 
@@ -116,11 +116,11 @@ async function evaluate(target, expression, awaitPromise = true) {
     // Pair exactly the way the Options page does.
     await evaluate(popup, `new Promise(r => chrome.storage.sync.set(
       { bridgeUrl: "ws://127.0.0.1:${BRIDGE_PORT}", bridgeToken: ${JSON.stringify(bridgeToken)} }, () => r(1)))`);
-    await evaluate(popup, `chrome.runtime.sendMessage({ type: "moonwalk_settings_updated" })`);
+    await evaluate(popup, `chrome.runtime.sendMessage({ type: "clarityos_settings_updated" })`);
     await sleep(4000);
 
     const status = JSON.parse(await evaluate(popup, `(async () => JSON.stringify(
-      await chrome.runtime.sendMessage({ type: "moonwalk_get_status" })))()`));
+      await chrome.runtime.sendMessage({ type: "clarityos_get_status" })))()`));
     check("authenticated against the real bridge", status.authenticated === true,
       `authenticated=${status.authenticated} socketState=${status.socketState} msg=${status.lastBridgeMessage}`);
     check("socket is actually OPEN (1)", status.socketState === 1, `socketState=${status.socketState}`);
@@ -154,7 +154,7 @@ async function evaluate(target, expression, awaitPromise = true) {
     }
 
     const snap = JSON.parse(await evaluate(popup, `(async () => JSON.stringify(
-      await chrome.runtime.sendMessage({ type: "moonwalk_request_snapshot" })))()`));
+      await chrome.runtime.sendMessage({ type: "clarityos_request_snapshot" })))()`));
     check("capture snapshot succeeds on a real page", snap.ok === true, `ok=${snap.ok} error=${snap.error || ""}`);
     check("snapshot count advanced", (snap.snapshotCount || 0) >= 1, `snapshotCount=${snap.snapshotCount}`);
   } catch (error) {

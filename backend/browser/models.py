@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Models
+ClarityOS — Browser Models
 =========================
 Typed contracts for stable browser element mapping.
 """

@@ -2,11 +2,11 @@
 // This IIFE prevents "Identifier has already been declared" errors 
 // when the extension is injected multiple times into the same page.
 
-if (window.__moonwalk_injected__) return;
-window.__moonwalk_injected__ = true;
+if (window.__clarityos_injected__) return;
+window.__clarityos_injected__ = true;
 
 // ═══════════════════════════════════════════════════════════════
-//  Moonwalk — Content Script v2
+//  ClarityOS — Content Script v2
 //  1. data-agent-id sequential tagging for instant element lookup
 //  2. Aggressive DOM distillation (strips noise, pruned a11y tree)
 //  3. MutationObserver-driven DOM change events for verify phase
@@ -626,11 +626,11 @@ async function sendSnapshot(sessionId, tabId) {
   const snapshot = buildSnapshot(sessionId, tabId);
   try {
     await chrome.runtime.sendMessage({
-      type: "moonwalk_snapshot",
+      type: "clarityos_snapshot",
       snapshot,
     });
   } catch (error) {
-    console.debug("[Moonwalk Content] Snapshot send failed", error);
+    console.debug("[ClarityOS Content] Snapshot send failed", error);
   }
 }
 
@@ -699,7 +699,7 @@ function startMutationObserver(sessionId, tabId) {
     if (_pendingVerify && (Date.now() - _pendingVerify.timestamp) < 10000) {
       try {
         chrome.runtime.sendMessage({
-          type: "moonwalk_dom_change",
+          type: "clarityos_dom_change",
           event: {
             action_id: _pendingVerify.actionId,
             ref_id: _pendingVerify.refId,
@@ -711,7 +711,7 @@ function startMutationObserver(sessionId, tabId) {
           },
         });
       } catch (e) {
-        console.debug("[Moonwalk Content] DOM change event send failed", e);
+        console.debug("[ClarityOS Content] DOM change event send failed", e);
       }
       _pendingVerify = null; // one-shot per action
     }
@@ -734,7 +734,7 @@ function startMutationObserver(sessionId, tabId) {
 
 // -- Message Handling --
 
-// ── Moonwalk Agent Click Pointer ─────────────────────────────────
+// ── ClarityOS Agent Click Pointer ─────────────────────────────────
 const CLICK_POINTER_ID = "mw-click-pointer";
 const CLICK_POINTER_STYLE_ID = "mw-click-pointer-style";
 let _clickPointerEl = null;
@@ -885,9 +885,9 @@ function triggerClickBurst() {
   }, 350);
 }
 
-// ── Moonwalk Research Highlight Styles ──
-const HIGHLIGHT_STYLE_ID = "moonwalk-research-highlight-style";
-const RESEARCH_OVERLAY_ID = "moonwalk-research-overlay";
+// ── ClarityOS Research Highlight Styles ──
+const HIGHLIGHT_STYLE_ID = "clarityos-research-highlight-style";
+const RESEARCH_OVERLAY_ID = "clarityos-research-overlay";
 let _researchOverlayTimer = null;
 
 
@@ -1424,7 +1424,7 @@ function extractReadabilityArticle() {
 }
 
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-  if (message?.type === "moonwalk_collect_snapshot") {
+  if (message?.type === "clarityos_collect_snapshot") {
     const sid = message.sessionId || _observerSessionId;
     const tid = message.tabId || _observerTabId;
     _observerSessionId = sid;
@@ -1434,7 +1434,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     sendResponse?.({ ok: true });
     return true;
   }
-  if (message?.type === "moonwalk_scroll") {
+  if (message?.type === "clarityos_scroll") {
     var direction = message.direction || "down";
     var amount = message.amount || "page";
     var pixels = 0;
@@ -1466,7 +1466,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }, 120);
     return true;
   }
-  if (message?.type === "moonwalk_evaluate_js") {
+  if (message?.type === "clarityos_evaluate_js") {
     try {
       const result = window.eval(message.script);
       sendResponse?.({ ok: true, result: String(result) });
@@ -1476,7 +1476,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     return true;
   }
   
-  if (message?.type === "moonwalk_extract_data") {
+  if (message?.type === "clarityos_extract_data") {
     try {
       const target = message.target;
       let result = "";
@@ -1607,11 +1607,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     }
     return true;
   }
-  if (message?.type === "moonwalk_extract_readability") {
+  if (message?.type === "clarityos_extract_readability") {
     sendResponse?.(extractReadabilityArticle());
     return true;
   }
-  if (message?.type === "moonwalk_execute_action") {
+  if (message?.type === "clarityos_execute_action") {
     const action = message.action;
     // Register pending verify BEFORE executing so MutationObserver
     // catches changes triggered by this action
@@ -1631,7 +1631,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     return true;
   }
   // ── Highlight elements the agent is reading/researching ──
-  if (message?.type === "moonwalk_highlight") {
+  if (message?.type === "clarityos_highlight") {
     const agentIds = message.agentIds || [];
     const duration = message.duration || 3000;
     const mode = message.mode || "reading";
@@ -1653,27 +1653,27 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     return true;
   }
   // ── AI scanning mode — persistent page-wide visual while AI reads ──
-  if (message?.type === "moonwalk_scanning_start") {
+  if (message?.type === "clarityos_scanning_start") {
     const label = message.label || "AI analyzing page…";
     const duration = Number(message.duration || 4000);
     const count = startScanningMode(label, duration);
     sendResponse?.({ ok: true, highlighted: count });
     return true;
   }
-  if (message?.type === "moonwalk_scanning_stop") {
+  if (message?.type === "clarityos_scanning_stop") {
     stopScanningMode();
     sendResponse?.({ ok: true });
     return true;
   }
   // ── Agent click pointer ──
-  if (message?.type === "moonwalk_show_click_pointer") {
+  if (message?.type === "clarityos_show_click_pointer") {
     const pageX = Number(message.pageX || 0);
     const pageY = Number(message.pageY || 0);
     if (pageX || pageY) showClickPointer(pageX, pageY);
     sendResponse?.({ ok: true });
     return true;
   }
-  if (message?.type === "moonwalk_trigger_click_burst") {
+  if (message?.type === "clarityos_trigger_click_burst") {
     triggerClickBurst();
     sendResponse?.({ ok: true });
     return true;

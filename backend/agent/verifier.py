@@ -1,5 +1,5 @@
 """
-Moonwalk — Tool Verifier V2
+ClarityOS — Tool Verifier V2
 ============================
 Verifies that tool executions succeeded by checking results and world state.
 Each tool type has a specific verification strategy.

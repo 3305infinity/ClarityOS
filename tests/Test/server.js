@@ -244,7 +244,7 @@ const port = Number(process.env.PORT || 4173);
 if (process.argv[1] === __filename) {
   const server = createServer();
   server.listen(port, () => {
-    console.log(`Moonwalk IDE listening on http://localhost:${port}`);
+    console.log(`ClarityOS IDE listening on http://localhost:${port}`);
   });
 }
 

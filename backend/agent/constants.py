@@ -1,5 +1,5 @@
 """
-Moonwalk — Shared Agent Constants
+ClarityOS — Shared Agent Constants
 ===================================
 Canonical tool-category sets used across the agent subsystem.
 Import from here — never re-declare locally.

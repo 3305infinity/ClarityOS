@@ -1,5 +1,5 @@
 """
-Moonwalk — Provider error classification
+ClarityOS — Provider error classification
 ========================================
 One place that turns a raw provider exception into an actionable category.
 

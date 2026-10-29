@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Resolver
+ClarityOS — Browser Resolver
 ===========================
 Deterministic candidate ranking for stable browser ref selection.
 """

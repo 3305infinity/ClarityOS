@@ -1,5 +1,5 @@
 """
-Moonwalk — Streamed TTS via Google Cloud Text-to-Speech (Neural2)
+ClarityOS — Streamed TTS via Google Cloud Text-to-Speech (Neural2)
 ==================================================================
 Splits response text into sentences, synthesizes each sentence
 concurrently, and yields audio chunks in order so the first sentence
@@ -30,9 +30,9 @@ print = partial(print, flush=True)
 # ═══════════════════════════════════════════════════════════════
 
 # Default Neural2 voice — natural, mid-cost ($16/1M chars)
-DEFAULT_VOICE = os.environ.get("MOONWALK_TTS_VOICE", "en-US-Neural2-J")
-DEFAULT_LANGUAGE = os.environ.get("MOONWALK_TTS_LANGUAGE", "en-US")
-DEFAULT_SPEAKING_RATE = float(os.environ.get("MOONWALK_TTS_SPEED", "1.05"))
+DEFAULT_VOICE = os.environ.get("CLARITYOS_TTS_VOICE", "en-US-Neural2-J")
+DEFAULT_LANGUAGE = os.environ.get("CLARITYOS_TTS_LANGUAGE", "en-US")
+DEFAULT_SPEAKING_RATE = float(os.environ.get("CLARITYOS_TTS_SPEED", "1.05"))
 
 # Audio encoding: OGG_OPUS is compact and plays natively in Chromium
 AUDIO_ENCODING = "OGG_OPUS"
@@ -189,14 +189,14 @@ class TTSEngine:
 
         # Pluggable engine: google (default) | gnani | sarvam  — see voice/tts_providers.py
         from voice import tts_providers
-        self.provider_name = os.environ.get("MOONWALK_TTS_PROVIDER", "google").strip().lower()
+        self.provider_name = os.environ.get("CLARITYOS_TTS_PROVIDER", "google").strip().lower()
         self._alt = tts_providers.build_provider(self.provider_name)
         self._max_chars = tts_providers.MAX_CHARS.get(self.provider_name, MAX_CHARS_PER_CALL)
         if self.provider_name not in ("google", "") and self._alt is None:
-            print(f"[TTS] Unknown MOONWALK_TTS_PROVIDER '{self.provider_name}' — using google")
+            print(f"[TTS] Unknown CLARITYOS_TTS_PROVIDER '{self.provider_name}' — using google")
             self.provider_name = "google"
         # If the alternative engine fails (bad key, offline, quota) fall back to Google once.
-        self._fallback_google = os.environ.get("MOONWALK_TTS_FALLBACK", "google").strip().lower() == "google"
+        self._fallback_google = os.environ.get("CLARITYOS_TTS_FALLBACK", "google").strip().lower() == "google"
 
     @property
     def enabled(self) -> bool:
@@ -224,7 +224,7 @@ class TTSEngine:
                 if "default credentials" in detail.lower():
                     self._report_google_unavailable(
                         "no Google Cloud credentials (set GOOGLE_APPLICATION_CREDENTIALS "
-                        "in backend/.env, or MOONWALK_TTS_PROVIDER=gnani|sarvam with that "
+                        "in backend/.env, or CLARITYOS_TTS_PROVIDER=gnani|sarvam with that "
                         "provider's key)")
                 else:
                     self._report_google_unavailable(detail[:200])
@@ -437,6 +437,6 @@ def get_tts_engine() -> TTSEngine:
 
 
 def reset_tts_engine() -> None:
-    """Drop the singleton so the next call re-reads MOONWALK_TTS_* / GNANI_* / SARVAM_* env vars."""
+    """Drop the singleton so the next call re-reads CLARITYOS_TTS_* / GNANI_* / SARVAM_* env vars."""
     global _tts_engine
     _tts_engine = None

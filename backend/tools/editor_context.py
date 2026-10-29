@@ -8,7 +8,7 @@ buffer. "Explain this code" therefore cannot be grounded from `get_ui_tree`.
 
 What the title *does* give us is the filename and the workspace:
 
-    "env.example file - Moonwalk-windows - Visual Studio Code"
+    "env.example file - ClarityOS-windows - Visual Studio Code"
      └── file                └── workspace
 
 This module turns that into a *validated* path and reads it under tight rules.
@@ -86,7 +86,7 @@ def parse_editor_title(title: str) -> Optional[Tuple[str, str]]:
     (filename, workspace) from a recognised editor window title.
 
     Split on the " - " separator rather than pattern-matching the segments:
-    workspace names routinely contain hyphens ("Moonwalk-windows"), which a
+    workspace names routinely contain hyphens ("ClarityOS-windows"), which a
     character-class regex cannot express without also swallowing the separator.
     """
     cleaned = (title or "").strip().lstrip("●*").strip()

@@ -1,5 +1,5 @@
 """
-Moonwalk — approval broker
+ClarityOS — approval broker
 ==========================
 The one place that decides whether a pending consequential action was actually
 approved by a human.

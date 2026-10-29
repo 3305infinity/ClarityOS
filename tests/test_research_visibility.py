@@ -8,7 +8,7 @@ from types import SimpleNamespace
 backend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend")
 sys.path.insert(0, backend_path)
 
-from agent.core_v2 import MoonwalkAgentV2
+from agent.core_v2 import ClarityOSAgentV2
 from tools.browser_tools import _build_research_highlight_metadata
 
 
@@ -43,7 +43,7 @@ def test_build_research_highlight_metadata_includes_overlay_fields():
 
 
 def test_build_research_stream_lines_chunks_long_content():
-    agent = MoonwalkAgentV2.__new__(MoonwalkAgentV2)
+    agent = ClarityOSAgentV2.__new__(ClarityOSAgentV2)
     content = (
         "London property market trends remain mixed across prime and outer boroughs.\n"
         + ("This sentence carries additional detail about prices, yields, transport, and demand. " * 12)

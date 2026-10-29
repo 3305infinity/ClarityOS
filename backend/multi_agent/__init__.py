@@ -1,5 +1,5 @@
 """
-Moonwalk — Multi-Agent Orchestration
+ClarityOS — Multi-Agent Orchestration
 ======================================
 Types and protocols for parallel sub-agent execution.
 

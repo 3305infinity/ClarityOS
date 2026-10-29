@@ -363,7 +363,7 @@ def test_sub_agent_result_types():
 
 def main():
     print("=" * 60)
-    print("  MOONWALK — MULTI-AGENT TESTS")
+    print("  CLARITYOS — MULTI-AGENT TESTS")
     print("=" * 60)
 
     results = []

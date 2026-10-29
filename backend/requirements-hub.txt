@@ -1,4 +1,4 @@
-# Moonwalk Hub (Windows / any OS) — no macOS-only packages (pyobjc) and no wake-word SDK.
+# ClarityOS Hub (Windows / any OS) — no macOS-only packages (pyobjc) and no wake-word SDK.
 google-genai>=1.0.0
 python-dotenv>=1.0.0
 websockets>=13.0

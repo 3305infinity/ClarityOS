@@ -405,7 +405,7 @@ def test_website_is_served_with_csp_and_no_inline_script(tmp_path):
     app = create_app(hub=hub, port=PORT, web_dir=web, start_bridge_server=False, install_tools=False)
     with TestClient(app, base_url=f"http://127.0.0.1:{PORT}") as c:
         html = c.get("/")
-        assert html.status_code == 200 and "ClarityOS" in html.text   # product renamed from Moonwalk
+        assert html.status_code == 200 and "ClarityOS" in html.text   # product renamed from ClarityOS
         assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html.text), "inline <script> would be blocked by the CSP"
         js = c.get("/static/app.js").text
         assert not re.search(r"\.(innerHTML|outerHTML)\s*=|insertAdjacentHTML|document\.write|eval\(", js)   # server text only via textContent

@@ -202,7 +202,7 @@ def test_verify_with_visual_keeps_successful_gdocs_create_without_visual_overrid
             }
         ),
         {"title": "Fascinating Facts About Octopuses"},
-        visual_summary="App: Electron\nTitle: Moonwalk\nProceed button visible",
+        visual_summary="App: Electron\nTitle: ClarityOS\nProceed button visible",
     )
     assert verification.success is True
     assert "Google Doc created" in verification.message

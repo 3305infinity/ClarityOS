@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   MOONWALK – Renderer (Raw Audio Streaming to Backend)
+   CLARITYOS – Renderer (Raw Audio Streaming to Backend)
    ───────────────────────────────────────────────────────────── */
 
 const State = Object.freeze({
@@ -1935,6 +1935,12 @@ async function runOnboarding() {
   setMouseEnabled(true);
   onboardingOverlay.classList.remove("hidden");
   startWelcomeCanvas();
+  // The welcome screen waits on this window's own socket to decide whether the
+  // assistant is up. Showing onboarding means this IS the surface the user is
+  // looking at, so it must never be treated as the inactive presentation —
+  // otherwise it reports "Assistant not responding" against a healthy backend.
+  app.uiInactive = false;
+  connectWebSocket();
   trackBackendReadiness();
   welcomeLaunchBtn?.focus();
 }

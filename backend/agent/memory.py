@@ -1,5 +1,5 @@
 """
-Moonwalk — Memory System
+ClarityOS — Memory System
 =========================
 Short-term: conversation turns (in-memory + persisted sessions)
 Working:    action log, entity ledger, session goal (current task context)
@@ -21,13 +21,13 @@ from typing import Optional, List, Any
 
 
 # ── Storage directory ──
-MOONWALK_DIR = os.path.expanduser("~/.moonwalk")
-SESSIONS_DIR = os.path.join(MOONWALK_DIR, "sessions")
-VAULT_DIR = os.path.join(MOONWALK_DIR, "vault")
+CLARITYOS_DIR = os.path.expanduser("~/.clarityos")
+SESSIONS_DIR = os.path.join(CLARITYOS_DIR, "sessions")
+VAULT_DIR = os.path.join(CLARITYOS_DIR, "vault")
 
 
 def _ensure_dir():
-    os.makedirs(MOONWALK_DIR, exist_ok=True)
+    os.makedirs(CLARITYOS_DIR, exist_ok=True)
     os.makedirs(SESSIONS_DIR, exist_ok=True)
     os.makedirs(VAULT_DIR, exist_ok=True)
 
@@ -701,7 +701,7 @@ class UserPreferences:
 
     def __init__(self):
         _ensure_dir()
-        self._path = os.path.join(MOONWALK_DIR, "preferences.json")
+        self._path = os.path.join(CLARITYOS_DIR, "preferences.json")
         self._data: dict = self._load()
 
     def _load(self) -> dict:
@@ -771,7 +771,7 @@ class UserProfile:
 
     def __init__(self):
         _ensure_dir()
-        self._path = os.path.join(MOONWALK_DIR, "user_profile.json")
+        self._path = os.path.join(CLARITYOS_DIR, "user_profile.json")
         self._profile: dict = self._load()
 
     def _load(self) -> dict:
@@ -863,7 +863,7 @@ class TaskStore:
 
     def __init__(self):
         _ensure_dir()
-        self._path = os.path.join(MOONWALK_DIR, "tasks.json")
+        self._path = os.path.join(CLARITYOS_DIR, "tasks.json")
         self._tasks: dict[str, BackgroundTask] = self._load()
 
     def _load(self) -> dict[str, BackgroundTask]:
@@ -935,7 +935,7 @@ class TaskStore:
 #  Vault Memory (permanent cross-session storage)
 # ═══════════════════════════════════════════════════════════════
 
-# Valid vault categories — each maps to a subfolder under ~/.moonwalk/vault/
+# Valid vault categories — each maps to a subfolder under ~/.clarityos/vault/
 VAULT_CATEGORIES = frozenset({
     "notes",           # Free-form text notes, reminders, instructions
     "contacts",        # People: names, phone numbers, emails, relationships
@@ -955,7 +955,7 @@ class VaultMemory:
     """Permanent cross-session memory vault.
 
     Stores typed entries (text, structured data, file references) as individual
-    JSON files under ``~/.moonwalk/vault/<category>/``.  Supports TF-IDF search
+    JSON files under ``~/.clarityos/vault/<category>/``.  Supports TF-IDF search
     across all entries for recall.
     """
 

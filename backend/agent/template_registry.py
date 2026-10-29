@@ -1,5 +1,5 @@
 """
-Moonwalk — JSON Template Registry
+ClarityOS — JSON Template Registry
 =================================
 Loads optional template packs from backend/agent/templates/packs/*.json
 and surfaces them as advisory skill overlays for the milestone planner.
@@ -160,7 +160,7 @@ class TemplateRegistry:
         if not text and intent and getattr(intent, "target_value", None):
             return str(intent.target_value).strip().lower()
 
-        text = re.sub(r"^[\s,]*(can you|could you|please|hey moonwalk|moonwalk)\s+", "", text)
+        text = re.sub(r"^[\s,]*(can you|could you|please|hey clarityos|clarityos)\s+", "", text)
         text = re.sub(r"^[\s,]*(research|investigate|study|analy[sz]e|compare|find me)\s+", "", text)
         text = re.sub(r"\b(create|write|make)\b.*$", "", text)
         text = re.sub(r"\b(a|an|the)\b", " ", text)

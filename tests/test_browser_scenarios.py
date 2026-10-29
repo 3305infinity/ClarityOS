@@ -17,7 +17,7 @@ import websockets
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "backend"))
 
-os.environ.setdefault("MOONWALK_BROWSER_BRIDGE_TOKEN", "dev-bridge-token")
+os.environ.setdefault("CLARITYOS_BROWSER_BRIDGE_TOKEN", "dev-bridge-token")
 
 from browser.bridge import browser_bridge
 from browser.store import browser_store

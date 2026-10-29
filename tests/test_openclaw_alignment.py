@@ -11,7 +11,7 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO_ROOT, "backend"))
 
-from agent.core_v2 import MoonwalkAgentV2
+from agent.core_v2 import ClarityOSAgentV2
 from agent.planner import Milestone, MilestonePlan
 from agent.task_planner import TaskPlanner
 from agent.verifier import ToolVerifier
@@ -80,7 +80,7 @@ def test_router_fast_path_detects_trivial_request():
 
 
 def test_simple_open_app_plan_is_not_gated():
-    agent = MoonwalkAgentV2(use_planning=True, persist=False)
+    agent = ClarityOSAgentV2(use_planning=True, persist=False)
     simple_plan = MilestonePlan(
         task_summary="Open Spotify",
         milestones=[

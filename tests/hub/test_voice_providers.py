@@ -92,12 +92,12 @@ def test_fallback_only_on_request_errors(monkeypatch):
 
 def test_factory_selection(monkeypatch):
     stt.reset_stt_provider()
-    monkeypatch.setenv("MOONWALK_STT_PROVIDER", "gnani")
-    monkeypatch.delenv("MOONWALK_STT_FALLBACK", raising=False)
+    monkeypatch.setenv("CLARITYOS_STT_PROVIDER", "gnani")
+    monkeypatch.delenv("CLARITYOS_STT_FALLBACK", raising=False)
     p = stt.get_stt_provider()
     assert p.name == "gnani+google"
     stt.reset_stt_provider()
-    monkeypatch.setenv("MOONWALK_STT_PROVIDER", "bogus")
+    monkeypatch.setenv("CLARITYOS_STT_PROVIDER", "bogus")
     assert stt.get_stt_provider().name == "google"
     stt.reset_stt_provider()
 
@@ -158,7 +158,7 @@ def test_detect_language():
 
 def test_tts_engine_falls_back_to_google(monkeypatch):
     from voice import tts
-    monkeypatch.setenv("MOONWALK_TTS_PROVIDER", "gnani")
+    monkeypatch.setenv("CLARITYOS_TTS_PROVIDER", "gnani")
     monkeypatch.delenv("GNANI_API_KEY", raising=False)
     tts.reset_tts_engine()
     eng = tts.TTSEngine()

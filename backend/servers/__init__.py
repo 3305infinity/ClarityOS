@@ -1,5 +1,5 @@
 """
-Moonwalk — Servers Package
+ClarityOS — Servers Package
 ============================
 Server entry points for local and cloud modes.
 """

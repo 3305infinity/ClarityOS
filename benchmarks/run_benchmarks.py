@@ -12,7 +12,7 @@ from datetime import datetime
 # Add the backend to the path so we can import the agent
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-from agent import MoonwalkAgent, MoonwalkAgentV2, create_agent
+from agent import ClarityOSAgent, ClarityOSAgentV2, create_agent
 from tools import registry as tool_registry
 import agent.perception as perception
 
@@ -21,7 +21,7 @@ import agent.perception as perception
 # ═══════════════════════════════════════════════════════════════
 
 # Agent version: "v1" or "v2" (override with --agent=v2)
-AGENT_VERSION = os.environ.get("MOONWALK_AGENT_VERSION", "v1")
+AGENT_VERSION = os.environ.get("CLARITYOS_AGENT_VERSION", "v1")
 
 # ═══════════════════════════════════════════════════════════════
 #  Constants & Scoring
@@ -44,7 +44,7 @@ def get_results_path(agent_version: str) -> str:
 
 def create_temp_workspace():
     """Copy fixtures/ into a fresh temp directory for state isolation."""
-    tmp = tempfile.mkdtemp(prefix="moonwalk_bench_")
+    tmp = tempfile.mkdtemp(prefix="clarityos_bench_")
     if os.path.isdir(FIXTURES_DIR):
         shutil.copytree(FIXTURES_DIR, os.path.join(tmp, "fixtures"))
     return tmp
@@ -557,7 +557,7 @@ def print_final_report(suite_results: List[SuiteResult]):
     max_weighted = sum(s.max_weighted_score for s in suite_results)
 
     print(f"\n{'═'*70}")
-    print(f"  📊  MOONWALK AGENT BENCHMARK REPORT")
+    print(f"  📊  CLARITYOS AGENT BENCHMARK REPORT")
     print(f"{'═'*70}\n")
 
     # Per-suite table
@@ -599,7 +599,7 @@ def print_final_report(suite_results: List[SuiteResult]):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Run Moonwalk Agent Benchmarks")
+    parser = argparse.ArgumentParser(description="Run ClarityOS Agent Benchmarks")
     parser.add_argument(
         "--agent", "-a",
         choices=["v1", "v2"],

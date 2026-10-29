@@ -1,4 +1,4 @@
-# Moonwalk — Developer Sync Guide
+# ClarityOS — Developer Sync Guide
 
 > **Last updated:** 2026-03-03
 > **Purpose:** This document is the single source of truth for anyone working on this project. If you are using AI tools to build, paste this entire file into context.
@@ -7,7 +7,7 @@
 
 ## 1. Project Overview
 
-Moonwalk is a **voice-activated AI assistant** that runs as a macOS overlay (Electron) with a Python backend powered by Google's Gemini LLM. The LLM can control the user's Mac (open apps, click UI, type text) and also spawn autonomous background "sub-agents" that run headlessly on the cloud.
+ClarityOS is a **voice-activated AI assistant** that runs as a macOS overlay (Electron) with a Python backend powered by Google's Gemini LLM. The LLM can control the user's Mac (open apps, click UI, type text) and also spawn autonomous background "sub-agents" that run headlessly on the cloud.
 
 ### Architecture Diagram
 
@@ -43,7 +43,7 @@ Moonwalk is a **voice-activated AI assistant** that runs as a macOS overlay (Ele
 ## 2. Folder Structure
 
 ```
-Moonwalk/
+ClarityOS/
 ├── main.js                 # Electron main process (window mgmt, IPC, hotkeys)
 ├── preload.js              # Electron context bridge (IPC API for renderer)
 ├── package.json            # Electron dependencies (electron, ws)
@@ -67,7 +67,7 @@ Moonwalk/
 │   ├── memory.py           #   Conversation memory + context compression
 │   ├── perception.py       #   macOS context snapshot (active app, URL)
 │   ├── tools.py            #   All 33+ tool definitions
-│   ├── hey_moonwalk.ppn    #   Wake word model (Picovoice)
+│   ├── hey_clarityos.ppn    #   Wake word model (Picovoice)
 │   └── requirements-cloud.txt  # Python deps for GCP deployment
 │
 ├── tests/                  # Test scripts (not production)
@@ -275,22 +275,22 @@ GEMINI_ROUTING_MODEL=gemini-3.5-flash   # Tier 0 (query classifier)
 
 ### Frontend (Electron)
 ```bash
-cd Moonwalk
+cd ClarityOS
 npm install
 npm start          # Starts Electron + auto-launches Python backend
 ```
 
 ### Backend Only (for isolated backend dev)
 ```bash
-cd Moonwalk
+cd ClarityOS
 source venv/bin/activate
 python backend/backend_server.py     # Starts WS server on :8000
 ```
 
 ### Cloud Deployment (GCP)
 ```bash
-docker build -t moonwalk-brain .
-docker run -p 8080:8080 -e GEMINI_API_KEY=<key> moonwalk-brain
+docker build -t clarityos-brain .
+docker run -p 8080:8080 -e GEMINI_API_KEY=<key> clarityos-brain
 ```
 
 > **Note:** The `Dockerfile` currently copies files from the root. It needs updating to copy from `backend/` after the recent folder restructure.

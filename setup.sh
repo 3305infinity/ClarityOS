@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Moonwalk — Post-install Python Environment Setup
+#  ClarityOS — Post-install Python Environment Setup
 # ═══════════════════════════════════════════════════════════════
 #
 #  This script creates a Python virtual environment and installs
-#  the required packages for the Moonwalk backend.
+#  the required packages for the ClarityOS backend.
 #
 #  Called automatically on first launch by the Electron app,
 #  or can be run manually:
@@ -15,8 +15,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="${SCRIPT_DIR}/backend"
-# MOONWALK_VENV_DIR can be set by Electron to redirect the venv to a writable location
-VENV_DIR="${MOONWALK_VENV_DIR:-${SCRIPT_DIR}/venv}"
+# CLARITYOS_VENV_DIR can be set by Electron to redirect the venv to a writable location
+VENV_DIR="${CLARITYOS_VENV_DIR:-${SCRIPT_DIR}/venv}"
 REQUIREMENTS="${BACKEND_DIR}/requirements.txt"
 PYTHON_BIN=""
 
@@ -26,9 +26,9 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-info()    { echo -e "${GREEN}[Moonwalk]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[Moonwalk]${NC} $1"; }
-fail()    { echo -e "${RED}[Moonwalk]${NC} $1"; exit 1; }
+info()    { echo -e "${GREEN}[ClarityOS]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[ClarityOS]${NC} $1"; }
+fail()    { echo -e "${RED}[ClarityOS]${NC} $1"; exit 1; }
 
 # ── Find Python 3.10+ (str | None union syntax requires 3.10+) ──
 find_python() {
@@ -48,7 +48,7 @@ find_python() {
 }
 
 # ── Main ──
-info "Setting up Moonwalk Python environment..."
+info "Setting up ClarityOS Python environment..."
 
 if [[ -d "$VENV_DIR" && -f "$VENV_DIR/bin/python3" ]]; then
     info "Virtual environment already exists at $VENV_DIR"
@@ -75,6 +75,6 @@ fi
 
 info "Setup complete!"
 echo ""
-echo "To start Moonwalk:"
+echo "To start ClarityOS:"
 echo "  npm start"
 echo ""

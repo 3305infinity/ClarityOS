@@ -1,5 +1,5 @@
 """
-Moonwalk — RAG Engine (Retrieval-Augmented Generation)
+ClarityOS — RAG Engine (Retrieval-Augmented Generation)
 =======================================================
 Adds semantic memory to the agent using Vertex AI text embeddings
 and Firestore vector search.
@@ -34,7 +34,7 @@ from google import genai  # type: ignore[import]
 # ── Configuration ──
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-EMBEDDING_MODEL = os.environ.get("MOONWALK_EMBEDDING_MODEL", "text-embedding-004")
+EMBEDDING_MODEL = os.environ.get("CLARITYOS_EMBEDDING_MODEL", "text-embedding-004")
 EMBEDDING_DIMENSIONS = 768  # text-embedding-004 default
 
 # Cache for computed embeddings (in-memory LRU)
@@ -47,7 +47,7 @@ _EMBED_CACHE_SIZE = 500
 
 class RAGEngine:
     """
-    Retrieval-Augmented Generation engine for Moonwalk.
+    Retrieval-Augmented Generation engine for ClarityOS.
     
     Uses Gemini's text-embedding-004 model for embeddings and
     Firestore vector search for retrieval.

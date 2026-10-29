@@ -1,7 +1,7 @@
 """
-Moonwalk — Cloud Orchestrator Server
+ClarityOS — Cloud Orchestrator Server
 ======================================
-WebSocket server that runs the Moonwalk agent brain in Google Cloud.
+WebSocket server that runs the ClarityOS agent brain in Google Cloud.
 
 Architecture:
   Mac Client (mac_client.py) ←WebSocket→ Cloud Server (this file)
@@ -55,10 +55,10 @@ if _backend_dir not in sys.path:
 load_dotenv(os.path.join(_backend_dir, ".env"))
 
 # Mark as cloud environment before importing anything else
-os.environ["MOONWALK_CLOUD"] = "1"
+os.environ["CLARITYOS_CLOUD"] = "1"
 
-# Moonwalk modules
-from agent.core_v2 import MoonwalkAgentV2
+# ClarityOS modules
+from agent.core_v2 import ClarityOSAgentV2
 from agent.cloud_memory import (
     CloudConversationMemory,
     CloudUserProfile,
@@ -93,7 +93,7 @@ PORT = int(os.environ.get("PORT", 8080))
 HOST = os.environ.get("HOST", "0.0.0.0")
 
 # Idle agent eviction (seconds)
-AGENT_IDLE_TIMEOUT = int(os.environ.get("MOONWALK_AGENT_IDLE_TIMEOUT", 3600))
+AGENT_IDLE_TIMEOUT = int(os.environ.get("CLARITYOS_AGENT_IDLE_TIMEOUT", 3600))
 
 # Tools that MUST execute on the Mac (not in cloud)
 MAC_ONLY_TOOLS = {
@@ -132,7 +132,7 @@ CLOUD_SAFE_TOOLS = {
 
 class CloudAgent:
     """
-    The cloud-hosted agent. Wraps MoonwalkAgentV2 and intercepts tool
+    The cloud-hosted agent. Wraps ClarityOSAgentV2 and intercepts tool
     calls that need to run on the user's Mac, forwarding them via
     WebSocket and waiting for the result.
     """
@@ -153,7 +153,7 @@ class CloudAgent:
         self.working_memory = WorkingMemory(max_actions=40, max_entities=60)
 
         # Create the core agent
-        self.agent = MoonwalkAgentV2(use_planning=True, persist=False)
+        self.agent = ClarityOSAgentV2(use_planning=True, persist=False)
 
         # Swap in cloud memory
         self.agent.conversation = self.conversation
@@ -464,7 +464,7 @@ async def health_handler(path, request_headers):
         if "upgrade" not in {k.lower(): v for k, v in request_headers.raw_items()}.get("upgrade", "").lower():
             return (200, [("Content-Type", "application/json")], json.dumps({
                 "status": "healthy",
-                "service": "moonwalk-cloud",
+                "service": "clarityos-cloud",
                 "active_agents": len(_agents),
                 "uptime_seconds": int(time.time() - _start_time),
             }).encode())
@@ -476,11 +476,11 @@ _start_time = time.time()
 
 async def main():
     """Start the Cloud Orchestrator WebSocket server."""
-    auth_mode = os.environ.get("MOONWALK_CLOUD_TOKEN", "")
-    google_client_id = os.environ.get("MOONWALK_GOOGLE_CLIENT_ID", "")
+    auth_mode = os.environ.get("CLARITYOS_CLOUD_TOKEN", "")
+    google_client_id = os.environ.get("CLARITYOS_GOOGLE_CLIENT_ID", "")
 
     print("=" * 60)
-    print("  Moonwalk Cloud Orchestrator")
+    print("  ClarityOS Cloud Orchestrator")
     print("=" * 60)
     print(f"  Host:     {HOST}")
     print(f"  Port:     {PORT}")

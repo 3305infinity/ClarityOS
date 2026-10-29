@@ -1,5 +1,5 @@
 """
-Moonwalk — Remote Executor
+ClarityOS — Remote Executor
 ============================
 Wraps milestone execution for use as an isolated sub-agent.
 

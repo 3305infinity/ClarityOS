@@ -1,7 +1,7 @@
 """
-Moonwalk — Cloud-Persistent Memory (Firestore + GCS)
+ClarityOS — Cloud-Persistent Memory (Firestore + GCS)
 =====================================================
-Drop-in replacements for the local ~/.moonwalk file-backed memory classes.
+Drop-in replacements for the local ~/.clarityos file-backed memory classes.
 Each class keeps the same public interface so core_v2.py can swap in
 cloud memory without touching the agent loop.
 
@@ -36,8 +36,8 @@ from google.cloud import storage as gcs  # type: ignore[import]
 # ── Configuration ──
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT", "")
-GCS_BUCKET = os.environ.get("MOONWALK_GCS_BUCKET", f"{GCP_PROJECT}-moonwalk-memory")
-DEFAULT_USER_ID = os.environ.get("MOONWALK_USER_ID", "default")
+GCS_BUCKET = os.environ.get("CLARITYOS_GCS_BUCKET", f"{GCP_PROJECT}-clarityos-memory")
+DEFAULT_USER_ID = os.environ.get("CLARITYOS_USER_ID", "default")
 
 # Lazy-init singletons
 _db: Optional[firestore.Client] = None
@@ -77,7 +77,7 @@ class CloudConversationMemory:
     """Conversation history persisted in Firestore.
 
     Same interface as memory.ConversationMemory but backed by Firestore
-    instead of ~/.moonwalk/sessions/*.json.
+    instead of ~/.clarityos/sessions/*.json.
     """
 
     def __init__(
@@ -685,7 +685,7 @@ class CloudVaultMemory:
 
 def is_cloud() -> bool:
     """Returns True when running in a GCP environment."""
-    return bool(os.environ.get("K_SERVICE") or os.environ.get("MOONWALK_CLOUD"))
+    return bool(os.environ.get("K_SERVICE") or os.environ.get("CLARITYOS_CLOUD"))
 
 
 def create_memory_stack(user_id: str = "", embed_fn=None):
@@ -710,7 +710,7 @@ def create_memory_stack(user_id: str = "", embed_fn=None):
             ConversationMemory, UserProfile, UserPreferences,
             VaultMemory, TaskStore,
         )
-        print("[Memory] Local mode — file-backed (~/.moonwalk/)")
+        print("[Memory] Local mode — file-backed (~/.clarityos/)")
         return {
             "conversation": ConversationMemory(),
             "profile": UserProfile(),

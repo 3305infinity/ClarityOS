@@ -1,5 +1,5 @@
 """
-Moonwalk — Planner Types
+ClarityOS — Planner Types
 ========================
 Runtime dataclasses for milestone planning and step execution primitives.
 """

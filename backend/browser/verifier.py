@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Verification Helpers
+ClarityOS — Browser Verification Helpers
 =======================================
 Basic verification utilities for browser ref actions.
 """

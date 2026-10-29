@@ -420,10 +420,10 @@ def test_table_values_contain_no_shell_metacharacters():
 
 def test_agent_direct_action_declines_when_tool_missing():
     """With no open_app registered, the fast path defers instead of erroring."""
-    from agent.core_v2 import MoonwalkAgentV2
+    from agent.core_v2 import ClarityOSAgentV2
     from tools import registry as tool_registry
 
-    agent_obj = MoonwalkAgentV2.__new__(MoonwalkAgentV2)   # no heavy __init__
+    agent_obj = ClarityOSAgentV2.__new__(ClarityOSAgentV2)   # no heavy __init__
     original = tool_registry.list_names
     tool_registry.list_names = lambda: []
     try:
@@ -434,8 +434,8 @@ def test_agent_direct_action_declines_when_tool_missing():
 
 
 def test_direct_action_failure_messages_are_actionable():
-    from agent.core_v2 import MoonwalkAgentV2
-    fail = MoonwalkAgentV2._direct_action_failure
+    from agent.core_v2 import ClarityOSAgentV2
+    fail = ClarityOSAgentV2._direct_action_failure
     assert "helper" in fail("Notepad", "ERROR: helper is not connected").lower()
     assert "installed" in fail("Docker Desktop", "ERROR: No installed app matching 'docker'").lower()
 

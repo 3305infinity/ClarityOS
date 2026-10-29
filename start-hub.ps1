@@ -1,4 +1,4 @@
-# Moonwalk Hub launcher (Windows).  Usage:   .\start-hub.ps1            then, in a 2nd window, optionally:  .\windows_helper\start.ps1
+# ClarityOS Hub launcher (Windows).  Usage:   .\start-hub.ps1            then, in a 2nd window, optionally:  .\windows_helper\start.ps1
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "backend")
 

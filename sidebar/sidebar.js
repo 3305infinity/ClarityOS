@@ -174,13 +174,13 @@ function handle(msg) {
   // Dictation results come back on the existing transcript events.
   if (msg.type === "transcribing") { setState("thinking", "Transcribing"); return; }
   if (msg.type === "transcript") {
-    stopDictation();
+    stopDictation({ finalize: false });
     if (msg.text) { bubble("me", msg.text); S.lastAi = null; }
     setState("thinking", "Thinking");
     return;
   }
   if (msg.type === "transcript_error") {
-    stopDictation();
+    stopDictation({ finalize: false });
     bubble("err", `${msg.message || "Could not transcribe that."}${msg.hint ? " " + msg.hint : ""}`);
     setState("idle", "Idle");
     return;
@@ -290,7 +290,7 @@ function submit(text) {
 }
 
 function cancel() {
-  if (S.mic.active) stopDictation();
+  if (S.mic.active) stopDictation({ finalize: false });
   send({ type: "cancel_task" });
   stopAudio();
   bubble("sys", "Cancelled");
@@ -375,6 +375,10 @@ function arrayBufferToBase64(buffer) {
 
 async function startDictation() {
   if (S.mic.active) return;
+  if (!S.ws || S.ws.readyState !== WebSocket.OPEN) {
+    bubble("err", "Not connected to the ClarityOS backend yet — try again in a moment.");
+    return;
+  }
   try {
     S.mic.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
   } catch (error) {
@@ -382,6 +386,12 @@ async function startDictation() {
       + `Allow microphone access for ClarityOS in Windows Settings → Privacy → Microphone.`);
     return;
   }
+  // Tell the backend to listen. Without this it stays in IDLE and feeds every
+  // chunk to the wake-word detector, which is disabled when pvporcupine is not
+  // installed — so audio streamed fine and was silently dropped. The overlay
+  // already sends this on its hotkey; the Speak button never did.
+  send({ type: "hotkey_pressed" });
+
   S.mic.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
   S.mic.source = S.mic.ctx.createMediaStreamSource(S.mic.stream);
   S.mic.processor = S.mic.ctx.createScriptProcessor(1024, 1, 1);
@@ -399,8 +409,22 @@ async function startDictation() {
   toast("Listening — click Speak again to stop.");
 }
 
-function stopDictation() {
+function stopDictation({ finalize = true } = {}) {
   const m = S.mic;
+  // The backend ends a command on sustained silence (7 chunks ≈ 0.45s), so
+  // simply cutting the stream would leave whatever was said sitting in its
+  // buffer and the server stuck in LISTENING. Flush a short tail of real
+  // silence so the existing detector finalises the turn — no new protocol.
+  //
+  // finalize:false is for the cases where the utterance should be abandoned
+  // rather than submitted — cancelling, or this window going away mid-sentence.
+  if (finalize && m.active && m.ctx && S.ws && S.ws.readyState === WebSocket.OPEN) {
+    const silence = new Float32Array(1024);
+    for (let i = 0; i < 10; i += 1) {
+      send({ type: "audio_chunk",
+             payload: arrayBufferToBase64(encodeWAVChunk(silence, m.ctx.sampleRate)) });
+    }
+  }
   try { m.processor && m.processor.disconnect(); } catch (_) {}
   try { m.source && m.source.disconnect(); } catch (_) {}
   try { m.ctx && m.ctx.close(); } catch (_) {}
@@ -531,6 +555,10 @@ if (window.sidebarAPI && sidebarAPI.onUiActive) {
     if (active) {
       connect();
     } else {
+      // Release the microphone before dropping the socket. Otherwise hiding
+      // this window mid-utterance left the capture running against a closed
+      // connection: the mic stayed lit, and the audio went nowhere.
+      if (S.mic.active) stopDictation({ finalize: false });
       try { S.ws && S.ws.close(); } catch (_) {}
       S.ws = null;
     }

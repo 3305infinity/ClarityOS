@@ -1,5 +1,5 @@
 """
-Moonwalk — Google Workspace Tools
+ClarityOS — Google Workspace Tools
 ===================================
 Direct, high-level tools for Google Docs, Sheets, Slides, Drive, Gmail,
 and Calendar.
@@ -16,7 +16,7 @@ Execution channels (tried in priority order):
    user is already signed in to Google in their browser.
 
 2. **Google REST API** (optional speed enhancement) — if the user has set
-   up an OAuth2 token at ``~/.moonwalk/gcloud_token.json`` the tool uses
+   up an OAuth2 token at ``~/.clarityos/gcloud_token.json`` the tool uses
    the official API for faster, more reliable, bulk operations (100s of
    rows, background writes). This is NEVER required.
 
@@ -42,7 +42,7 @@ from tools.registry import registry, _osascript
 #  Internal helpers
 # ═══════════════════════════════════════════════════════════════
 
-_TOKEN_PATH = os.path.expanduser("~/.moonwalk/gcloud_token.json")
+_TOKEN_PATH = os.path.expanduser("~/.clarityos/gcloud_token.json")
 _VISION_COORD_RE = re.compile(r"\(?\b(?:x\s*[:=]\s*)?(\d{1,4})\s*,\s*(?:y\s*[:=]\s*)?(\d{1,4})\b\)?", re.I)
 
 
@@ -802,13 +802,13 @@ async def gdocs_read(doc_url_or_id: str) -> str:
         return json.dumps({"ok": True, "doc_id": doc_id,
                            "text": text[:8000],
                            "note": "Read via browser automation (DOM/clipboard/vision). "
-                                   "For full fidelity set up OAuth in ~/.moonwalk/gcloud_token.json."},
+                                   "For full fidelity set up OAuth in ~/.clarityos/gcloud_token.json."},
                           ensure_ascii=False)
 
     return json.dumps({"ok": False, "doc_id": doc_id,
                        "error": "Failed to read document content (DOM, clipboard, and vision all returned empty).",
                        "note": "For full fidelity and reliability without the browser extension, "
-                               "set up OAuth in ~/.moonwalk/gcloud_token.json."},
+                               "set up OAuth in ~/.clarityos/gcloud_token.json."},
                       ensure_ascii=False)
 
 
@@ -1583,7 +1583,7 @@ async def gdrive_upload(local_path: str, drive_name: str = "",
         with open(expanded, "rb") as f:
             file_data = f.read()
         import io
-        boundary = "moonwalk_boundary"
+        boundary = "clarityos_boundary"
         body_parts = [
             f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{json.dumps(metadata)}\r\n",
             f"--{boundary}\r\nContent-Type: application/octet-stream\r\n\r\n",

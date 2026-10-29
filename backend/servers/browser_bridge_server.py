@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Bridge Server
+ClarityOS — Browser Bridge Server
 ================================
 Standalone WebSocket server for the Chrome extension bridge.
 
@@ -29,8 +29,8 @@ from browser.bridge import browser_bridge
 from browser.pairing import pairing_broker
 from browser.models import ActionResult, DomChangeEvent, ElementFingerprint, ElementRef, PageSnapshot, ViewportMeta
 
-BRIDGE_HOST = os.environ.get("MOONWALK_BROWSER_BRIDGE_HOST", "127.0.0.1")
-BRIDGE_PORT = int(os.environ.get("MOONWALK_BROWSER_BRIDGE_PORT", "8765"))
+BRIDGE_HOST = os.environ.get("CLARITYOS_BROWSER_BRIDGE_HOST", "127.0.0.1")
+BRIDGE_PORT = int(os.environ.get("CLARITYOS_BROWSER_BRIDGE_PORT", "8765"))
 
 
 def _element_from_dict(data: Dict[str, Any], generation: int) -> ElementRef:
@@ -188,7 +188,7 @@ async def bridge_handler(websocket):
                     "ok": True,
                     "session_id": session_id,
                     "extension_name": extension_name,
-                    "server": "moonwalk-browser-bridge",
+                    "server": "clarityos-browser-bridge",
                     "pending_actions": browser_bridge.pending_action_count(session_id),
                 })
                 continue

@@ -1,4 +1,4 @@
-"""Trigger a deterministic browser extension action through the local Moonwalk server."""
+"""Trigger a deterministic browser extension action through the local ClarityOS server."""
 
 import argparse
 import asyncio

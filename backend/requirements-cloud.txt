@@ -1,4 +1,4 @@
-# Cloud-only Python dependencies for the Moonwalk Brain
+# Cloud-only Python dependencies for the ClarityOS Brain
 # These are the packages needed on Google Cloud Run
 # (no macOS-specific packages like pyobjc, pvporcupine, etc.)
 

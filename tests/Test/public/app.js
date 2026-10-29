@@ -21,7 +21,7 @@ const QUICK_PROMPTS = [
   },
 ];
 
-const STORAGE_KEY = "moonwalk.ide.agent.config";
+const STORAGE_KEY = "clarityos.ide.agent.config";
 
 const state = {
   config: null,

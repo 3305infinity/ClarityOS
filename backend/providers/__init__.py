@@ -1,5 +1,5 @@
 """
-Moonwalk — Providers Package
+ClarityOS — Providers Package
 ===============================
 Re-exports for convenient importing.
 """

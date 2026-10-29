@@ -1,5 +1,5 @@
 """
-Moonwalk Hub core
+ClarityOS Hub core
 =================
 One shared brain for every front-end:
 
@@ -31,7 +31,7 @@ from hub.policy import PolicyEngine, looks_like_captcha
 from hub.redact import make_redactor
 from hub.store import TaskStore
 
-CURRENT_TASK: contextvars.ContextVar[str] = contextvars.ContextVar("moonwalk_task", default="")
+CURRENT_TASK: contextvars.ContextVar[str] = contextvars.ContextVar("clarityos_task", default="")
 
 MAX_UTTERANCE_BYTES = 30 * 16000 * 2 + 4096     # 30 s of 16 kHz 16-bit mono
 MIN_UTTERANCE_RMS = 120                          # below this it's silence/room noise — skip the STT call
@@ -105,15 +105,15 @@ class Hub:
     @staticmethod
     def _tokens_in(d: Path) -> Dict[str, str]:
         import os
-        old = os.environ.get("MOONWALK_USER_DIR")
-        os.environ["MOONWALK_USER_DIR"] = str(d)
+        old = os.environ.get("CLARITYOS_USER_DIR")
+        os.environ["CLARITYOS_USER_DIR"] = str(d)
         try:
             return cfg.load_tokens()
         finally:
             if old is None:
-                os.environ.pop("MOONWALK_USER_DIR", None)
+                os.environ.pop("CLARITYOS_USER_DIR", None)
             else:
-                os.environ["MOONWALK_USER_DIR"] = old
+                os.environ["CLARITYOS_USER_DIR"] = old
 
     # ═══════════════════ events ═══════════════════
 
@@ -205,7 +205,7 @@ class Hub:
             ms = int((time.monotonic() - t0) * 1000)
             note = ""
             if decision.capability == "browser" and isinstance(result, str) and looks_like_captcha(result):
-                note = ("\n[MOONWALK NOTE: a CAPTCHA / human-verification step is on this page. Do NOT try to bypass it. "
+                note = ("\n[CLARITYOS NOTE: a CAPTCHA / human-verification step is on this page. Do NOT try to bypass it. "
                         "Tell the user and ask them to complete it, then continue.]")
                 await hub.broadcast({"type": "captcha_detected", "task_id": tid})
             await hub.broadcast({"type": "tool_result", "task_id": tid, "tool": name, "ok": not _is_error_result(result),

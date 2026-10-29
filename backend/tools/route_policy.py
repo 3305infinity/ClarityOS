@@ -1,5 +1,5 @@
 """
-Moonwalk — Deterministic web route policy.
+ClarityOS — Deterministic web route policy.
 """
 
 from __future__ import annotations

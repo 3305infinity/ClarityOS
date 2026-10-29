@@ -1,9 +1,9 @@
 """
-Moonwalk — Bolna voice-agent tools
+ClarityOS — Bolna voice-agent tools
 ===================================
 Bolna (https://www.bolna.ai) runs AI *phone-call* agents. It is not a speech-to-text / text-to-speech
 service: you build an agent in the Bolna dashboard (prompt, voice, language) and then ask Bolna to
-call a phone number. These tools let Moonwalk do that on the user's behalf.
+call a phone number. These tools let ClarityOS do that on the user's behalf.
 
     BOLNA_API_KEY     required (Settings → API keys)       sent as  Authorization: Bearer
     BOLNA_AGENT_ID    default agent to use (Settings → Voice agents)

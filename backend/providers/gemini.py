@@ -1,5 +1,5 @@
 """
-Moonwalk — Gemini Provider (Cloud)
+ClarityOS — Gemini Provider (Cloud)
 =====================================
 Google Gemini — cloud, multimodal, highest quality.
 """

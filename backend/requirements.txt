@@ -1,4 +1,4 @@
-# Moonwalk — Local macOS Backend Dependencies
+# ClarityOS — Local macOS Backend Dependencies
 # Install with: pip install -r requirements.txt
 # (setup.sh handles this automatically)
 
@@ -28,7 +28,7 @@ pillow>=10.0.0
 tenacity>=8.0.0
 
 # ── Optional: LangGraph orchestration ──
-# Only used when MOONWALK_USE_LANGGRAPH=1. ClarityOS starts and runs normally
+# Only used when CLARITYOS_USE_LANGGRAPH=1. ClarityOS starts and runs normally
 # without it — agent/graph_agent.py checks importability before use.
 langgraph>=1.0.0
 mss>=9.0.1              # Windows screen capture for vision (perception L3)

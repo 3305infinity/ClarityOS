@@ -22,7 +22,7 @@
     "keywords_any": ["research", "investigate", "study", "find", "look up", "analyse", "analyze"],
     "keywords_none": ["google doc", "google document", "save to file", "write to file", "report document"],
     "regex_any": [
-      "^(?:hey\\s+moonwalk[, ]*)?(?:can|could|would)\\s+you\\s+(?:research|investigate|study|look\\s+up|find|analy[sz]e)\\s+(?P<query>.+)$",
+      "^(?:hey\\s+clarityos[, ]*)?(?:can|could|would)\\s+you\\s+(?:research|investigate|study|look\\s+up|find|analy[sz]e)\\s+(?P<query>.+)$",
       "^(?:please\\s+)?(?:research|investigate|study|look\\s+up|find|analy[sz]e)\\s+(?P<query>.+)$"
     ],
     "min_total_score": 118

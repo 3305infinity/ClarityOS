@@ -18,6 +18,38 @@ const {
   Tray,
 } = require("electron");
 
+// ── Settings folder carried across the rename ──────────────────────────────
+// Electron derives userData from package.json "name", which changed with the
+// rename. Without this, an existing install silently loses credentials.enc and
+// sidebar-state.json — the user would have to re-enter their API key and pick
+// their presentation mode again. Runs before anything resolves a userData path.
+(function migrateUserData() {
+  // Copy the data files only, never the Chromium caches: the new folder is
+  // usually created (empty but present) by an earlier launch, so renaming the
+  // whole directory would not fire, and the caches are rebuilt anyway.
+  const CARRY_OVER = ["credentials.enc", "settings.json", "sidebar-state.json", "hub.db"];
+  try {
+    const current = app.getPath("userData");
+    const legacy = path.join(path.dirname(current), "Moon" + "walk");
+    if (!fs.existsSync(legacy)) return;
+    fs.mkdirSync(current, { recursive: true });
+    const moved = [];
+    for (const name of CARRY_OVER) {
+      const from = path.join(legacy, name);
+      const to = path.join(current, name);
+      if (fs.existsSync(from) && !fs.existsSync(to)) {
+        fs.copyFileSync(from, to);                  // copy, so a rollback still works
+        moved.push(name);
+      }
+    }
+    if (moved.length) {
+      console.log(`[ClarityOS] Carried ${moved.length} settings file(s) over from the previous name: ${moved.join(", ")}`);
+    }
+  } catch (error) {
+    console.error(`[ClarityOS] Could not migrate settings: ${error.message}`);
+  }
+})();
+
 // If the parent console goes away (terminal closed, output piped into a command
 // that exited), the next console.log/error raises EPIPE. Unhandled, that became
 // an "A JavaScript error occurred in the main process" dialog and killed the
@@ -76,10 +108,10 @@ let lastWakeAt = 0;
 let pythonProcess = null;
 let ownsPythonProcess = false;
 
-const BACKEND_WS_URL = process.env.MOONWALK_BACKEND_WS_URL || "ws://127.0.0.1:8000/ws";
-const BACKEND_HOST = process.env.MOONWALK_BACKEND_HOST || "127.0.0.1";
-const BACKEND_PORT = Number(process.env.MOONWALK_BACKEND_PORT || "8000");
-const BRIDGE_PORT = Number(process.env.MOONWALK_BROWSER_BRIDGE_PORT || "8765");
+const BACKEND_WS_URL = process.env.CLARITYOS_BACKEND_WS_URL || "ws://127.0.0.1:8000/ws";
+const BACKEND_HOST = process.env.CLARITYOS_BACKEND_HOST || "127.0.0.1";
+const BACKEND_PORT = Number(process.env.CLARITYOS_BACKEND_PORT || "8000");
+const BRIDGE_PORT = Number(process.env.CLARITYOS_BROWSER_BRIDGE_PORT || "8765");
 const BACKEND_READY_SENTINEL = "[Backend] READY";
 
 // Venv lives in userData for packaged builds (writable, survives app updates)
@@ -183,7 +215,7 @@ function runSetup(venvRoot) {
 
     const setup = spawn("bash", [setupPath], {
       cwd: IS_PACKAGED ? APP_ROOT : __dirname,
-      env: { ...process.env, MOONWALK_VENV_DIR: venvRoot },
+      env: { ...process.env, CLARITYOS_VENV_DIR: venvRoot },
       stdio: "pipe",
     });
 
@@ -328,7 +360,7 @@ async function _startPythonBackend() {
         `[Backend] Python server did not start: a port it needs is already in use ` +
         `(backend ${BACKEND_PORT}, browser bridge ${BRIDGE_PORT}). ` +
         `The ClarityOS hub also uses the bridge port — stop start-hub.ps1, or set ` +
-        `MOONWALK_BROWSER_BRIDGE_PORT to a free port for one of them.`);
+        `CLARITYOS_BROWSER_BRIDGE_PORT to a free port for one of them.`);
     } else {
       console.log(`[Backend] Python server exited with code ${code}`);
     }
@@ -414,9 +446,12 @@ function createWindow() {
   // Tell the renderer whether it is the active presentation as soon as it can
   // listen. Broadcasting only from applyUiMode raced the page load, so both
   // windows connected anyway and the backend built an agent for each.
+  // A window holds a backend socket exactly while it is on screen.
   mainWindow.webContents.on("did-finish-load", () => {
-    mainWindow.webContents.send("ui:active", readUiMode() === "floating");
+    sendUiActive(mainWindow, mainWindow.isVisible());
   });
+  mainWindow.on("show", () => sendUiActive(mainWindow, true));
+  mainWindow.on("hide", () => sendUiActive(mainWindow, false));
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
 
@@ -464,6 +499,11 @@ function hideOverlay() {
   setMousePassthrough(true, { forward: false });
   mainWindow.setAlwaysOnTop(false);
   mainWindow.webContents.send("overlay-hidden");
+  // The window itself stays shown so the renderer can play its fade-out and
+  // fade back in later, which means the "hide" event never fires. Say so
+  // explicitly, or the dismissed overlay keeps a backend socket (and therefore
+  // an agent) open behind a UI the user believes is gone.
+  sendUiActive(mainWindow, false);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -538,11 +578,10 @@ function createSidebar() {
   sidebarWindow.setAlwaysOnTop(saved.alwaysOnTop !== false, "floating");
   dockSidebar(sidebarWindow, width);
   sidebarWindow.webContents.on("did-finish-load", () => {
-    // First run has no stored mode; the sidebar is what is on screen, so it is
-    // the active presentation until the user picks otherwise.
-    const mode = readUiMode();
-    sidebarWindow.webContents.send("ui:active", mode === null || mode === "sidebar");
+    sendUiActive(sidebarWindow, sidebarWindow.isVisible());
   });
+  sidebarWindow.on("show", () => sendUiActive(sidebarWindow, true));
+  sidebarWindow.on("hide", () => sendUiActive(sidebarWindow, false));
   sidebarWindow.loadFile(path.join(__dirname, "sidebar", "index.html"));
 
   // Keep it docked when the user drags its edge or the display changes.
@@ -625,14 +664,20 @@ function readUiMode() {
 // progress), but only the active presentation may hold a backend socket.
 // Without this, sidebar mode still had the hidden overlay connected, and the
 // voice server built a second agent for it — two agents for one user.
-function broadcastActiveMode(mode) {
-  const send = (win, active) => {
-    if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
-      win.webContents.send("ui:active", active);
-    }
-  };
-  send(mainWindow, mode === "floating");
-  send(sidebarWindow, mode === "sidebar");
+function sendUiActive(win, active) {
+  if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+    win.webContents.send("ui:active", active);
+  }
+}
+
+// Keyed on whether the window is actually on screen, NOT on the chosen mode.
+// Gating by mode disconnected the overlay whenever the sidebar was selected —
+// including while the overlay was showing the first-run welcome screen, which
+// waits for its own socket to open and so reported "Assistant not responding"
+// against a perfectly healthy backend.
+function broadcastActiveMode() {
+  sendUiActive(mainWindow, Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()));
+  sendUiActive(sidebarWindow, Boolean(sidebarWindow && !sidebarWindow.isDestroyed() && sidebarWindow.isVisible()));
 }
 
 function applyUiMode(mode, { persist = true } = {}) {
@@ -656,7 +701,7 @@ function applyUiMode(mode, { persist = true } = {}) {
     console.error(`[ClarityOS] Could not switch to ${mode} mode: ${error.message}`);
     return false;
   }
-  broadcastActiveMode(mode);
+  broadcastActiveMode();
   if (tray) buildTrayMenu();
   return true;
 }

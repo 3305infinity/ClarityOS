@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  Moonwalk — Deploy to Google Cloud
+#  ClarityOS — Deploy to Google Cloud
 # ═══════════════════════════════════════════════════════════════
 #
-#  One-command deployment of the Moonwalk Cloud Orchestrator.
+#  One-command deployment of the ClarityOS Cloud Orchestrator.
 #
 #  What this script does:
 #    1. Validates prerequisites (gcloud CLI, Docker, API keys)
@@ -23,7 +23,7 @@
 #    GCP_PROJECT       — GCP project ID (will create if needed)
 #    GCP_REGION        — Deployment region (default: us-central1)
 #    GEMINI_API_KEY    — Required: your Gemini API key
-#    MOONWALK_CLOUD_TOKEN — Optional: auth token for client connections
+#    CLARITYOS_CLOUD_TOKEN — Optional: auth token for client connections
 # ═══════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -63,10 +63,10 @@ fi
 # ── Configuration ──
 GCP_PROJECT="${GCP_PROJECT:-gen-lang-client-0333982983}"
 GCP_REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="moonwalk-brain"
-REPO_NAME="moonwalk"
+SERVICE_NAME="clarityos-brain"
+REPO_NAME="clarityos"
 IMAGE_NAME="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${REPO_NAME}/${SERVICE_NAME}"
-GCS_BUCKET="${GCP_PROJECT}-moonwalk-memory"
+GCS_BUCKET="${GCP_PROJECT}-clarityos-memory"
 FIRESTORE_DB="(default)"
 
 # ═══════════════════════════════════════════════════
@@ -107,7 +107,7 @@ if gcloud projects describe "$GCP_PROJECT" &>/dev/null; then
     success "Project '$GCP_PROJECT' exists"
 else
     info "Creating project '$GCP_PROJECT'..."
-    gcloud projects create "$GCP_PROJECT" --name="Moonwalk Cloud" 2>/dev/null || true
+    gcloud projects create "$GCP_PROJECT" --name="ClarityOS Cloud" 2>/dev/null || true
     success "Project created"
 fi
 
@@ -173,7 +173,7 @@ fi
 
 # Create vector index for RAG search on vault collection
 info "Creating Firestore vector index for RAG..."
-cat > /tmp/moonwalk_firestore_index.json <<'EOF'
+cat > /tmp/clarityos_firestore_index.json <<'EOF'
 {
   "collectionGroup": "vault",
   "queryScope": "COLLECTION",
@@ -190,7 +190,7 @@ gcloud firestore indexes composite create \
     --field-config="field-path=category,order=ascending" \
     --quiet 2>/dev/null && success "Vector index created" || warn "Vector index may already exist (OK)"
 
-rm -f /tmp/moonwalk_firestore_index.json
+rm -f /tmp/clarityos_firestore_index.json
 
 # ═══════════════════════════════════════════════════
 #  Step 4: Cloud Storage Bucket
@@ -207,7 +207,7 @@ else
 fi
 
 # Set lifecycle rule — delete temp objects after 90 days
-cat > /tmp/moonwalk_lifecycle.json <<EOF
+cat > /tmp/clarityos_lifecycle.json <<EOF
 {
   "rule": [
     {
@@ -217,8 +217,8 @@ cat > /tmp/moonwalk_lifecycle.json <<EOF
   ]
 }
 EOF
-gsutil lifecycle set /tmp/moonwalk_lifecycle.json "gs://${GCS_BUCKET}" 2>/dev/null || true
-rm -f /tmp/moonwalk_lifecycle.json
+gsutil lifecycle set /tmp/clarityos_lifecycle.json "gs://${GCS_BUCKET}" 2>/dev/null || true
+rm -f /tmp/clarityos_lifecycle.json
 success "Lifecycle policy set (90-day cleanup)"
 
 # ═══════════════════════════════════════════════════
@@ -235,7 +235,7 @@ else
     gcloud artifacts repositories create "$REPO_NAME" \
         --repository-format=docker \
         --location="$GCP_REGION" \
-        --description="Moonwalk Docker images" \
+        --description="ClarityOS Docker images" \
         --quiet
     success "Repository created"
 fi
@@ -276,12 +276,12 @@ banner "Step 7: Deploying to Cloud Run"
 # Build env vars string
 ENV_VARS="GEMINI_API_KEY=${GEMINI_API_KEY}"
 ENV_VARS+=",GCP_PROJECT=${GCP_PROJECT}"
-ENV_VARS+=",MOONWALK_GCS_BUCKET=${GCS_BUCKET}"
-ENV_VARS+=",MOONWALK_CLOUD=1"
+ENV_VARS+=",CLARITYOS_GCS_BUCKET=${GCS_BUCKET}"
+ENV_VARS+=",CLARITYOS_CLOUD=1"
 
 # Optional env vars
-if [[ -n "${MOONWALK_CLOUD_TOKEN:-}" ]]; then
-    ENV_VARS+=",MOONWALK_CLOUD_TOKEN=${MOONWALK_CLOUD_TOKEN}"
+if [[ -n "${CLARITYOS_CLOUD_TOKEN:-}" ]]; then
+    ENV_VARS+=",CLARITYOS_CLOUD_TOKEN=${CLARITYOS_CLOUD_TOKEN}"
 fi
 if [[ -n "${GEMINI_FAST_MODEL:-}" ]]; then
     ENV_VARS+=",GEMINI_FAST_MODEL=${GEMINI_FAST_MODEL}"
@@ -338,7 +338,7 @@ echo -e "${BOLD}  To connect your Mac:${NC}"
 echo ""
 echo -e "  1. Set the cloud URL in your environment:"
 echo ""
-echo -e "     ${YELLOW}export MOONWALK_CLOUD_URL=\"${WS_URL}\"${NC}"
+echo -e "     ${YELLOW}export CLARITYOS_CLOUD_URL=\"${WS_URL}\"${NC}"
 echo ""
 echo -e "  2. Start the Mac Client (instead of local_server.py):"
 echo ""

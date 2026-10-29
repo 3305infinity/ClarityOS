@@ -1,4 +1,4 @@
-"""Send a quick text command to the local Moonwalk server over WebSocket."""
+"""Send a quick text command to the local ClarityOS server over WebSocket."""
 
 import asyncio
 import json

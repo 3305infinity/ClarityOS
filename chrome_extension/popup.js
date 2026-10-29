@@ -301,7 +301,7 @@ async function loadStatus({ announce = false } = {}) {
   setBusy(true, announce ? dom.refreshBtn : null);
   if (announce) setFeedback("");
   try {
-    const status = await sendWithWake({ type: "moonwalk_get_status" }, STATUS_TIMEOUT_MS);
+    const status = await sendWithWake({ type: "clarityos_get_status" }, STATUS_TIMEOUT_MS);
     renderStatus(status);
     if (announce) setFeedback("Status refreshed.", "ok");
   } catch (error) {
@@ -317,7 +317,7 @@ async function requestSnapshot() {
   setBusy(true, dom.snapshotBtn);
   setFeedback("Requesting a snapshot of the active tab…");
   try {
-    const response = await sendWithWake({ type: "moonwalk_request_snapshot" }, SNAPSHOT_TIMEOUT_MS);
+    const response = await sendWithWake({ type: "clarityos_request_snapshot" }, SNAPSHOT_TIMEOUT_MS);
     renderStatus(response);
     if (response?.ok) {
       setFeedback("Snapshot captured.", "ok");
@@ -344,11 +344,11 @@ dom.pairBtn.addEventListener("click", async () => {
   setBadge("connecting", "Awaiting approval");
   setFeedback("Approve the request in the ClarityOS window…");
   try {
-    await sendWithWake({ type: "moonwalk_request_pairing" }, STATUS_TIMEOUT_MS);
+    await sendWithWake({ type: "clarityos_request_pairing" }, STATUS_TIMEOUT_MS);
     // The approval is a human round-trip; poll until it settles or expires.
     for (let i = 0; i < 40; i += 1) {
       await new Promise((r) => setTimeout(r, 1500));
-      const status = await sendMessage({ type: "moonwalk_get_status" }, STATUS_TIMEOUT_MS).catch(() => null);
+      const status = await sendMessage({ type: "clarityos_get_status" }, STATUS_TIMEOUT_MS).catch(() => null);
       if (!status) continue;
       renderStatus(status);
       if (status.authenticated) { setFeedback("Paired and connected.", "ok"); return; }

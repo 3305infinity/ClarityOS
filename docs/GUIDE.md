@@ -1,16 +1,16 @@
-# Moonwalk — Complete Guide
+# ClarityOS — Complete Guide
 
-> **Everything in one place** — from what Moonwalk is and how it was built, to how customers install it and how you run, manage, and ship it.
+> **Everything in one place** — from what ClarityOS is and how it was built, to how customers install it and how you run, manage, and ship it.
 
 ---
 
 ## Table of Contents
 
 ### For Customers
-1. [What is Moonwalk?](#1-what-is-moonwalk)
-2. [Installing Moonwalk](#2-installing-moonwalk)
+1. [What is ClarityOS?](#1-what-is-clarityos)
+2. [Installing ClarityOS](#2-installing-clarityos)
 3. [Installing the Chrome Extension](#3-installing-the-chrome-extension)
-4. [Using Moonwalk (Daily Use)](#4-using-moonwalk-daily-use)
+4. [Using ClarityOS (Daily Use)](#4-using-clarityos-daily-use)
 5. [Starting & Stopping the App](#5-starting--stopping-the-app)
 6. [Troubleshooting](#6-troubleshooting)
 
@@ -18,7 +18,7 @@
 7. [Running the Development Server](#7-running-the-development-server)
 8. [Environment Variables](#8-environment-variables)
 9. [Project Structure](#9-project-structure)
-10. [How Moonwalk Works (Architecture)](#10-how-moonwalk-works-architecture)
+10. [How ClarityOS Works (Architecture)](#10-how-clarityos-works-architecture)
 11. [The SPAV Agent Loop Explained](#11-the-spav-agent-loop-explained)
 12. [How Google Cloud is Used](#12-how-google-cloud-is-used)
 13. [How the Software Was Built](#13-how-the-software-was-built)
@@ -34,9 +34,9 @@
 
 ---
 
-## 1. What is Moonwalk?
+## 1. What is ClarityOS?
 
-Moonwalk is an **AI desktop assistant for macOS**. It lives as a small floating glass pill at the top-centre of your screen and responds to your voice or typed commands. You speak to it naturally — *"open my emails"*, *"search for the best AirPods deal"*, *"write a reply to my last message"* — and it does the work on your Mac.
+ClarityOS is an **AI desktop assistant for macOS**. It lives as a small floating glass pill at the top-centre of your screen and responds to your voice or typed commands. You speak to it naturally — *"open my emails"*, *"search for the best AirPods deal"*, *"write a reply to my last message"* — and it does the work on your Mac.
 
 ### What can it do?
 
@@ -50,39 +50,39 @@ Moonwalk is an **AI desktop assistant for macOS**. It lives as a small floating 
 
 ### How does it hear me?
 
-Moonwalk listens for the wake word **"Hey Moonwalk"** at all times using low-power on-device processing (Picovoice). When it hears you, the pill expands and shows your speech being transcribed in real-time. Alternatively, press a keyboard shortcut at any time.
+ClarityOS listens for the wake word **"Hey ClarityOS"** at all times using low-power on-device processing (Picovoice). When it hears you, the pill expands and shows your speech being transcribed in real-time. Alternatively, press a keyboard shortcut at any time.
 
 ---
 
-## 2. Installing Moonwalk
+## 2. Installing ClarityOS
 
 ### Step 1 — Download
-You will receive a link to a file named `Moonwalk-x.x.x-universal.dmg`. Download it and double-click the `.dmg` file to open it.
+You will receive a link to a file named `ClarityOS-x.x.x-universal.dmg`. Download it and double-click the `.dmg` file to open it.
 
 ### Step 2 — Install to Applications
-A window opens showing the Moonwalk icon and an **Applications** folder shortcut. **Drag the Moonwalk icon into the Applications folder.** Close the window and eject the disk image (drag to Trash or right-click → Eject).
+A window opens showing the ClarityOS icon and an **Applications** folder shortcut. **Drag the ClarityOS icon into the Applications folder.** Close the window and eject the disk image (drag to Trash or right-click → Eject).
 
-### Step 3 — Open Moonwalk
-Open your **Applications** folder and double-click **Moonwalk**.
+### Step 3 — Open ClarityOS
+Open your **Applications** folder and double-click **ClarityOS**.
 
 > ⚠️ **Gatekeeper warning (first time only):** macOS may say it *"cannot be opened because the developer cannot be verified."*
 >
-> **Fix:** Right-click the Moonwalk icon → **Open** → **Open** in the dialog. You only need to do this once.
+> **Fix:** Right-click the ClarityOS icon → **Open** → **Open** in the dialog. You only need to do this once.
 
 ### Step 4 — First-Launch Onboarding (~60 seconds)
 
-The first time Moonwalk opens it shows a 3-step setup wizard:
+The first time ClarityOS opens it shows a 3-step setup wizard:
 
 **Step 1 — Enter your API key**
 - You need a free **Gemini API key** from Google AI Studio
 - Click the blue link in the wizard to open [aistudio.google.com](https://aistudio.google.com/app/apikey) — no credit card, free tier is plenty
 - Paste the key into the first field and click **Save & Continue**
-- Optionally add a **Picovoice access key** (free at [console.picovoice.ai](https://console.picovoice.ai)) to enable the "Hey Moonwalk" wake word
+- Optionally add a **Picovoice access key** (free at [console.picovoice.ai](https://console.picovoice.ai)) to enable the "Hey ClarityOS" wake word
 
 > ⚠️ **Without a Picovoice key the wake word is disabled.** Use `⌘⇧Space` instead — it works identically and requires no extra account.
 
 **Step 2 — Automatic setup (~60 seconds first time)**
-Moonwalk installs its Python environment automatically. You'll see three items go green:
+ClarityOS installs its Python environment automatically. You'll see three items go green:
 - ✅ Python environment (installs dependencies, ~60s the first time)
 - ✅ WebSocket connection
 - ✅ Microphone access
@@ -94,32 +94,32 @@ Shows keyboard shortcuts and buttons to install the Chrome browser extension.
 
 ### Step 5 — Grant Accessibility Permission
 
-For Moonwalk to control your Mac (clicking buttons, typing in apps, reading your screen), it needs Accessibility access:
+For ClarityOS to control your Mac (clicking buttons, typing in apps, reading your screen), it needs Accessibility access:
 
 1. Open **System Settings** → **Privacy & Security** → **Accessibility**
-2. Find **Moonwalk** in the list
+2. Find **ClarityOS** in the list
 3. Toggle it **ON**
 4. Enter your Mac password if prompted
 
-> Without this, Moonwalk can still answer questions and do web research, but cannot click or type in other apps.
+> Without this, ClarityOS can still answer questions and do web research, but cannot click or type in other apps.
 
 ---
 
 ## 3. Installing the Chrome Extension
 
-The Chrome extension lets Moonwalk browse the web, read page content, fill forms, and extract information from websites. It is optional but strongly recommended.
+The Chrome extension lets ClarityOS browse the web, read page content, fill forms, and extract information from websites. It is optional but strongly recommended.
 
-### Option A — From the Moonwalk Setup Wizard (easiest)
+### Option A — From the ClarityOS Setup Wizard (easiest)
 
 During first launch, the setup wizard's second screen shows:
 
-- **📥 Save Extension to Downloads** — click this. Moonwalk saves the extension folder to your Downloads and opens it in Finder automatically.
+- **📥 Save Extension to Downloads** — click this. ClarityOS saves the extension folder to your Downloads and opens it in Finder automatically.
 
 Then continue to **Step 3** below.
 
 ### Option B — From the Download Page
 
-Download the `moonwalk-browser-bridge.zip` from your download page, then unzip it by double-clicking.
+Download the `clarityos-browser-bridge.zip` from your download page, then unzip it by double-clicking.
 
 ---
 
@@ -131,21 +131,21 @@ After getting the extension folder by either method:
 2. In the address bar type `chrome://extensions` and press **Enter**
 3. Turn on **Developer mode** — toggle in the **top-right corner**
 4. Click **"Load unpacked"** (appears top-left once Developer mode is on)
-5. In the file picker, navigate to and **select the `moonwalk-browser-bridge` folder**
-6. The **Moonwalk Browser Bridge** extension appears in your list ✓
+5. In the file picker, navigate to and **select the `clarityos-browser-bridge` folder**
+6. The **ClarityOS Browser Bridge** extension appears in your list ✓
 
 ### Pin the Extension (recommended)
 
 1. Click the puzzle piece icon 🧩 in Chrome's toolbar
-2. Click the pin 📌 next to **Moonwalk Browser Bridge**
+2. Click the pin 📌 next to **ClarityOS Browser Bridge**
 
-The badge turns **green** when connected to the Moonwalk desktop app.
+The badge turns **green** when connected to the ClarityOS desktop app.
 
 > **"Developer mode" banner:** Chrome shows a warning banner at the top. You can dismiss it. It reappears occasionally — this is a Chrome limitation for extensions loaded outside the Web Store. It is safe to ignore.
 
 ---
 
-## 4. Using Moonwalk (Daily Use)
+## 4. Using ClarityOS (Daily Use)
 
 ### Keyboard Shortcuts
 
@@ -157,7 +157,7 @@ The badge turns **green** when connected to the Moonwalk desktop app.
 
 ### Voice Commands
 
-Press `⌘ Shift Space` (or say *"Hey Moonwalk"* if the wake word is active) and speak naturally:
+Press `⌘ Shift Space` (or say *"Hey ClarityOS"* if the wake word is active) and speak naturally:
 
 ```
 "Open Spotify"
@@ -178,7 +178,7 @@ Press `⌥ Space` to open a floating text box. Type your command and press **Ent
 
 ### Response Cards
 
-After completing a task, Moonwalk shows a **response card** which can contain:
+After completing a task, ClarityOS shows a **response card** which can contain:
 - Plain text summaries
 - Formatted tables and lists
 - Math equations (rendered with KaTeX)
@@ -189,7 +189,7 @@ Press `Esc` or click outside the card to dismiss it.
 
 ### Plan Preview
 
-For complex multi-step tasks, Moonwalk shows a **plan modal** first — a numbered list of what it intends to do. You can:
+For complex multi-step tasks, ClarityOS shows a **plan modal** first — a numbered list of what it intends to do. You can:
 - Click **Proceed** to execute the plan
 - Click **Cancel** to abort
 
@@ -197,29 +197,29 @@ For complex multi-step tasks, Moonwalk shows a **plan modal** first — a number
 
 ## 5. Starting & Stopping the App
 
-### Starting Moonwalk
+### Starting ClarityOS
 
-- Open **Moonwalk** from your Applications folder
-- Or click the Moonwalk icon in your Dock (if pinned)
+- Open **ClarityOS** from your Applications folder
+- Or click the ClarityOS icon in your Dock (if pinned)
 
 The glass pill appears at the top-centre of your screen within 2–3 seconds. On the very first launch, allow ~60 seconds for the Python setup.
 
-### Stopping / Quitting Moonwalk
+### Stopping / Quitting ClarityOS
 
-Moonwalk is an overlay with no traditional window or menu bar. To quit:
+ClarityOS is an overlay with no traditional window or menu bar. To quit:
 
 | Method | How |
 |--------|-----|
-| Dock | Right-click the Moonwalk dock icon → **Quit** |
-| Keyboard | Press `⌘ Q` while Moonwalk is the active app |
-| Force quit | Press `⌘ Option Esc` → select Moonwalk → Force Quit |
-| Activity Monitor | Open Activity Monitor, search for "Moonwalk" or "Python", force quit both |
+| Dock | Right-click the ClarityOS dock icon → **Quit** |
+| Keyboard | Press `⌘ Q` while ClarityOS is the active app |
+| Force quit | Press `⌘ Option Esc` → select ClarityOS → Force Quit |
+| Activity Monitor | Open Activity Monitor, search for "ClarityOS" or "Python", force quit both |
 
 When the Electron window quits, the Python backend process (running on port 8000) is automatically stopped with it.
 
 ### Restarting
 
-Simply open Moonwalk again. It reconnects to any existing session and resumes conversation history from where you left off (up to 30 minutes of idle time before history clears).
+Simply open ClarityOS again. It reconnects to any existing session and resumes conversation history from where you left off (up to 30 minutes of idle time before history clears).
 
 ---
 
@@ -227,16 +227,16 @@ Simply open Moonwalk again. It reconnects to any existing session and resumes co
 
 | Problem | Solution |
 |---------|----------|
-| Glass pill doesn't appear | Check Activity Monitor — Moonwalk may be on another workspace. Try pressing `⌘ Shift Space`. |
-| "Hey Moonwalk" not responding | Wake word requires a Picovoice key. Use `⌘⇧Space` instead, or add the key on first launch / in `backend/.env` (dev) |
-| Want to change the API key | Delete `~/Library/Application Support/moonwalk/credentials.enc` and relaunch |
+| Glass pill doesn't appear | Check Activity Monitor — ClarityOS may be on another workspace. Try pressing `⌘ Shift Space`. |
+| "Hey ClarityOS" not responding | Wake word requires a Picovoice key. Use `⌘⇧Space` instead, or add the key on first launch / in `backend/.env` (dev) |
+| Want to change the API key | Delete `~/Library/Application Support/clarityos/credentials.enc` and relaunch |
 | App says "Backend not ready" | Wait 60 seconds on first launch. If it persists: quit and reopen. |
 | "Cannot be opened" security error | Right-click the app → Open → Open. One-time only. |
-| Chrome extension shows red badge | Make sure the Moonwalk app is running first, then click the extension badge to reconnect |
-| Accessibility actions don't work | **System Settings → Privacy & Security → Accessibility** — toggle Moonwalk ON |
+| Chrome extension shows red badge | Make sure the ClarityOS app is running first, then click the extension badge to reconnect |
+| Accessibility actions don't work | **System Settings → Privacy & Security → Accessibility** — toggle ClarityOS ON |
 | Slow to respond on complex tasks | Normal — the AI is planning and executing multiple steps. Simple tasks (open app, volume) respond in under 2 seconds. |
 | No spoken voice response | TTS requires Google Cloud credentials. Responses still appear as text cards. |
-| `xattr` error on startup | Run: `xattr -cr /Applications/Moonwalk.app` in Terminal, then reopen |
+| `xattr` error on startup | Run: `xattr -cr /Applications/ClarityOS.app` in Terminal, then reopen |
 
 ---
 
@@ -260,8 +260,8 @@ Simply open Moonwalk again. It reconnects to any existing session and resumes co
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/<your-org>/Moonwalk.git
-cd Moonwalk
+git clone https://github.com/<your-org>/ClarityOS.git
+cd ClarityOS
 
 # 2. Install Node dependencies
 npm install
@@ -295,7 +295,7 @@ Browser bridge running on ws://127.0.0.1:8765
 [Backend] READY
 [Python] Electron App Connected!
 [Python] [Server] Agent initialized: V2
-[Python] Porcupine initialized with CUSTOM wake word: 'Hey Moonwalk'
+[Python] Porcupine initialized with CUSTOM wake word: 'Hey ClarityOS'
 ```
 
 ### Stopping the App
@@ -341,7 +341,7 @@ cp backend/.env.example backend/.env
 
 | Variable | Description | Where to get it |
 |----------|-------------|-----------------|
-| `PICOVOICE_ACCESS_KEY` | Wake word detection ("Hey Moonwalk"). **Without this the wake word is fully disabled** — use `⌘⇧Space` instead. | [console.picovoice.ai](https://console.picovoice.ai) — free tier available |
+| `PICOVOICE_ACCESS_KEY` | Wake word detection ("Hey ClarityOS"). **Without this the wake word is fully disabled** — use `⌘⇧Space` instead. | [console.picovoice.ai](https://console.picovoice.ai) — free tier available |
 
 ### Optional — Model Overrides
 
@@ -368,7 +368,7 @@ family is exhausted, point a tier at another (each family has its own bucket):
 GEMINI_FAST_MODEL=gemini-3.1-flash-lite
 ```
 
-Moonwalk records the exhausted model and stops calling it through the FAST,
+ClarityOS records the exhausted model and stops calling it through the FAST,
 POWERFUL and FALLBACK tiers until the quota resets, so you get one clear message
 instead of repeated 429s.
 
@@ -376,36 +376,36 @@ instead of repeated 429s.
 
 | Variable | Description |
 |----------|-------------|
-| `MOONWALK_CLOUD_URL` | WebSocket URL of Cloud Run brain (enables cloud mode via `mac_client.py`) |
-| `MOONWALK_CLOUD_TOKEN` | Auth token matching the Cloud Run `AUTH_SHARED_SECRET` |
+| `CLARITYOS_CLOUD_URL` | WebSocket URL of Cloud Run brain (enables cloud mode via `mac_client.py`) |
+| `CLARITYOS_CLOUD_TOKEN` | Auth token matching the Cloud Run `AUTH_SHARED_SECRET` |
 | `GCP_PROJECT` | Google Cloud project ID |
-| `MOONWALK_GCS_BUCKET` | GCS bucket name for memory storage |
+| `CLARITYOS_GCS_BUCKET` | GCS bucket name for memory storage |
 
 ### Optional — Voice / TTS
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MOONWALK_TTS_VOICE` | `en-US-Neural2-J` | Google Cloud TTS Neural2 voice |
-| `MOONWALK_TTS_SPEED` | `1.05` | Speaking rate (1.0 = normal speed) |
+| `CLARITYOS_TTS_VOICE` | `en-US-Neural2-J` | Google Cloud TTS Neural2 voice |
+| `CLARITYOS_TTS_SPEED` | `1.05` | Speaking rate (1.0 = normal speed) |
 
 ### Optional — Ports
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MOONWALK_BACKEND_PORT` | `8000` | Main Python WebSocket server port |
-| `MOONWALK_BROWSER_BRIDGE_PORT` | `8765` | Chrome extension bridge port |
+| `CLARITYOS_BACKEND_PORT` | `8000` | Main Python WebSocket server port |
+| `CLARITYOS_BROWSER_BRIDGE_PORT` | `8765` | Chrome extension bridge port |
 
 ---
 
 ## 9. Project Structure
 
 ```
-Moonwalk/
+ClarityOS/
 ├── main.js                      # Electron main process — window, IPC, Python lifecycle
 ├── preload.js                   # contextBridge IPC (auth, credentials, extension export)
 ├── package.json                 # npm scripts, electron-builder config
 ├── setup.sh                     # Auto-runs on first launch: creates venv, installs deps
-├── hey_moonwalk.ppn             # Picovoice custom wake word model ("Hey Moonwalk")
+├── hey_clarityos.ppn             # Picovoice custom wake word model ("Hey ClarityOS")
 │
 ├── renderer/
 │   ├── index.html               # Glass-pill overlay markup + all modal scaffolding
@@ -489,9 +489,9 @@ Moonwalk/
 
 ---
 
-## 10. How Moonwalk Works (Architecture)
+## 10. How ClarityOS Works (Architecture)
 
-Moonwalk is split into three layers that communicate over WebSockets:
+ClarityOS is split into three layers that communicate over WebSockets:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -518,7 +518,7 @@ Moonwalk is split into three layers that communicate over WebSockets:
 ### Complete Data Flow — a voice command end-to-end
 
 ```
-User: "Hey Moonwalk, search Amazon for AirPods"
+User: "Hey ClarityOS, search Amazon for AirPods"
          │
          ▼
 Electron renderer.js
@@ -527,12 +527,12 @@ Electron renderer.js
          │
          ▼
 Python local_server.py
-  → pvporcupine detects wake word "Hey Moonwalk" in audio stream
+  → pvporcupine detects wake word "Hey ClarityOS" in audio stream
   → SpeechRecognition + Google STT transcribes the rest
   → Sends {type: "transcription", text: "search Amazon for AirPods"}
          │
          ▼
-MoonwalkAgentV2 (core_v2.py)
+ClarityOSAgentV2 (core_v2.py)
   → L1 Perception: active app + window title via AppleScript (~50ms)
   → L2 Perception: DOM snapshot from Chrome extension (~200ms)
   → Router classifies: POWERFUL model (multi-step browser task)
@@ -649,7 +649,7 @@ Only ~5–10% of requests ever go to FAST. The router is deliberately biased tow
 
 ## 12. How Google Cloud is Used
 
-Moonwalk uses five Google Cloud services across the full stack:
+ClarityOS uses five Google Cloud services across the full stack:
 
 ### 1. Gemini API — the AI brain
 
@@ -696,8 +696,8 @@ When running in cloud mode, local file-backed memory is replaced with **Firestor
 
 | Local storage (dev) | Firestore path (cloud) | What it holds |
 |--------------------|----------------------|---------------|
-| `~/.moonwalk/sessions/*.json` | `users/{uid}/sessions/{sid}` | Conversation history (last 20 turns) |
-| `~/.moonwalk/vault/*.json` | `users/{uid}/vault/{entry_id}` | Permanent vault memories |
+| `~/.clarityos/sessions/*.json` | `users/{uid}/sessions/{sid}` | Conversation history (last 20 turns) |
+| `~/.clarityos/vault/*.json` | `users/{uid}/vault/{entry_id}` | Permanent vault memories |
 | In-memory dict | `users/{uid}/profile` | Auto-extracted user profile (name, prefs, habits) |
 | In-memory dict | `users/{uid}/tasks/{task_id}` | Background recurring tasks |
 
@@ -710,8 +710,8 @@ The vault supports **semantic recall** via RAG (`backend/agent/rag.py`):
 - Uses `text-embedding-004` model (768-dimensional vectors) via the Gemini API
 - Vault entries are embedded when stored; embeddings are saved alongside them in Firestore
 - Firestore's **native vector index** enables approximate nearest-neighbour search
-- When Moonwalk needs to recall relevant memories, it embeds the query and finds semantically similar vault entries
-- This lets Moonwalk "remember" your preferences, addresses, passwords (encrypted), recurring tasks etc.
+- When ClarityOS needs to recall relevant memories, it embeds the query and finds semantically similar vault entries
+- This lets ClarityOS "remember" your preferences, addresses, passwords (encrypted), recurring tasks etc.
 
 ### Infrastructure Summary
 
@@ -721,7 +721,7 @@ Your Mac
   └── mac_client.py / local_server.py
           │  WebSocket (WSS encrypted)
           ▼
-GCP Cloud Run  (moonwalk-brain)
+GCP Cloud Run  (clarityos-brain)
   ├── SPAV Agent V2
   ├── Gemini API ──────────────────────────► Google AI Studio
   ├── Google Cloud TTS ────────────────────► Neural2 voice synthesis
@@ -744,7 +744,7 @@ GCP Cloud Run  (moonwalk-brain)
 | Backend | **Python 3.13 + asyncio + websockets** | Picovoice SDK is Python-only; `pyobjc` is the gold standard for macOS Accessibility API; `asyncio` gives clean concurrent I/O |
 | AI provider | **Google Gemini** | Native function calling; multimodal; same credentials for TTS + embeddings + cloud; fastest Flash model for routing |
 | macOS control | **AppleScript + pyobjc (Quartz/AppKit)** | AppleScript covers 90% of app control; Quartz Accessibility API handles the rest (system controls, fine-grained UI) |
-| Wake word | **Picovoice Porcupine** | On-device, low-power, custom wake word ("Hey Moonwalk"); no audio leaves the Mac for detection |
+| Wake word | **Picovoice Porcupine** | On-device, low-power, custom wake word ("Hey ClarityOS"); no audio leaves the Mac for detection |
 | Voice output | **Google Cloud TTS Neural2** | Natural prosody; concurrent sentence synthesis for streaming feel; OGG/Opus output plays natively in Chromium |
 | Browser bridge | **Chrome Extension MV3** | Bridges the real browser the user has open (with all their logged-in state and cookies) rather than a headless browser |
 | Cloud | **Google Cloud Run** | Scales to 0 (no idle cost); 15-minute request timeout for long tasks; WebSocket support |
@@ -765,20 +765,20 @@ A step plan tells the LLM exactly which tool calls to make. A milestone plan tel
 - The LLM isn't over-constrained — it has full autonomy within each milestone scope
 
 **Why a separate Chrome extension instead of Electron's browser?**
-Moonwalk is a desktop overlay, not a browser. The Chrome extension bridges the real browser the user already has open, complete with their logged-in sessions, cookies, and browser history. This means web automation works on any site, including banking and internal tools.
+ClarityOS is a desktop overlay, not a browser. The Chrome extension bridges the real browser the user already has open, complete with their logged-in sessions, cookies, and browser history. This means web automation works on any site, including banking and internal tools.
 
 **Why split local + cloud modes?**
 macOS-specific APIs (AppleScript, Quartz Accessibility, Picovoice) can only run on a Mac. The AI can run anywhere. The split lets the heavy AI scale independently on Cloud Run (and cost $0 when idle) while keeping all macOS operations local and private. Each user's Mac is its own secure execution environment.
 
 **Memory architecture — four tiers**
-Moonwalk mirrors how humans actually remember things:
+ClarityOS mirrors how humans actually remember things:
 
 | Tier | Implementation | Scope | Persistence |
 |------|---------------|-------|-------------|
 | Working memory | In-process Python dict | Current task, action log, entities | Until task ends |
 | Short-term | `ConversationMemory` (20 turns) | Recent conversation | 30 min idle timeout |
 | Long-term | `UserProfile` (auto-extracted facts) | Who you are, what you like | Permanent |
-| Vault | `VaultMemory` (explicit storage) | Things you told Moonwalk to remember | Permanent, semantic search |
+| Vault | `VaultMemory` (explicit storage) | Things you told ClarityOS to remember | Permanent, semantic search |
 
 **How the Chrome extension element referencing works**
 The content script assigns a stable `ref` ID to every interactive element on every page. These IDs are based on element position, tag, role, and text content — they survive re-renders if the element itself doesn't change. The agent uses these refs to click or type into elements reliably (e.g. `browser_click_ref(ref="btn_submit_1")`) rather than fragile CSS selectors or XPath.
@@ -813,10 +813,10 @@ Then add to `package.json` → `build.mac`:
 # Universal DMG (Apple Silicon + Intel in one file)
 npm run build:signed
 
-# Output: dist/Moonwalk-1.0.0-universal.dmg
+# Output: dist/ClarityOS-1.0.0-universal.dmg
 ```
 
-The DMG bundles: Electron runtime, all renderer files, the `backend/` folder, `hey_moonwalk.ppn`, `chrome_extension/`, and `setup.sh` (runs automatically on first launch to create the Python venv).
+The DMG bundles: Electron runtime, all renderer files, the `backend/` folder, `hey_clarityos.ppn`, `chrome_extension/`, and `setup.sh` (runs automatically on first launch to create the Python venv).
 
 ---
 
@@ -867,8 +867,8 @@ export GCP_PROJECT="your-project-id"   # Your GCP project
 ```
 
 This pipeline:
-1. **Packages the Chrome extension** → `dist/moonwalk-browser-bridge.zip` (with an `INSTALL.md` guide inside for customers)
-2. **Builds the signed + notarized DMG** → `dist/Moonwalk-1.0.0-universal.dmg`
+1. **Packages the Chrome extension** → `dist/clarityos-browser-bridge.zip` (with an `INSTALL.md` guide inside for customers)
+2. **Builds the signed + notarized DMG** → `dist/ClarityOS-1.0.0-universal.dmg`
 3. **Uploads to GCS** → creates versioned files, `latest/` aliases, and a download page
 
 ### Step-by-Step (if you need more control)
@@ -876,11 +876,11 @@ This pipeline:
 ```bash
 # 1. Package extension
 npm run dist:extension
-# → dist/moonwalk-browser-bridge.zip (49 KB)
+# → dist/clarityos-browser-bridge.zip (49 KB)
 
 # 2. Build DMG
 npm run build:signed
-# → dist/Moonwalk-1.0.0-universal.dmg
+# → dist/ClarityOS-1.0.0-universal.dmg
 
 # 3. Upload to GCS
 npm run dist:upload
@@ -891,16 +891,16 @@ npm run dist:upload
 
 | File | Public URL |
 |------|-----------|
-| `Moonwalk-1.0.0-universal.dmg` | `.../releases/v1.0.0/Moonwalk-1.0.0-universal.dmg` |
-| Latest DMG alias | `.../releases/latest/Moonwalk-latest.dmg` |
-| Extension zip | `.../releases/latest/moonwalk-browser-bridge.zip` |
+| `ClarityOS-1.0.0-universal.dmg` | `.../releases/v1.0.0/ClarityOS-1.0.0-universal.dmg` |
+| Latest DMG alias | `.../releases/latest/ClarityOS-latest.dmg` |
+| Extension zip | `.../releases/latest/clarityos-browser-bridge.zip` |
 | Download page | `.../releases/index.html` |
 
 ### Share with Customers
 
 Send customers **one URL**:
 ```
-https://storage.googleapis.com/<project>-moonwalk-releases/releases/index.html
+https://storage.googleapis.com/<project>-clarityos-releases/releases/index.html
 ```
 
 It's a clean, branded page with big download buttons and brief install instructions — no technical knowledge required.
@@ -924,21 +924,21 @@ This script handles everything:
 3. Creates GCS memory bucket with 90-day lifecycle policy
 4. Creates Artifact Registry Docker repository
 5. Builds Docker image with Cloud Build (no local Docker needed)
-6. Deploys `moonwalk-brain` service to Cloud Run
+6. Deploys `clarityos-brain` service to Cloud Run
 7. Prints the WebSocket URL + instructions for connecting Mac clients
 
 ### After Deployment
 
 Health check:
 ```bash
-curl https://moonwalk-brain-xxxx.us-central1.run.app/health
+curl https://clarityos-brain-xxxx.us-central1.run.app/health
 # → {"status":"ok","agents":0}
 ```
 
 Configure a customer's Mac to use the cloud brain (`backend/.env`):
 ```bash
-MOONWALK_CLOUD_URL=wss://moonwalk-brain-xxxx.us-central1.run.app
-MOONWALK_CLOUD_TOKEN=your-shared-secret
+CLARITYOS_CLOUD_URL=wss://clarityos-brain-xxxx.us-central1.run.app
+CLARITYOS_CLOUD_TOKEN=your-shared-secret
 ```
 
 They then launch `mac_client.py` instead of `local_server.py` — audio and macOS tools stay local, AI reasoning goes to Cloud Run.

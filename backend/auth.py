@@ -1,5 +1,5 @@
 """
-Moonwalk — Authentication Module
+ClarityOS — Authentication Module
 ==================================
 Verifies incoming connections using either:
   1. Google ID tokens (production — verified via Google's certs)
@@ -53,7 +53,7 @@ _ALLOWED_CLIENT_IDS: set[str] = set()
 def _load_allowed_client_ids() -> set[str]:
     """Load allowed Google OAuth client IDs from environment."""
     global _ALLOWED_CLIENT_IDS
-    raw = os.environ.get("MOONWALK_GOOGLE_CLIENT_ID", "")
+    raw = os.environ.get("CLARITYOS_GOOGLE_CLIENT_ID", "")
     if raw:
         _ALLOWED_CLIENT_IDS = {cid.strip() for cid in raw.split(",") if cid.strip()}
     return _ALLOWED_CLIENT_IDS
@@ -114,11 +114,11 @@ async def verify_google_id_token(id_token: str) -> AuthResult:
 def verify_shared_token(token: str, user_id: str = "") -> AuthResult:
     """
     Verify a pre-shared secret token.
-    The token must match MOONWALK_CLOUD_TOKEN env var.
+    The token must match CLARITYOS_CLOUD_TOKEN env var.
     """
-    expected = os.environ.get("MOONWALK_CLOUD_TOKEN", "")
+    expected = os.environ.get("CLARITYOS_CLOUD_TOKEN", "")
     if not expected:
-        return AuthResult(ok=False, error="Server has no MOONWALK_CLOUD_TOKEN configured")
+        return AuthResult(ok=False, error="Server has no CLARITYOS_CLOUD_TOKEN configured")
 
     if not token or token != expected:
         return AuthResult(ok=False, error="Invalid authentication token")
@@ -149,7 +149,7 @@ async def verify_connection(auth_data: dict) -> AuthResult:
     Auth modes (checked in order):
     1. If method="google": verify Google ID token
     2. If method="token": verify shared secret
-    3. If MOONWALK_CLOUD_TOKEN is empty: allow anonymous (dev mode)
+    3. If CLARITYOS_CLOUD_TOKEN is empty: allow anonymous (dev mode)
     """
     if not isinstance(auth_data, dict):
         return AuthResult(ok=False, error="Invalid auth message format")
@@ -169,8 +169,8 @@ async def verify_connection(auth_data: dict) -> AuthResult:
     if method == "token" and token:
         return verify_shared_token(token, user_id)
 
-    # If no MOONWALK_CLOUD_TOKEN is set, allow anonymous (dev mode)
-    cloud_token = os.environ.get("MOONWALK_CLOUD_TOKEN", "")
+    # If no CLARITYOS_CLOUD_TOKEN is set, allow anonymous (dev mode)
+    cloud_token = os.environ.get("CLARITYOS_CLOUD_TOKEN", "")
     if not cloud_token:
         return AuthResult(
             ok=True,

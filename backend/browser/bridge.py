@@ -1,5 +1,5 @@
 """
-Moonwalk — Browser Bridge State
+ClarityOS — Browser Bridge State
 ===============================
 Tracks extension connection state and queued browser actions.
 """
@@ -21,7 +21,7 @@ def _default_bridge_token() -> str:
 
     One source of truth, in priority order:
 
-      1. MOONWALK_BROWSER_BRIDGE_TOKEN — explicit override
+      1. CLARITYOS_BROWSER_BRIDGE_TOKEN — explicit override
       2. tokens.json "bridge"          — the pairing code the hub shows in
                                          Settings → Connections
 
@@ -33,7 +33,7 @@ def _default_bridge_token() -> str:
     decided which pairing code was valid, and the other one produced
     "Invalid bridge token". Resolving tokens.json here makes both agree.
     """
-    configured = os.environ.get("MOONWALK_BROWSER_BRIDGE_TOKEN", "").strip()
+    configured = os.environ.get("CLARITYOS_BROWSER_BRIDGE_TOKEN", "").strip()
     if configured:
         return configured
     try:
@@ -43,7 +43,7 @@ def _default_bridge_token() -> str:
             return token
     except Exception as e:                           # keyring/FS unavailable — never fatal
         print(f"[BrowserBridge] could not read tokens.json ({e.__class__.__name__}); "
-              f"set MOONWALK_BROWSER_BRIDGE_TOKEN to pair the extension")
+              f"set CLARITYOS_BROWSER_BRIDGE_TOKEN to pair the extension")
     # Deliberately unguessable: an unpaired bridge must reject everything
     # rather than accept a well-known literal.
     return secrets.token_urlsafe(32)
@@ -64,7 +64,7 @@ async def read_page_via_owner(session_id: str = "", timeout: float = 8.0):
     import urllib.request
     from pathlib import Path
 
-    hub_port = int(os.environ.get("MOONWALK_HUB_PORT", "8787"))
+    hub_port = int(os.environ.get("CLARITYOS_HUB_PORT", "8787"))
     try:
         from hub.config import load_tokens
         ui_token = (load_tokens().get("ui") or "").strip()
@@ -101,7 +101,7 @@ def bridge_disconnect_reason() -> str:
     — to the other process. Name the real situation instead.
     """
     import socket
-    port = int(os.environ.get("MOONWALK_BROWSER_BRIDGE_PORT", "8765"))
+    port = int(os.environ.get("CLARITYOS_BROWSER_BRIDGE_PORT", "8765"))
     probe = socket.socket()
     probe.settimeout(0.4)
     try:

@@ -1,5 +1,5 @@
 """
-Moonwalk — deterministic Windows actions
+ClarityOS — deterministic Windows actions
 ========================================
 A tiny, closed-vocabulary dispatcher for requests that need no planning at all,
 such as "open notepad".

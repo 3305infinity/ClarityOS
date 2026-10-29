@@ -3,7 +3,7 @@
 //
 //   const h = require("./worker_harness");
 //   const env = h.boot({ socket: "fail" });
-//   await env.send({ type: "moonwalk_get_status" });
+//   await env.send({ type: "clarityos_get_status" });
 //
 // `socket` controls the fake WebSocket: "open" (connects and accepts the
 // handshake), "fail" (errors immediately, i.e. hub down), or "hang".

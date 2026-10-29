@@ -1,11 +1,11 @@
 # LangGraph in ClarityOS
 
-> Status: **opt-in**, off by default. Enable with `MOONWALK_USE_LANGGRAPH=1`.
+> Status: **opt-in**, off by default. Enable with `CLARITYOS_USE_LANGGRAPH=1`.
 
 ## What it does
 
 ClarityOS already had planning, tool execution, retries and approvals — spread
-across `MoonwalkAgentV2.process()`, `TaskPlanner` and `MilestoneExecutor`. The
+across `ClarityOSAgentV2.process()`, `TaskPlanner` and `MilestoneExecutor`. The
 pipeline existed, but only implicitly: the stages, the retry bounds and the exit
 conditions were interleaved with UI streaming and pending-state bookkeeping
 inside one ~900-line method.
@@ -99,7 +99,7 @@ only be raised before the side-effecting call.
 
 | Node | Delegates to | Why |
 |---|---|---|
-| `understand` | `MoonwalkAgentV2._build_world_state`, `ModelRouter.route` | perception + model/tier selection already exist |
+| `understand` | `ClarityOSAgentV2._build_world_state`, `ModelRouter.route` | perception + model/tier selection already exist |
 | `plan` | `TaskPlanner.create_plan`, `_select_tool_surface` | milestone planning already exists |
 | `validate` | — | new, and the only genuinely new logic |
 | `execute` | `_execute_milestone_plan` → `MilestoneExecutor` → `tool_registry` | keeps one execution path, so approvals and `SubAgentManager` still apply |
@@ -111,7 +111,7 @@ No second model client, no second tool registry, no competing agent.
 
 ```powershell
 # backend\.env  — default is OFF
-MOONWALK_USE_LANGGRAPH=1
+CLARITYOS_USE_LANGGRAPH=1
 ```
 
 | Value | Behaviour |

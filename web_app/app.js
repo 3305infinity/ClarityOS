@@ -1,5 +1,5 @@
 'use strict';
-/* Moonwalk website — talks only to the local hub (same origin). All server text is rendered with
+/* ClarityOS website — talks only to the local hub (same origin). All server text is rendered with
    textContent (never innerHTML). The token arrives in the URL #fragment, is moved to sessionStorage
    and removed from the address bar. API keys are write-only: the hub never sends them back. */
 const $ = (s) => document.querySelector(s);

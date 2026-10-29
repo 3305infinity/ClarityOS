@@ -1,2 +1,2 @@
-"""Experiment-only packages and scripts for Moonwalk."""
+"""Experiment-only packages and scripts for ClarityOS."""
 

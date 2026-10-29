@@ -1,5 +1,5 @@
 """
-Moonwalk — Tools Package
+ClarityOS — Tools Package
 =========================
 Re-exports the global registry so existing code can do `from tools import registry`.
 

@@ -1,5 +1,5 @@
 """
-Moonwalk — Output Quality Benchmark
+ClarityOS — Output Quality Benchmark
 ====================================
 Tests whether the agent produces elite-level responses
 comparable to Claude/GPT-4 — not just correct, but
@@ -22,7 +22,7 @@ from datetime import datetime
 # Add backend to path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
-from agent import MoonwalkAgent
+from agent import ClarityOSAgent
 from tools import registry as tool_registry
 import perception
 
@@ -300,7 +300,7 @@ class QualityBenchmark:
         return suite_result
 
     async def _run_single(self, scenario: dict, result: ScenarioResult):
-        agent = MoonwalkAgent()
+        agent = ClarityOSAgent()
         if self._shared_router:
             agent.router = self._shared_router
 

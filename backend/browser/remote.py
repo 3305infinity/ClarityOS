@@ -36,8 +36,8 @@ from typing import Any, Dict, Optional
 # Where an owner may be listening. The hub serves FastAPI on 8787; the voice
 # server answers the same paths on 8000 through its websockets process_request
 # hook. `self_port` lets a process skip asking itself.
-HUB_PORT = int(os.environ.get("MOONWALK_HUB_PORT", "8787"))
-VOICE_PORT = int(os.environ.get("MOONWALK_BACKEND_PORT", "8000"))
+HUB_PORT = int(os.environ.get("CLARITYOS_HUB_PORT", "8787"))
+VOICE_PORT = int(os.environ.get("CLARITYOS_BACKEND_PORT", "8000"))
 
 _DEFAULT_TIMEOUT = 10.0
 

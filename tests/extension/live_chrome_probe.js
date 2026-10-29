@@ -55,7 +55,7 @@ async function evaluate(target, expression, awaitPromise = true) {
 const TIMED_SEND = `(async () => {
   const t0 = performance.now();
   try {
-    const r = await chrome.runtime.sendMessage({ type: "moonwalk_get_status" });
+    const r = await chrome.runtime.sendMessage({ type: "clarityos_get_status" });
     return JSON.stringify({ ms: Math.round(performance.now() - t0), got: !!r, socketState: r && r.socketState, msg: r && r.lastBridgeMessage });
   } catch (e) {
     return JSON.stringify({ ms: Math.round(performance.now() - t0), error: String(e && e.message || e) });
@@ -121,7 +121,7 @@ const TIMED_SEND = `(async () => {
     console.log(`   cold capture_snapshot: ${await evaluate(popup, `(async () => {
       const t0 = performance.now();
       try {
-        const r = await chrome.runtime.sendMessage({ type: "moonwalk_request_snapshot" });
+        const r = await chrome.runtime.sendMessage({ type: "clarityos_request_snapshot" });
         return JSON.stringify({ ms: Math.round(performance.now() - t0), ok: r && r.ok, err: r && r.error });
       } catch (e) { return JSON.stringify({ ms: Math.round(performance.now() - t0), error: String(e && e.message || e) }); }
     })()`)}`);

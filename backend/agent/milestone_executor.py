@@ -1,5 +1,5 @@
 """
-Moonwalk — Milestone Executor
+ClarityOS — Milestone Executor
 ==============================
 LLM micro-loop engine for milestone-based execution.
 

@@ -35,7 +35,7 @@ window.chrome = {
       if (scenario === "slow-wake" && window.__attempts === 1) {
         return new Promise(() => {}); // worker still booting: never settles
       }
-      const body = payload?.type === "moonwalk_request_snapshot" ? { ok: true, ...STATUS } : STATUS;
+      const body = payload?.type === "clarityos_request_snapshot" ? { ok: true, ...STATUS } : STATUS;
       return new Promise((resolve) => setTimeout(() => resolve(body), 40));
     },
   },

@@ -1,5 +1,5 @@
 """
-Moonwalk Hub — configuration, tokens, settings and secrets
+ClarityOS Hub — configuration, tokens, settings and secrets
 ===========================================================
 
 * tokens.json   – three random tokens created on first run (never hard-coded):
@@ -23,7 +23,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 VERSION = "0.1.0"
-KEYRING_SERVICE = "Moonwalk"
+KEYRING_SERVICE = "ClarityOS"
+# Secrets saved before the rename live under the old Credential Manager service.
+# Reads fall back to it so an existing install does not lose its API keys; new
+# writes always go to KEYRING_SERVICE.
+LEGACY_KEYRING_SERVICE = "Moon" + "walk"
 
 # Secrets the UI may configure. name -> human label
 SECRET_NAMES = {
@@ -35,14 +39,35 @@ SECRET_NAMES = {
 
 
 def user_dir() -> Path:
-    env = os.environ.get("MOONWALK_USER_DIR")
+    env = os.environ.get("CLARITYOS_USER_DIR")
     if env:
         p = Path(env)
-    elif os.name == "nt":
-        p = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming")) / "Moonwalk"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+        p, legacy = base / "ClarityOS", base / ("Moon" + "walk")
     else:
-        p = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "moonwalk"
+        base = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+        p, legacy = base / "clarityos", base / ("moon" + "walk")
+
     p.mkdir(parents=True, exist_ok=True)
+
+    # Carry a pre-rename install forward rather than stranding its tokens and
+    # pairing state, which would silently force the user to pair the extension
+    # again. Copied file-by-file: the target directory usually already exists
+    # (Electron creates it), so renaming the whole folder would never fire.
+    if legacy.exists() and legacy.resolve() != p.resolve():
+        for name in ("tokens.json", "settings.json", "hub.db"):
+            src, dst = legacy / name, p / name
+            try:
+                if src.is_file() and not dst.exists():
+                    dst.write_bytes(src.read_bytes())
+                    print(f"[Config] Carried {name} over from the previous install.")
+            except Exception as exc:
+                print(f"[Config] Could not carry {name} over ({exc}).")
+
     return p
 
 
@@ -198,10 +223,10 @@ class Settings:
 def apply_settings_to_env(s: Dict[str, Any]) -> None:
     """Push settings into the env vars the voice modules read, then reset their singletons."""
     env = {
-        "MOONWALK_STT_PROVIDER": s["stt_provider"],
-        "MOONWALK_STT_LANGUAGE": s["stt_language"],
-        "MOONWALK_STT_FALLBACK": s["stt_fallback"],
-        "MOONWALK_TTS_PROVIDER": s["tts_provider"],
+        "CLARITYOS_STT_PROVIDER": s["stt_provider"],
+        "CLARITYOS_STT_LANGUAGE": s["stt_language"],
+        "CLARITYOS_STT_FALLBACK": s["stt_fallback"],
+        "CLARITYOS_TTS_PROVIDER": s["tts_provider"],
         "GNANI_TTS_MODEL": s["gnani_tts_model"],
         "GNANI_TTS_VOICE": s["gnani_tts_voice"],
         "GNANI_TTS_LANGUAGE": s["gnani_tts_language"],
@@ -209,7 +234,7 @@ def apply_settings_to_env(s: Dict[str, Any]) -> None:
         "SARVAM_TTS_SPEAKER": s["sarvam_tts_speaker"],
         "SARVAM_TTS_LANGUAGE": s["sarvam_tts_language"],
         "SARVAM_TTS_PACE": str(s["tts_speed"]),
-        "MOONWALK_TTS_SPEED": str(s["tts_speed"]),
+        "CLARITYOS_TTS_SPEED": str(s["tts_speed"]),
         "BOLNA_AGENT_ID": s["bolna_agent_id"],
     }
     for k, v in env.items():
@@ -247,7 +272,13 @@ class SecretStore:
             return self._mem[name]
         if self._keyring:
             try:
-                return self._keyring.get_password(KEYRING_SERVICE, name) or ""
+                found = self._keyring.get_password(KEYRING_SERVICE, name) or ""
+                if found:
+                    return found
+                # Pre-rename install: read it once from the old service so the
+                # key keeps working. Not copied over — deleting the old entry
+                # is the user's call, not ours.
+                return self._keyring.get_password(LEGACY_KEYRING_SERVICE, name) or ""
             except Exception:
                 return ""
         return ""

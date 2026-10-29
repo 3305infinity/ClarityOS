@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  Moonwalk — Extension Options Page
+//  ClarityOS — Extension Options Page
 //  Configurable bridge URL and auth token (stored in chrome.storage.sync)
 // ═══════════════════════════════════════════════════════════════
 
@@ -91,7 +91,7 @@ async function saveSettings() {
       await writeSettings({ bridgeUrl: url, bridgeToken: current.bridgeToken }).catch(() => {});
       bridgeTokenEl.value = current.bridgeToken;
       showStatus("Bridge URL saved. Pairing code left unchanged — use Reset to clear it.", false);
-      chrome.runtime.sendMessage({ type: "moonwalk_settings_updated" });
+      chrome.runtime.sendMessage({ type: "clarityos_settings_updated" });
       return;
     }
   }
@@ -119,7 +119,7 @@ async function saveSettings() {
   );
 
   // Notify background script to reconnect
-  chrome.runtime.sendMessage({ type: "moonwalk_settings_updated" });
+  chrome.runtime.sendMessage({ type: "clarityos_settings_updated" });
 }
 
 async function resetToDefaults() {
@@ -134,7 +134,7 @@ async function resetToDefaults() {
   bridgeUrlEl.value = DEFAULTS.bridgeUrl;
   bridgeTokenEl.value = DEFAULTS.bridgeToken;
   showStatus("Reset to defaults. Paste a new pairing code to reconnect.");
-  chrome.runtime.sendMessage({ type: "moonwalk_settings_updated" });
+  chrome.runtime.sendMessage({ type: "clarityos_settings_updated" });
 }
 
 saveBtn.addEventListener("click", saveSettings);

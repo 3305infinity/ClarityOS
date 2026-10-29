@@ -1,5 +1,5 @@
 """
-Moonwalk — File I/O Tools
+ClarityOS — File I/O Tools
 ===========================
 Tools for reading, writing, listing, and editing files
 on the user's Mac.
@@ -31,13 +31,13 @@ _RESTRICTED_PATHS = [
 
 
 def _windows_restricted() -> list[str]:
-    """Windows credential stores, browser profiles and Moonwalk's own secrets/tokens."""
+    """Windows credential stores, browser profiles and ClarityOS's own secrets/tokens."""
     paths: list[str] = []
     env = os.environ
     appdata, local = env.get("APPDATA", ""), env.get("LOCALAPPDATA", "")
     home = os.path.expanduser("~")
     for base, rel in (
-        (appdata, "Microsoft\\Credentials"), (appdata, "Microsoft\\Protect"), (appdata, "Moonwalk"),
+        (appdata, "Microsoft\\Credentials"), (appdata, "Microsoft\\Protect"), (appdata, "ClarityOS"),
         (local, "Microsoft\\Credentials"), (local, "Google\\Chrome\\User Data"),
         (local, "Microsoft\\Edge\\User Data"), (local, "BraveSoftware"),
         (home, ".ssh"), (home, ".aws"), (home, ".azure"),
@@ -48,7 +48,7 @@ def _windows_restricted() -> list[str]:
     return paths
 
 
-def _moonwalk_data_dirs() -> list[str]:
+def _clarityos_data_dirs() -> list[str]:
     out = []
     try:
         from hub.config import user_dir
@@ -64,7 +64,7 @@ def _is_path_restricted(expanded_path: str) -> bool:
         real = os.path.realpath(expanded_path)
     except Exception:
         real = expanded_path
-    candidates = list(_RESTRICTED_PATHS) + _moonwalk_data_dirs()
+    candidates = list(_RESTRICTED_PATHS) + _clarityos_data_dirs()
     if os.name == "nt":
         candidates += _windows_restricted()
     real_n = os.path.normcase(real)

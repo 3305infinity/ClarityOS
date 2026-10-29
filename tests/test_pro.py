@@ -2,7 +2,7 @@ import asyncio
 import os
 import sys
 
-# Add current path to sys.path so we can import moonwalk packages
+# Add current path to sys.path so we can import clarityos packages
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from providers import GeminiProvider
 

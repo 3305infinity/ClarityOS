@@ -52,7 +52,7 @@ POWERFUL_MODEL = DEFAULT_POWERFUL_MODEL
 ROUTING_MODEL = DEFAULT_ROUTING_MODEL
 
 # The routing prompt that Flash uses to classify requests
-ROUTING_PROMPT = """You are a routing classifier for a desktop AI assistant called Moonwalk.
+ROUTING_PROMPT = """You are a routing classifier for a desktop AI assistant called ClarityOS.
 
 Your job: decide which AI model should handle this user request.
 

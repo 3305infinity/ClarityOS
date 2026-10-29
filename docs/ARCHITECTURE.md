@@ -1,4 +1,4 @@
-# Moonwalk — Architecture
+# ClarityOS — Architecture
 
 > **This is the single authoritative architecture document.** It reflects the current production runtime.
 
@@ -35,13 +35,13 @@
                     ┌─────────────────────▼───────────────────┐
                     │       local_server.py  (Python WS)       │
                     │  • receive text/audio/actions            │
-                    │  • spawn MoonwalkAgentV2.run()           │
+                    │  • spawn ClarityOSAgentV2.run()           │
                     │  • stream TTS chunks back to renderer    │
                     │  • handle cancel / conversation mode     │
                     └──────────────────┬──────────────────────┘
                                        │
                     ┌──────────────────▼──────────────────────┐
-                    │          MoonwalkAgentV2                 │
+                    │          ClarityOSAgentV2                 │
                     │  (backend/agent/core_v2.py)              │
                     │  SPAV loop:                              │
                     │  Sense → Route → Plan/Act → Verify       │
@@ -49,7 +49,7 @@
 ```
 
 **Key properties:**
-- Electron overlay sits always-on-top; activated by wake word (`Hey Moonwalk`) or Escape/click
+- Electron overlay sits always-on-top; activated by wake word (`Hey ClarityOS`) or Escape/click
 - Single WebSocket connection per session on `localhost:8000`
 - Python backend is spawned as a child process by `main.js` on app start
 - All agent work runs in the Python process; Electron is a thin display shell
@@ -93,7 +93,7 @@
 
 ## 3. Agent Pipeline — SPAV Loop
 
-**File:** `backend/agent/core_v2.py` — `MoonwalkAgentV2`
+**File:** `backend/agent/core_v2.py` — `ClarityOSAgentV2`
 
 The core loop follows **Sense → Route → Plan → Act → Verify**:
 
@@ -387,7 +387,7 @@ backend/
     local_server.py         WebSocket entrypoint, session management,
                             TTS streaming, cancel, conversation mode
   agent/
-    core_v2.py              MoonwalkAgentV2 — SPAV loop, ack, fast path,
+    core_v2.py              ClarityOSAgentV2 — SPAV loop, ack, fast path,
                             personality, conversation mode markers
     task_planner.py         MilestonePlan builder
     planner.py              Milestone + ExecutionStep dataclasses

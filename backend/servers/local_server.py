@@ -1,5 +1,5 @@
 """
-Moonwalk — Backend Server (Agentic)
+ClarityOS — Backend Server (Agentic)
 =====================================
 WebSocket server that:
   1. Receives audio from Electron → detects wake word → transcribes speech
@@ -32,10 +32,14 @@ _backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _backend_dir not in sys.path:
     sys.path.insert(0, _backend_dir)
 
+# Must follow the sys.path setup above (this file runs as a script from
+# backend/servers, so the backend root is not importable before it).
+import compat_env  # noqa: E402,F401  (maps legacy env names before they are read)
+
 load_dotenv(os.path.join(_backend_dir, ".env"))
-# Per-user config (set by Electron): %APPDATA%\Moonwalk\.env on Windows, ~/Library/Application Support/Moonwalk/.env on macOS.
+# Per-user config (set by Electron): %APPDATA%\ClarityOS\.env on Windows, ~/Library/Application Support/ClarityOS/.env on macOS.
 # Lets packaged builds keep GNANI_API_KEY / SARVAM_API_KEY / BOLNA_API_KEY outside the install folder.
-_user_dir = os.environ.get("MOONWALK_USER_DIR", "")
+_user_dir = os.environ.get("CLARITYOS_USER_DIR", "")
 if _user_dir:
     load_dotenv(os.path.join(_user_dir, ".env"), override=True)
 
@@ -57,8 +61,36 @@ except ImportError:
     pvporcupine = None
     print("[Voice] pvporcupine not installed — wake word will be disabled")
 from voice.stt import get_stt_provider, NoSpeechError, STTRequestError
+from voice.stt import SAMPLE_RATE as STT_SAMPLE_RATE
 
-# Moonwalk Agent (V2 runtime)
+
+def _resample_pcm16(pcm: bytes, src_rate: int, dst_rate: int, channels: int = 1) -> bytes:
+    """Linear-resample signed 16-bit PCM, mixing to mono first.
+
+    Deliberately dependency-free (numpy is already a hard requirement): this
+    runs per audio chunk on the voice path, and pulling in scipy/librosa for a
+    rate conversion would be a far larger change than the bug warrants.
+    """
+    if not pcm or src_rate <= 0 or src_rate == dst_rate:
+        return pcm
+    samples = np.frombuffer(pcm, dtype=np.int16)
+    if samples.size == 0:
+        return pcm
+    if channels > 1:
+        usable = (samples.size // channels) * channels
+        samples = samples[:usable].reshape(-1, channels).mean(axis=1)
+    out_len = int(round(samples.size * (dst_rate / float(src_rate))))
+    if out_len <= 0:
+        return b""
+    resampled = np.interp(
+        np.linspace(0.0, samples.size - 1, out_len, dtype=np.float64),
+        np.arange(samples.size, dtype=np.float64),
+        samples.astype(np.float64),
+    )
+    return np.clip(resampled, -32768, 32767).astype(np.int16).tobytes()
+
+
+# ClarityOS Agent (V2 runtime)
 from agent import create_agent
 import agent.perception as perception
 from runtime_state import runtime_state_store
@@ -70,7 +102,7 @@ from browser import BrowserResolver, browser_bridge, browser_store, ActionReques
 from browser.selector_ai import build_ranked_candidates, select_browser_candidate_with_flash
 
 # Agent version toggle (deprecated compatibility env; V2 is always used)
-AGENT_VERSION = os.environ.get("MOONWALK_AGENT_VERSION", "v2")
+AGENT_VERSION = os.environ.get("CLARITYOS_AGENT_VERSION", "v2")
 
 # Picovoice access key (loaded from .env)
 PICOVOICE_ACCESS_KEY = os.environ.get("PICOVOICE_ACCESS_KEY", "")
@@ -124,9 +156,9 @@ class VoiceAssistant:
             else:
                 # Look for the .ppn file in the project root (one level above _backend_dir)
                 project_root = os.path.abspath(os.path.join(_backend_dir, ".."))
-                custom_ppn = os.path.join(project_root, "hey_moonwalk.ppn")
+                custom_ppn = os.path.join(project_root, "hey_clarityos.ppn")
                 # Also check inside the servers directory (bundled copy)
-                servers_ppn = os.path.join(os.path.dirname(__file__), "hey_moonwalk.ppn")
+                servers_ppn = os.path.join(os.path.dirname(__file__), "hey_clarityos.ppn")
                 ppn_path = custom_ppn if os.path.exists(custom_ppn) else (servers_ppn if os.path.exists(servers_ppn) else None)
 
                 print(f"[Voice] Picovoice key: {PICOVOICE_ACCESS_KEY[:12]}… (len={len(PICOVOICE_ACCESS_KEY)})")
@@ -138,13 +170,13 @@ class VoiceAssistant:
                         access_key=PICOVOICE_ACCESS_KEY,
                         keyword_paths=[ppn_path]
                     )
-                    print(f"[Voice] ✓ Porcupine initialized with 'Hey Moonwalk' from {ppn_path}")
+                    print(f"[Voice] ✓ Porcupine initialized with 'Hey ClarityOS' from {ppn_path}")
                 else:
                     self.porcupine = pvporcupine.create(
                         access_key=PICOVOICE_ACCESS_KEY,
                         keywords=["porcupine"]
                     )
-                    print("[Voice] ⚠ hey_moonwalk.ppn not found — using built-in 'Porcupine' keyword")
+                    print("[Voice] ⚠ hey_clarityos.ppn not found — using built-in 'Porcupine' keyword")
                     print(f"[Voice]   Searched: {custom_ppn}")
                     print(f"[Voice]   Searched: {servers_ppn}")
         except Exception as e:
@@ -152,7 +184,7 @@ class VoiceAssistant:
 
         # For capturing the command after wake
         self.audio_buffer = bytearray()
-        self.stt = get_stt_provider()  # google | gnani | sarvam (MOONWALK_STT_PROVIDER)
+        self.stt = get_stt_provider()  # google | gnani | sarvam (CLARITYOS_STT_PROVIDER)
         self.consecutive_silence_chunks = 0
         self.SILENCE_THRESHOLD_CHUNKS = 7  # Approx 0.45 seconds of sustained silence
         self.MIN_BUFFER_SIZE = 16000 * 2 * 0.3  # Min 0.3 seconds of audio
@@ -436,7 +468,22 @@ class VoiceAssistant:
             # Use Python's wave module to read the WAV chunk
             with wave.open(io.BytesIO(wav_bytes), 'rb') as w:
                 pcm_data = w.readframes(w.getnframes())
-            
+                chunk_rate = w.getframerate()
+                chunk_channels = w.getnchannels()
+
+            # Everything downstream (silence detection, the STT engines) assumes
+            # 16 kHz mono. A browser is free to hand the renderer a 44.1/48 kHz
+            # AudioContext even when 16 kHz was requested, and the resulting
+            # audio is then transcribed at the wrong speed — which reads as
+            # "no intelligible speech" rather than as a format error. Resample
+            # rather than silently mis-transcribe.
+            if chunk_rate and chunk_rate != STT_SAMPLE_RATE:
+                if self._rate_warned != chunk_rate:
+                    self._rate_warned = chunk_rate
+                    print(f"[Audio] client is sending {chunk_rate} Hz / {chunk_channels}ch; "
+                          f"resampling to {STT_SAMPLE_RATE} Hz mono for STT.")
+                pcm_data = _resample_pcm16(pcm_data, chunk_rate, STT_SAMPLE_RATE, chunk_channels)
+
             if self.state == "IDLE":
                 await self.process_wake_word(websocket, pcm_data)
             elif self.state == "LISTENING":
@@ -510,19 +557,67 @@ class VoiceAssistant:
                 # Start processing the audio asynchronously
                 asyncio.create_task(self.transcribe_and_act(websocket))
 
+    _rate_warned = 0          # last mismatching client rate we logged
+
+    async def _safe_send(self, websocket, payload: dict) -> bool:
+        """Send a UI event, tolerating a client that has already gone away.
+
+        Dictation events are advisory: if the sidebar closed mid-utterance,
+        failing to deliver one must not abort the transcription path.
+        """
+        try:
+            await websocket.send(json.dumps(payload))
+            return True
+        except Exception as exc:
+            print(f"[Voice] could not deliver '{payload.get('type')}': "
+                  f"{exc.__class__.__name__}")
+            return False
+
     async def transcribe_and_act(self, websocket):
         """
         Run Speech-to-Text on the buffered audio, then hand off
         to the agentic pipeline.
         """
+        # Level/duration of what was actually captured. When STT reports "no
+        # speech", this is the difference between "the mic was silent", "the
+        # mic is very quiet" and "we only buffered a fraction of a second" —
+        # none of which are distinguishable from the error message alone.
+        self._last_capture = {}
+        try:
+            _a = np.frombuffer(bytes(self.audio_buffer), dtype=np.int16)
+            if _a.size:
+                _rms = float(np.sqrt(np.mean(_a.astype(np.float32) ** 2)))
+                _peak = int(np.abs(_a).max())
+                _secs = _a.size / float(STT_SAMPLE_RATE)
+                _verdict = ("silent" if _peak < 150
+                            else "very quiet" if _rms < 250
+                            else "ok")
+                self._last_capture = {"secs": _secs, "rms": _rms,
+                                      "peak": _peak, "verdict": _verdict}
+                print(f"[Audio] captured {_secs:.2f}s  rms={_rms:.0f}  peak={_peak} ({_verdict})")
+        except Exception:
+            pass
+
         print(f"Transcribing {len(self.audio_buffer)} bytes of audio...")
-        
+
+        # The sidebar drives its dictation UI off these three events (see the
+        # "Voice input" note in sidebar/sidebar.js). They were never emitted, so
+        # the mic button stayed in its recording state forever and the user
+        # never saw what had been heard — even though transcription itself had
+        # worked. Clients that do not know these types ignore them.
+        await self._safe_send(websocket, {"type": "transcribing"})
+
         try:
             # Hand the raw 16 kHz mono PCM to the configured STT engine
             # (Google / Gnani Vachana / Sarvam). Raises NoSpeechError or STTRequestError.
             try:
                 text = await self.stt.transcribe(bytes(self.audio_buffer))
                 print(f"=> TRANSCRIBED: {text}")
+
+                # Show the user what was heard before acting on it. Sent once,
+                # and the client only displays it — the agent run below is the
+                # single submission, so an utterance cannot be handled twice.
+                await self._safe_send(websocket, {"type": "transcript", "text": text})
                 
                 # ════════════════════════════════════════════
                 #  Voice interrupt: if agent is working and user
@@ -576,6 +671,31 @@ class VoiceAssistant:
                     }))
                     return
                 # Otherwise, it was a wake word trigger that failed, reset to idle
+                # "No speech" has three very different causes, and the generic
+                # wording sent the user to the same Settings page regardless.
+                cap = getattr(self, "_last_capture", {}) or {}
+                verdict, secs = cap.get("verdict"), cap.get("secs", 0.0)
+                if verdict == "silent":
+                    message = "The microphone recorded silence."
+                    hint = ("Windows is capturing nothing from it. Check it isn't muted, "
+                            "and that the device you are speaking into is the default "
+                            "under Settings → Sound → Input.")
+                elif verdict == "very quiet":
+                    message = "That was too quiet to make out."
+                    hint = (f"I recorded {secs:.1f}s but the level was very low — raise the "
+                            f"input volume under Settings → Sound → Input, or move closer "
+                            f"to the mic.")
+                elif secs and secs < 0.8:
+                    message = "That recording was too short to transcribe."
+                    hint = ("Only %.1fs was captured. Start speaking right after you press "
+                            "Speak, and press it again once you have finished." % secs)
+                else:
+                    message = "I didn't catch any speech in that."
+                    hint = ("Check that the right microphone is selected in "
+                            "Windows Settings → Sound → Input, then try again.")
+                await self._safe_send(websocket, {
+                    "type": "transcript_error", "message": message, "hint": hint,
+                })
                 await websocket.send(json.dumps({
                     "type": "response",
                     "payload": {"text": "Sorry, I didn't catch that.", "app": ""}
@@ -594,6 +714,14 @@ class VoiceAssistant:
                         "type": "status", "state": "state-listening"
                     }))
                     return
+                # Keep the engine's own wording: it distinguishes a network
+                # failure from a rejected key or an exhausted quota, which is
+                # exactly what the user needs in order to fix it.
+                await self._safe_send(websocket, {
+                    "type": "transcript_error",
+                    "message": "Speech recognition failed.",
+                    "hint": str(e)[:200],
+                })
                 await websocket.send(json.dumps({
                     "type": "response",
                     "payload": {"text": "Network error processing speech.", "app": ""}
@@ -1037,9 +1165,18 @@ async def main_handler(websocket):
                     }))
                     
                 elif msg_type == "hotkey_pressed":
-                    print("=> HOTKEY PRESSED. Forcing wake...")
+                    print("=> PUSH-TO-TALK. Listening without wake word...")
                     assistant.state = "LISTENING"
                     assistant.audio_buffer = bytearray()
+                    # Deliberate push-to-talk: the user has already said they
+                    # are about to speak. Clear the gates left behind by an
+                    # await_reply turn — otherwise the first 64 chunks were
+                    # discarded as "grace" and recording then waited for a loud
+                    # voice onset, so a normal-volume sentence recorded nothing.
+                    assistant.grace_chunks_remaining = 0
+                    assistant.waiting_for_voice = False
+                    assistant.consecutive_silence_chunks = 0
+                    assistant._release_tts_gate("push-to-talk")
                     await websocket.send(json.dumps({
                         "type": "status", "state": "state-listening"
                     }))

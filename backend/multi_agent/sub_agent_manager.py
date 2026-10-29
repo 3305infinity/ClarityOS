@@ -1,5 +1,5 @@
 """
-Moonwalk — Sub-Agent Manager
+ClarityOS — Sub-Agent Manager
 ==============================
 Orchestrates parallel execution of independent milestone groups.
 

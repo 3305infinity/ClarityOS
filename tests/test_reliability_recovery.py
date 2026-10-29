@@ -1,5 +1,5 @@
 """
-Focused reliability checks for the Moonwalk recovery plan.
+Focused reliability checks for the ClarityOS recovery plan.
 
 Run directly with:
   python3 tests/test_reliability_recovery.py
@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "backend"))
 
 from agent.planner import ExecutionStep, Milestone, MilestonePlan, StepStatus
 from agent.task_planner import TaskPlanner
-from agent.core_v2 import MoonwalkAgentV2, PendingPlanState
+from agent.core_v2 import ClarityOSAgentV2, PendingPlanState
 from agent.memory import WorkingMemory
 from agent.template_registry import TemplateRegistry
 from agent.verifier import VerificationResult
@@ -132,7 +132,7 @@ def test_runtime_state_prefers_bridge_browser_truth():
         degraded=True,
     )
 
-    browser_bridge.register_connection("bridge-session", "moonwalk-browser-bridge")
+    browser_bridge.register_connection("bridge-session", "clarityos-browser-bridge")
     browser_store.upsert_snapshot(
         PageSnapshot(
             session_id="bridge-session",
@@ -399,7 +399,7 @@ def test_selector_llm_surface_abstracts_web_information():
 
 
 def test_plan_tool_contract_requires_supported_hints():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     plan = MilestonePlan(
         task_summary="Find encode demo tasks",
         milestones=[
@@ -1198,7 +1198,7 @@ async def test_get_web_information_degraded_route_uses_background_for_explicit_u
 
 
 async def test_execute_step_defers_research_commit_until_verification_success():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     step = ExecutionStep(
         id=1,
         description="Summarize page",
@@ -1273,7 +1273,7 @@ async def test_execute_step_defers_research_commit_until_verification_success():
 
 def test_execute_step_uses_conservative_vision_recovery_for_ui_failure():
     async def run():
-        agent = MoonwalkAgentV2(use_planning=False, persist=False)
+        agent = ClarityOSAgentV2(use_planning=False, persist=False)
         step = ExecutionStep(
             id=1,
             description="Click compose",
@@ -1374,7 +1374,7 @@ class _FakeProvider:
 
 def test_non_research_document_body_synthesis_from_title():
     async def run():
-        agent = MoonwalkAgentV2(use_planning=False, persist=False)
+        agent = ClarityOSAgentV2(use_planning=False, persist=False)
         synthesized = await agent._synthesize_document_body(
             provider=_FakeProvider(),
             title="Fascinating Facts About Octopuses",
@@ -1437,7 +1437,7 @@ async def test_template_pack_tool_filter_fallback():
 
 
 def test_plan_gate_policy():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
 
     high_risk = _milestone_plan("Run command", ["run_shell"])
     assert agent._should_gate_plan(high_risk) is True
@@ -1447,7 +1447,7 @@ def test_plan_gate_policy():
 
 
 def test_pending_plan_staleness_rules():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     plan = _milestone_plan("Draft plan", ["open_url"])
 
     old_pending = PendingPlanState(
@@ -1496,14 +1496,14 @@ def test_pending_plan_staleness_rules():
     )
     stale, reason = agent._is_pending_plan_stale(
         web_pending,
-        ContextSnapshot(active_app="Electron", browser_url=None, window_title="Moonwalk"),
+        ContextSnapshot(active_app="Electron", browser_url=None, window_title="ClarityOS"),
     )
     assert stale is False
     assert reason == ""
 
 
 async def test_execute_step_handles_await_reply_payload():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     step = ExecutionStep(
         id=1,
         description="Ask for confirmation",
@@ -1555,7 +1555,7 @@ async def test_execute_milestone_plan_resumes_after_await_reply():
             "deliverable": "Introduce the demo, walk through the encode flow, and handle Q&A.",
         }),
     ])
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     plan = MilestonePlan(
         task_summary="Find the encode demo tasks and message Kris",
         milestones=[
@@ -1669,7 +1669,7 @@ async def test_await_reply_blocks_execution():
 
 
 async def test_browser_read_page_context_recovery():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     agent._last_opened_url = "https://www.google.com/search?q=uk+housing"
     step = ExecutionStep(
         id=1,
@@ -1706,7 +1706,7 @@ async def test_browser_read_page_context_recovery():
 
 
 async def test_extract_structured_data_context_recovery():
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     agent._last_opened_url = "https://www.google.com/search?q=uk+housing"
     step = ExecutionStep(
         id=1,
@@ -1781,7 +1781,7 @@ async def test_high_risk_plan_gates_before_execution():
                 )
             )
 
-    agent = MoonwalkAgentV2(use_planning=False, persist=False)
+    agent = ClarityOSAgentV2(use_planning=False, persist=False)
     agent._pending_reply_provider = _PlanProvider()
     context = ContextSnapshot(active_app="Terminal", window_title="Terminal")
 
