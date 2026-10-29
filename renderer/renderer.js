@@ -2094,8 +2094,25 @@ if (window.overlayAPI && overlayAPI.onUiActive) {
   overlayAPI.onUiActive((active) => {
     app.uiInactive = !active;
     if (active) {
+      // Becoming visible always restarts the connection from scratch. A failed
+      // first attempt (the backend needs ~10s to come up, the renderer loads in
+      // ~1s) leaves a dead socket, and the retry chain can be cancelled while
+      // the window is hidden — after which nothing would ever try again and the
+      // welcome screen sat on "Assistant not responding" against a live backend.
       app.reconnectDelay = 700;
-      connectWebSocket();
+      // uiInactive is already false above, so any failure from here on reaches
+      // scheduleReconnect normally. Only restart a socket that is actually
+      // dead — tearing down one that is still CONNECTING would just churn.
+      const dead = !app.ws || app.ws.readyState === WebSocket.CLOSING
+                            || app.ws.readyState === WebSocket.CLOSED;
+      if (dead) {
+        app.ws = null;
+        if (app.reconnectTimer) {
+          window.clearTimeout(app.reconnectTimer);
+          app.reconnectTimer = null;
+        }
+        connectWebSocket();
+      }
     } else {
       try { app.ws && app.ws.close(); } catch (_) {}
       app.ws = null;

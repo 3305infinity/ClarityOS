@@ -27,7 +27,12 @@ const {
   // Copy the data files only, never the Chromium caches: the new folder is
   // usually created (empty but present) by an earlier launch, so renaming the
   // whole directory would not fire, and the caches are rebuilt anyway.
-  const CARRY_OVER = ["credentials.enc", "settings.json", "sidebar-state.json", "hub.db"];
+  // credentials.enc is deliberately NOT carried over: safeStorage ties the
+  // ciphertext to the app identity, which the rename changed, so the copy only
+  // ever fails to decrypt — and a permanently unreadable credential file makes
+  // the app report "first launch" forever. API keys in backend/.env are
+  // unaffected; a key saved in Settings has to be re-entered once.
+  const CARRY_OVER = ["settings.json", "sidebar-state.json", "hub.db"];
   try {
     const current = app.getPath("userData");
     const legacy = path.join(path.dirname(current), "Moon" + "walk");
@@ -1033,6 +1038,18 @@ function loadCredentials() {
     const decrypted = safeStorage.decryptString(encrypted);
     return JSON.parse(decrypted);
   } catch (err) {
+    // An undecryptable file never becomes readable — it fails on every launch
+    // and keeps the app in "first launch" forever. Move it aside once (never
+    // delete: it is the user's data) so a fresh one can be written.
+    try {
+      const quarantined = CRED_FILE + ".unreadable";
+      if (fs.existsSync(CRED_FILE) && !fs.existsSync(quarantined)) {
+        fs.renameSync(CRED_FILE, quarantined);
+        console.error("[Auth] credentials.enc could not be decrypted and was moved to "
+                    + "credentials.enc.unreadable. Re-enter any key saved in Settings; "
+                    + "keys in backend/.env are unaffected.");
+      }
+    } catch (_) { /* leave the original in place if it cannot be moved */ }
     console.error("[Auth] Failed to load credentials:", err.message);
     return null;
   }
