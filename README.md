@@ -12,9 +12,6 @@ Built with Electron + Python. Thinks with Gemini. Acts through a local Hub, a Wi
 ---
 
 
-Demo Video: [https://youtu.be/]
-
-
 ## Features
 - **Two presentation modes** — a **Docked Sidebar** for longer conversations, or a **Floating Assistant** pill for quick requests. Pick one from the tray; the choice is remembered across restarts
 - **Voice-first** — press `Ctrl+Shift+Space`, speak naturally, watch it act
@@ -163,11 +160,6 @@ Keys are never written to logs, prompts, or the UI.
 ---
 
 ## Architecture
-
-<p align="center">
-  <img src="docs/screenshots/architecture.svg" alt="ClarityOS Architecture" width="800"/>
-</p>
-
 ```
 Sidebar / overlay ──WS :8000──►  Voice server  ──►  Agent  ──►  Tool registry
    (one at a time)                                     │              │
@@ -187,10 +179,6 @@ consequential — shell, file writes, purchases, submits — needs an explicit
 approval before it runs.
 
 ### Agent loop (SPAV)
-
-<p align="center">
-  <img src="docs/screenshots/spav-loop.svg" alt="SPAV Agent Loop" width="600"/>
-</p>
 
 ---
 
