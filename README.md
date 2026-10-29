@@ -4,11 +4,6 @@ Built with Electron + Python. Thinks with Gemini. Acts through a local Hub, a Wi
 ---
 
 
-<p align="center">
-  <img src="docs/screenshots/ClarityOS.png" alt="Logo" width="480"/>
-</p>
-
-
 ---
 
 
