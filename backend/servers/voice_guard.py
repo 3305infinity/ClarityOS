@@ -76,14 +76,20 @@ class VoiceToolGuard:
         self.policy = PolicyEngine(settings_getter)
         self.approvals = ApprovalBroker(timeout_s)
         self.redact = redactor or make_redactor(_configured_secret_values)
-        self._ws: Any = None
+        # Every open ClarityOS window, newest last. A single slot meant the
+        # last connection to attach won — and with both the sidebar and the
+        # (hidden) overlay connected, approval prompts were delivered to a
+        # window the user could not see. It timed out, and the action came
+        # back as policy.user_denied even though nobody had denied anything.
+        self._ws_list: list = []
         self._installed_on: Any = None
 
     # ── connection plumbing ──────────────────────────────────────
 
     def attach(self, websocket: Any) -> None:
-        """Point approval prompts at this connection."""
-        self._ws = websocket
+        """Add a window that can show approval prompts."""
+        if websocket is not None and websocket not in self._ws_list:
+            self._ws_list.append(websocket)
 
     def detach(self, websocket: Any = None) -> None:
         """
@@ -92,10 +98,14 @@ class VoiceToolGuard:
         A disconnect must never leave an approved-looking action behind: if the
         window closed, nobody is there to approve.
         """
-        if websocket is not None and self._ws is not websocket:
-            return
-        self._ws = None
-        self.approvals.cancel_all("ui disconnected")
+        if websocket is None:
+            self._ws_list.clear()
+        elif websocket in self._ws_list:
+            self._ws_list.remove(websocket)
+        # Only deny pending approvals once the LAST window has gone: with
+        # several connected, one closing still leaves someone who can answer.
+        if not self._ws_list:
+            self.approvals.cancel_all("ui disconnected")
 
     def cancel_pending(self, reason: str = "user cancelled") -> int:
         """Deny every pending approval — used by cancel_task and shutdown."""
@@ -106,10 +116,27 @@ class VoiceToolGuard:
         return self.approvals.resolve(approval_id, approve)
 
     async def _emit(self, event: Dict[str, Any]) -> None:
-        ws = self._ws
-        if ws is None:
+        """Show the prompt in every open window; any one of them may answer.
+
+        Broadcasting rather than picking one window is what makes this correct
+        no matter which surface the user is actually looking at. Approval ids
+        are single-use, so the first answer settles it.
+        """
+        if not self._ws_list:
             raise ConnectionError("no UI attached")
-        await ws.send(json.dumps(event))
+        payload = json.dumps(event)
+        delivered, dead = 0, []
+        for ws in list(self._ws_list):
+            try:
+                await ws.send(payload)
+                delivered += 1
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            if ws in self._ws_list:
+                self._ws_list.remove(ws)
+        if delivered == 0:
+            raise ConnectionError("no ClarityOS window accepted the prompt")
 
     # ── the guard itself ─────────────────────────────────────────
 

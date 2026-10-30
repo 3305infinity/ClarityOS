@@ -8,6 +8,7 @@ typing, keyboard shortcuts, screen reading, and window management.
 from __future__ import annotations
 
 import asyncio
+import re
 import webbrowser
 import urllib.parse
 import os
@@ -354,10 +355,19 @@ async def quit_app(app_name: str) -> str:
     return f"Quit {matched_name}."
 
 
+_SPOTIFY_WORD = re.compile(r"(?i)\b(?:on|in|using|via|through)?\s*spotify\b")
+
+
+def _mentions_spotify(text: str) -> bool:
+    return bool(re.search(r"(?i)\bspotify\b", text or ""))
+
+
 # ── 4. play_media ──
 @registry.register(
     name="play_media",
-    description="Play a song, video, or media by searching YouTube. Great for music requests like 'play astronaut'.",
+    description=("Play music. If the request mentions Spotify, this drives the Spotify "
+                 "desktop app and confirms what actually started playing. Otherwise it "
+                 "opens YouTube search results (which does NOT start playback)."),
     parameters={
         "type": "object",
         "properties": {
@@ -370,10 +380,21 @@ async def quit_app(app_name: str) -> str:
     }
 )
 async def play_media(query: str) -> str:
+    # A YouTube *search page* is not playback, and it is certainly not Spotify.
+    # This used to open one unconditionally and return "Opened YouTube search",
+    # which the agent relayed as "Playing <track> on YouTube" — wrong app, and
+    # a success claim for something that never played.
+    if _mentions_spotify(query):
+        from tools.spotify_tools import play_track
+        cleaned = _SPOTIFY_WORD.sub(" ", query).strip() or query
+        return await play_track(cleaned)
+
     encoded = urllib.parse.quote_plus(query)
     url = f"https://www.youtube.com/results?search_query={encoded}"
     webbrowser.open(url)
-    return f"Opened YouTube search for '{query}'"
+    # Say what actually happened: results are on screen, nothing is playing yet.
+    return (f"Opened YouTube search results for '{query}'. Nothing is playing yet — "
+            f"pick a video, or ask me to play it in Spotify instead.")
 
 
 # ── 5. web_search ──

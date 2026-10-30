@@ -160,6 +160,15 @@ class ModelRouter:
                 print("[Router] ✗ No GEMINI_API_KEY set — agent cannot function.")
                 return
 
+            # Tell quota bookkeeping which credential these providers use, so a
+            # key from a different project is actually tried instead of being
+            # refused under the previous project's exhausted-model record.
+            try:
+                from providers.quota import set_credential_scope
+                set_credential_scope(api_key)
+            except Exception as exc:
+                print(f"[Router] could not scope quota state ({exc.__class__.__name__})")
+
             def get_provider(model_name: str) -> GeminiProvider:
                 return GeminiProvider(api_key=api_key, model=model_name)
 

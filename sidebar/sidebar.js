@@ -74,8 +74,6 @@ function send(payload) {
 }
 
 function connect() {
-  // Only the active presentation holds a socket; see main.js broadcastActiveMode.
-  if (S.uiInactive) return;
   // Never stack sockets. The "close" handler and the constructor's catch both
   // schedule a retry, so a backend that is slow to come up produced several
   // overlapping connections — and the voice server builds one agent per
@@ -155,6 +153,17 @@ function handle(msg) {
       logEl.scrollTop = logEl.scrollHeight;
     }
 
+    // A plan gate arrives as a normal response carrying modal_data with the
+    // planned steps and a plan_id. Only the sentence was being rendered, so
+    // the user saw "Review this plan and choose Proceed" with no plan and
+    // nothing to click. Show the steps and wire real buttons.
+    if (structured && (structured.modal === "plan" || Array.isArray(structured.steps))) {
+      showPlan(structured);
+      S.lastAi = null;
+      setState("idle", "Idle");
+      return;
+    }
+
     // `streaming` is only present on partial chunks; its absence means this is
     // the terminal event for the task.
     if (!payload.streaming && !msg.streaming) {
@@ -221,6 +230,73 @@ function showApproval(msg) {
 function hideApproval() {
   $("approve").hidden = true;
   S.approvalId = null;
+}
+
+function showPlan(data) {
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+  S.planId = data.plan_id || "";
+
+  const card = document.createElement("div");
+  card.className = "m plan-card";
+
+  const title = document.createElement("p");
+  title.className = "ap-t";
+  title.textContent = "Plan — review before it runs";
+  card.appendChild(title);
+
+  if (steps.length) {
+    const list = document.createElement("ol");
+    list.className = "plan-steps";
+    steps.forEach((st) => {
+      const li = document.createElement("li");
+      const label = document.createElement("strong");
+      label.textContent = String(st.label || st.title || "Step");
+      li.appendChild(label);
+      const detail = String(st.detail || st.description || "");
+      if (detail) {
+        const d = document.createElement("span");
+        d.className = "plan-detail";
+        d.textContent = " — " + detail;
+        li.appendChild(d);
+      }
+      list.appendChild(li);
+    });
+    card.appendChild(list);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "ap-why";
+    empty.textContent = "The planner did not return any steps for this request.";
+    card.appendChild(empty);
+  }
+
+  const btns = document.createElement("div");
+  btns.className = "ap-btns";
+  const no = document.createElement("button");
+  no.className = "deny";
+  no.textContent = "Cancel";
+  const yes = document.createElement("button");
+  yes.className = "allow";
+  yes.textContent = "Proceed";
+
+  // Replies go back as ordinary text_input, which is what the backend's
+  // await_reply is already waiting on — no new protocol, and the same path a
+  // typed "proceed" takes. Buttons disable on click so one plan runs once.
+  const answer = (approve) => {
+    if (card.dataset.answered) return;
+    card.dataset.answered = "1";
+    yes.disabled = no.disabled = true;
+    bubble("me", approve ? "Proceed" : "Cancel");
+    send({ type: "text_input", text: approve ? "proceed" : "cancel" });
+    setState("thinking", approve ? "Thinking" : "Cancelling");
+  };
+  yes.addEventListener("click", () => answer(true));
+  no.addEventListener("click", () => answer(false));
+  btns.appendChild(no);
+  btns.appendChild(yes);
+  card.appendChild(btns);
+
+  logEl.appendChild(card);
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
 function answerApproval(approve) {
@@ -544,23 +620,3 @@ api.onShown?.(() => inputEl.focus());
 document.body.classList.remove("collapsed");
 
 connect();
-
-
-// ── Presentation mode ──
-// Drop the backend socket while this window is not the chosen presentation,
-// so switching modes never leaves two connections (and two agents) running.
-if (window.sidebarAPI && sidebarAPI.onUiActive) {
-  sidebarAPI.onUiActive((active) => {
-    S.uiInactive = !active;
-    if (active) {
-      connect();
-    } else {
-      // Release the microphone before dropping the socket. Otherwise hiding
-      // this window mid-utterance left the capture running against a closed
-      // connection: the mic stayed lit, and the audio went nowhere.
-      if (S.mic.active) stopDictation({ finalize: false });
-      try { S.ws && S.ws.close(); } catch (_) {}
-      S.ws = null;
-    }
-  });
-}

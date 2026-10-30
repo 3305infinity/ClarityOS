@@ -43,27 +43,63 @@ print = partial(print, flush=True)
 
 __all__ = ["ProgressNarrator"]
 
+# Spoken phrases for the tools a user actually waits on. Keyed on tool name so
+# the line says what is happening, not which function is running.
+_TOOL_PHRASES = {
+    "browser_read_page": "Reading the page",
+    "browser_read_text": "Reading the page",
+    "browser_find": "Looking for that on the page",
+    "browser_snapshot": "Checking the open tab",
+    "browser_list_tabs": "Checking your open tabs",
+    "read_page_content": "Reading the page",
+    "get_page_summary": "Reading the page",
+    "read_screen": "Looking at your screen",
+    "get_ui_tree": "Looking at the window",
+    "capture_region_screenshot": "Taking a look at the screen",
+    "read_active_editor_file": "Reading the file you have open",
+    "read_file": "Reading that file",
+    "web_search": "Searching the web",
+    "open_url": "Opening that in your browser",
+    "gmail_draft": "Drafting the reply",
+    "gmail_read": "Reading your mail",
+    "get_running_apps": "Checking what's open",
+    "await_reply": "Waiting for you",
+}
+
 # Events that are pure internal chatter — never spoken.
 _SKIP_TOOLS = {"router", "planner"}
 
 # Strips anything that would read badly or leak internals.
-_CODEY = re.compile(r"[{}\[\]<>|`$]|https?://|\\\\|[A-Za-z]:\\")
+_URLISH = re.compile(r"https?://\S+|www\.\S+")
+_PATHISH = re.compile(r"[A-Za-z]:\\\S*|\\\\\S+")
+_CODEY = re.compile(r"[{}\[\]<>|`$\"]")
 
 
-def _clean(text: str, limit: int = 110) -> str:
-    """One short sentence, no markup, no paths, no code."""
+def _clean(text: str, limit: int = 150) -> str:
+    """One short sentence: strip what reads badly rather than dropping the line.
+
+    Rejecting any line that contained a URL or a path meant most real progress
+    was skipped — "Open https://youtube.com" and "Extract the hackathon URL
+    from the active Gmail message" both vanished, which is why the assistant
+    sounded mute until the final answer.
+    """
     s = " ".join(str(text or "").split())
-    if not s or _CODEY.search(s):
+    if not s:
         return ""
-    s = s.split(". ")[0].rstrip(" .…")
-    if len(s) > limit:
-        return ""                     # too long to be a natural aside
+    s = _URLISH.sub("the link", s)        # say "the link", never read it aloud
+    s = _PATHISH.sub("that file", s)
+    s = _CODEY.sub(" ", s)                # drop stray markup, keep the words
+    s = " ".join(s.split()).split(". ")[0].rstrip(" .…")
+    if not s:
+        return ""
+    if len(s) > limit:                    # truncate at a word boundary
+        s = s[:limit].rsplit(" ", 1)[0].rstrip(" ,;:-")
     return s
 
 
 class ProgressNarrator:
-    MIN_GAP_S = 4.0                   # don't narrate faster than this
-    MAX_UPDATES = 6                   # per task, so long runs stay calm
+    MIN_GAP_S = 2.2                   # don't narrate faster than this
+    MAX_UPDATES = 12                  # per task, so long runs stay calm
 
     def __init__(self, speak: Callable[[str], Awaitable[None]],
                  is_speaking: Callable[[], bool]):
@@ -78,6 +114,7 @@ class ProgressNarrator:
         self._last_at: float = 0.0
         self._count = 0
         self._cancelled = False
+        self._acked = False        # one spoken acknowledgement per request
 
     def cancel(self) -> None:
         """Drop anything queued — the user stopped the task."""
@@ -92,6 +129,16 @@ class ProgressNarrator:
         if kind == "approval_request":
             tool = str(event.get("tool") or "that step")
             return f"{tool} needs your approval before I can continue"
+
+        # The acknowledgement is the first thing the agent emits, long before
+        # planning finishes. It was rendered as text only, so the user heard
+        # nothing at all until the final answer — the single biggest reason the
+        # assistant felt mute.
+        if kind == "ack":
+            if self._acked:
+                return ""          # one acknowledgement per task, not two
+            self._acked = True
+            return _clean(event.get("text", ""))
 
         if kind == "tool_blocked":
             return "That action is blocked by your current settings"
@@ -121,6 +168,17 @@ class ProgressNarrator:
         if tool == "executor":
             return f"Starting: {text[0].lower() + text[1:]}"
 
+        # Everything else used to fall through to silence, so a task that spent
+        # thirty seconds reading a page, looking at the screen and drafting a
+        # reply said nothing at all. Narrate what is actually happening, in the
+        # user's terms rather than the tool's name.
+        phrase = _TOOL_PHRASES.get(tool)
+        if phrase:
+            return phrase
+        if tool.startswith("browser_"):
+            return "Reading the page"
+        if tool.startswith(("gmail_", "gdocs_", "gsheets_", "gcal_", "gdrive_")):
+            return "Working with your Google account"
         return ""
 
     # ── driving ─────────────────────────────────────────────────
@@ -143,6 +201,8 @@ class ProgressNarrator:
         if self._is_speaking():
             return                    # never cut into a sentence already playing
         now = time.time()
+        # The very first line is never delayed — an acknowledgement that
+        # arrives after the work has started is not an acknowledgement.
         if self._last_at and now - self._last_at < self.MIN_GAP_S:
             return
 

@@ -193,3 +193,13 @@ body.collapsed .bar-btns{flex-direction:column}
 /* Recording state for the dictate button. */
 .pillbtn.recording{background:rgba(248,113,113,.16);border-color:rgba(248,113,113,.4);color:#fecaca}
 .pillbtn.recording svg{animation:pulse 1.1s ease-in-out infinite}
+
+/* Plan approval card — rendered inline in the conversation so the steps stay
+   in context. Reuses the approval card's surface, borders and buttons. */
+.plan-card{background:var(--bg-2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;width:100%;align-self:stretch;max-width:none}
+.plan-steps{margin:6px 0 11px;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.plan-steps li{font-size:12px;line-height:1.45}
+.plan-steps strong{font-weight:600}
+.plan-detail{opacity:.72}
+.plan-card .ap-btns button[disabled]{opacity:.5;cursor:default}

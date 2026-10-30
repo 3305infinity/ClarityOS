@@ -318,6 +318,19 @@ class ClarityOSAgentV2:
             "ok",
             "okay",
         )
+        # Asking to SEE the plan is not asking to change it. "where is the
+        # plan?" fell through to "modify", which regenerated the plan and
+        # re-sent the same approval prompt — so the question looked unanswered
+        # and the user asked again, forever.
+        show_terms = (
+            "where is the plan", "where's the plan", "wheres the plan",
+            "show me the plan", "show the plan", "what is the plan",
+            "what's the plan", "whats the plan", "see the plan",
+            "which plan", "no plan", "didn't show", "didnt show",
+            "cant see", "can't see", "not showing", "nothing happened",
+        )
+        if any(_has_term(term) for term in show_terms):
+            return "show"
         if any(_has_term(term) for term in cancel_terms):
             return "cancel"
         if any(_has_term(term) for term in modify_terms):
@@ -953,13 +966,24 @@ class ClarityOSAgentV2:
         high-level summary.  The agent treats the full plan as a reference —
         actual execution adapts based on what it observes.
         """
-        return [
-            {
+        # success_signal is written in the past tense ("A draft reply has been
+        # created in Gmail"), because it describes the state the milestone is
+        # finished in. Shown as-is on an approval card — before anything has
+        # run — it reads as a claim that the work is already done. Label it as
+        # the completion condition instead, so planned and done stay distinct.
+        steps: list[dict] = []
+        for milestone in plan.milestones:
+            signal = (milestone.success_signal or "").strip()
+            if signal:
+                detail = f"Done when: {signal[0].lower() + signal[1:]}"
+            else:
+                detail = ", ".join(milestone.hint_tools) or "Complete this goal"
+            steps.append({
                 "label": milestone.goal or f"Milestone {milestone.id}",
-                "detail": milestone.success_signal or ", ".join(milestone.hint_tools) or "Complete this goal",
-            }
-            for milestone in plan.milestones
-        ]
+                "detail": detail,
+                "state": "planned",
+            })
+        return steps
 
     async def _show_plan_gate(
         self,
@@ -1206,6 +1230,19 @@ class ClarityOSAgentV2:
             pending = self._pending_plan
             followup = self._classify_pending_followup(user_text)
             print(f"[AgentV2] Pending plan follow-up: {followup} ({pending.plan_id})")
+
+            if followup == "show":
+                # Re-send the SAME pending plan: same plan_id, no regeneration,
+                # no second approval to reason about. Asking to see the plan is
+                # not consent to run it, so this still returns awaiting=True.
+                print(f"[AgentV2] Re-displaying pending plan {pending.plan_id} on request")
+                return await self._show_plan_gate(
+                    pending=pending,
+                    context=context,
+                    provider=pending.provider or provider,
+                    ws_callback=ws_callback,
+                    note="Here's the plan again — choose Proceed to run it, or Cancel.",
+                )
 
             if followup == "cancel":
                 self._pending_plan = None
@@ -1727,8 +1764,12 @@ class ClarityOSAgentV2:
             print(f"[AgentV2] |  (context capture failed: {_ctx_exc})")
 
         try:
-            from agent.retrieval_guard import reset_retrieval_state, invalidate_url
+            from agent.retrieval_guard import (reset_retrieval_state, invalidate_url,
+                                               note_content)
             reset_retrieval_state()
+            # A URL the user typed is grounded by definition — it came from
+            # them, not from the model's recollection.
+            note_content(user_text)
             # "that link was wrong" must not be answered with the same link.
             # The ledger is per task, so carry the rejection across explicitly.
             if self._is_correction(user_text):
@@ -2614,6 +2655,43 @@ class ClarityOSAgentV2:
         low = " ".join((user_text or "").lower().split())
         return any(cue in low for cue in cls._CORRECTION_CUES)
 
+    # Navigation tools whose target must be a real, retrieved destination.
+    _NAVIGATION_TOOLS = {"open_url", "browser_switch_tab"}
+
+    # Phrasings that say "the link that is in that content", as opposed to a
+    # destination the user typed themselves.
+    _LINK_FROM_CONTENT = (
+        "link in", "link from", "link to the", "link on", "url in", "url from",
+        "mentioned in", "in this email", "in the email", "in this mail",
+        "in the mail", "on this page", "in this message", "in the message",
+    )
+
+    def _ungrounded_navigation(self, step: ExecutionStep, user_text: str) -> str:
+        """Refusal message when a navigation target was never actually retrieved.
+
+        Returns "" when the step may proceed. Deliberately narrow: it only
+        applies when the request asked for a link *out of* some content, so
+        "open youtube.com" and ordinary web_search navigation are untouched.
+        """
+        if step.tool not in self._NAVIGATION_TOOLS:
+            return ""
+        low = " ".join((user_text or "").lower().split())
+        if not any(cue in low for cue in self._LINK_FROM_CONTENT):
+            return ""
+        target = str(step.args.get("url") or "").strip()
+        if not target:
+            return ""
+        try:
+            from agent.retrieval_guard import ungrounded_urls
+            if not ungrounded_urls(target):
+                return ""
+        except Exception:
+            return ""          # guard broken → do not block the user's task
+        return ("I couldn't find that link in the page content I actually read, so I "
+                "haven't opened anything — the address would have been a guess. "
+                "Open the message you mean and make sure the ClarityOS browser "
+                "extension is connected, then ask again.")
+
     def _validate_retrieval(self, step: ExecutionStep, result: str, user_text: str):
         """Classify a tool result and record the verdict for progress reporting.
 
@@ -2826,13 +2904,33 @@ class ClarityOSAgentV2:
             # system default, so "open it in Chrome" silently became Edge.
             if step.tool == "open_url" and not str(step.args.get("browser") or "").strip():
                 try:
-                    from tools.browser_target import parse_browser_target
-                    named = parse_browser_target(user_text)
+                    from tools.browser_target import resolve_target
+                    ctx = getattr(self, "_current_context", None)
+                    foreground = getattr(ctx, "browser", "") if ctx else ""
+                    named = resolve_target(user_text, foreground)
                     if named:
                         step.args["browser"] = named
-                        print(f"[AgentV2] |  honouring explicit browser target: {named}")
+                        why = ("named by the user" if named != foreground
+                               else "the browser in front")
+                        print(f"[AgentV2] |  browser target: {named} ({why})")
                 except Exception:
                     pass
+
+            # When the user asked for "the link in this email/page", the URL has
+            # to come from that content. Grounding was only checked on the final
+            # answer text, so a URL invented by the model could still be handed
+            # straight to open_url — which is how paypal-ai.devpost.com (a 404)
+            # got opened. Navigating is the irreversible part, so it is checked
+            # here, before the tool runs, not after.
+            blocked = self._ungrounded_navigation(step, user_text)
+            if blocked:
+                step.status = StepStatus.FAILED
+                step.error = blocked
+                print(f"[AgentV2] |  Step {step.id} BLOCKED (ungrounded URL): {blocked[:120]}")
+                if ws_callback:
+                    await ws_callback({"type": "doing", "text": blocked,
+                                       "tool": step.tool, "variant": "failed"})
+                return False
 
             # Execute the tool
             result = await tool_registry.execute(step.tool, step.args)

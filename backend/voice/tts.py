@@ -43,6 +43,15 @@ MAX_CHARS_PER_CALL = 4800
 # Concurrency limit for parallel sentence synthesis
 MAX_CONCURRENT_SYNTH = 4
 
+# First audio arrives only when the first chunk finishes synthesising, so keep
+# that chunk to roughly one sentence. Later chunks batch to limit provider
+# calls without affecting when speech starts.
+FIRST_CHUNK_CHARS = 140
+BATCH_CHUNK_CHARS = 380
+
+# How much of a long answer is spoken before handing off to the screen.
+SPEAK_BUDGET_CHARS = 1200
+
 
 # ═══════════════════════════════════════════════════════════════
 #  Data Types
@@ -115,36 +124,58 @@ def prepare_for_speech(text: str, display_type: str = "text") -> str:
     text = re.sub(r"\s{2,}", " ", text)
     text = text.strip()
 
-    # For long responses (card/rich), truncate to ~3 sentences for speech
-    if display_type in ("card", "rich") and len(text) > 300:
-        sentences = _SENTENCE_SPLIT.split(text)
-        text = " ".join(sentences[:3])
+    # Long answers used to be cut to the first three sentences, so the user
+    # heard an answer that simply stopped — the rest was on screen and never
+    # spoken. Speak the whole thing up to a generous budget, and when something
+    # really is too long to read out, say so instead of trailing off silently.
+    if len(text) > SPEAK_BUDGET_CHARS:
+        kept, total = [], 0
+        for sentence in _SENTENCE_SPLIT.split(text):
+            if total + len(sentence) > SPEAK_BUDGET_CHARS and kept:
+                break
+            kept.append(sentence)
+            total += len(sentence) + 1
+        text = " ".join(kept).strip()
         if not text.endswith((".", "!", "?", "।")):
             text += "."
+        text += " The rest is on screen."
 
     return text
 
 
 def split_sentences(text: str, max_chars: int = MAX_CHARS_PER_CALL) -> list[str]:
-    """Split text into sentence-sized chunks for streaming synthesis."""
+    """Split text into chunks for streaming synthesis, first chunk smallest.
+
+    The batching limit used to be the provider's whole per-call budget (4800
+    chars), so a five-sentence answer became a single chunk: nothing could be
+    heard until the entire reply had been synthesised. Audio only starts when
+    the FIRST chunk is ready, so that one is kept to a single sentence and the
+    rest are batched — fast first word, without one provider call per sentence.
+    """
     if not text:
         return []
 
-    sentences = _SENTENCE_SPLIT.split(text)
-    result = []
+    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(text) if s.strip()]
+    if not sentences:
+        return [text.strip()] if text.strip() else []
+
+    result: list[str] = []
     current = ""
+    # Until the first chunk is emitted, the budget is one short sentence.
+    budget = min(FIRST_CHUNK_CHARS, max_chars)
 
     for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-
-        # If adding this sentence would exceed the limit, flush current
-        if current and len(current) + len(sentence) + 1 > max_chars:
+        if current and len(current) + len(sentence) + 1 > budget:
             result.append(current)
             current = sentence
+            budget = min(BATCH_CHUNK_CHARS, max_chars)   # later chunks batch
         else:
             current = f"{current} {sentence}".strip() if current else sentence
+        # A long opening sentence should still go out on its own.
+        if not result and len(current) >= budget:
+            result.append(current)
+            current = ""
+            budget = min(BATCH_CHUNK_CHARS, max_chars)
 
     if current:
         result.append(current)

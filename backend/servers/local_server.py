@@ -96,6 +96,12 @@ import agent.perception as perception
 from runtime_state import runtime_state_store
 from servers.voice_guard import install_voice_guard
 from voice.progress_narrator import ProgressNarrator
+
+# Push-to-talk tuning. The onset threshold only has to clear room noise, not
+# speaker bleed, because the user pressed Speak themselves. The wait is how
+# long we listen for them to begin before concluding nothing was said.
+PUSH_TO_TALK_ONSET_RMS = 450
+PUSH_TO_TALK_ONSET_WAIT_S = 12.0
 from voice.tts import get_tts_engine, prepare_for_speech
 from servers.browser_bridge_server import BRIDGE_HOST, BRIDGE_PORT, bridge_handler
 from browser import BrowserResolver, browser_bridge, browser_store, ActionRequest
@@ -187,6 +193,9 @@ class VoiceAssistant:
         self.stt = get_stt_provider()  # google | gnani | sarvam (CLARITYOS_STT_PROVIDER)
         self.consecutive_silence_chunks = 0
         self.SILENCE_THRESHOLD_CHUNKS = 7  # Approx 0.45 seconds of sustained silence
+        # Push-to-talk: set while an explicit Speak press is being recorded.
+        self.push_to_talk = False
+        self._onset_deadline = 0.0
         self.MIN_BUFFER_SIZE = 16000 * 2 * 0.3  # Min 0.3 seconds of audio
         self.grace_chunks_remaining = 0  # Grace period after await_reply
         self.waiting_for_voice = False  # True = require voice onset before recording
@@ -246,6 +255,18 @@ class VoiceAssistant:
                 await self.narrator.consider(msg)
             except Exception as e:
                 print(f"[Narrator] skipped an update ({e.__class__.__name__})")
+
+        # Acknowledge before perception. The agent's own ack is emitted after
+        # the context snapshot and the router, which measured 3.7s — far too
+        # late to feel like an answer to "are you listening?". Perception is
+        # bounded but not instant, so say something the moment the request is
+        # accepted; the narrator speaks only the first ack per task, so the
+        # agent's later one still renders as text without being spoken twice.
+        try:
+            ack = self.agent._pick_ack(text) if self.agent else "On it"
+            await ws_callback({"type": "ack", "text": ack})
+        except Exception as exc:
+            print(f"[Voice] early ack skipped ({exc.__class__.__name__})")
 
         context = await perception.snapshot(text)
 
@@ -531,10 +552,23 @@ class VoiceAssistant:
         # Don't buffer until we hear actual speech — avoids capturing
         # silence or quiet system audio (e.g. YouTube playing)
         if self.waiting_for_voice:
-            if rms > 1500:  # Voice onset threshold (significantly higher to filter out speaker audio bleed)
+            # 1500 is tuned to reject speaker bleed while the assistant is
+            # talking. Push-to-talk has no such risk — the user deliberately
+            # pressed Speak — and that threshold ignores a normal indoor voice
+            # on a laptop mic, so use a far lower onset there.
+            onset = PUSH_TO_TALK_ONSET_RMS if self.push_to_talk else 1500
+            if rms > onset:
                 print(f"[Audio] Voice detected (RMS={rms:.0f}), recording...")
                 self.waiting_for_voice = False
+                self._onset_deadline = 0.0
                 self.audio_buffer.extend(pcm_data)
+            elif self.push_to_talk and self._onset_deadline and time.time() > self._onset_deadline:
+                # Pressed Speak and never said anything. Report it rather than
+                # listening forever — but only after a realistic pause.
+                print("[Audio] push-to-talk: no speech within the onset window")
+                self.waiting_for_voice = False
+                self.state = "LOADING"
+                asyncio.create_task(self.transcribe_and_act(websocket))
             return  # Skip until voice detected
 
         # Phase 2: Normal buffering + silence detection
@@ -582,6 +616,11 @@ class VoiceAssistant:
         # speech", this is the difference between "the mic was silent", "the
         # mic is very quiet" and "we only buffered a fraction of a second" —
         # none of which are distinguishable from the error message alone.
+        # The push-to-talk turn is over; conversation mode must go back to its
+        # own (stricter) onset rules.
+        self.push_to_talk = False
+        self._onset_deadline = 0.0
+
         self._last_capture = {}
         try:
             _a = np.frombuffer(bytes(self.audio_buffer), dtype=np.int16)
@@ -960,6 +999,15 @@ async def main_handler(websocket):
                     # Renderer finished playing all TTS audio — the only
                     # authoritative signal that the speakers have gone quiet.
                     assistant._release_tts_gate("renderer finished playback")
+                    # A progress line held back because the speakers were busy
+                    # was only retried when the *next* agent event arrived. On a
+                    # step that then took a while, it was never spoken at all —
+                    # which is what made the assistant go quiet mid-task.
+                    try:
+                        await assistant.narrator.flush()
+                    except Exception as exc:
+                        print(f"[Narrator] flush after playback failed "
+                              f"({exc.__class__.__name__})")
                 elif msg_type == "text_input":
                     text = (data.get("text") or "").strip()
                     if text:
@@ -1174,7 +1222,14 @@ async def main_handler(websocket):
                     # discarded as "grace" and recording then waited for a loud
                     # voice onset, so a normal-volume sentence recorded nothing.
                     assistant.grace_chunks_remaining = 0
-                    assistant.waiting_for_voice = False
+                    # Arm voice-onset detection instead of counting silence
+                    # straight away: the old behaviour finalised ~0.75s after
+                    # the press (0.3s min buffer + 0.45s "silence"), so anyone
+                    # who did not speak instantly got "the microphone recorded
+                    # silence" before they had begun.
+                    assistant.push_to_talk = True
+                    assistant.waiting_for_voice = True
+                    assistant._onset_deadline = time.time() + PUSH_TO_TALK_ONSET_WAIT_S
                     assistant.consecutive_silence_chunks = 0
                     assistant._release_tts_gate("push-to-talk")
                     await websocket.send(json.dumps({

@@ -124,7 +124,31 @@ _INSPECTION_VERBS: tuple[str, ...] = (
     "what's on", "whats on", "what is on", "explain", "describe", "check",
     "show me", "tell me about", "look at", "inspect", "analyse", "analyze",
     "visible", "on my screen", "currently",
+    # Phrasings that point at what is on screen *now*. Without these,
+    # "open the link to the hackathon mentioned in the gmail opened right now"
+    # was not treated as inspection at all, so no browser-reading tool was
+    # offered and the planner fell back to searching the Gmail inbox through
+    # the API — then invented a destination.
+    "right now", "already open", "opened right now", "this page", "this email",
+    "this mail", "this message", "this tab", "open right now", "i have open",
+    "in front of me", "mentioned in",
 )
+
+# Phrasings that point specifically at the page/message already on screen, as
+# opposed to "search my mail for X". Used to withhold the inbox-search tools:
+# with them on offer the planner answered "the link in the gmail opened right
+# now" by querying the Gmail API for a matching email instead of reading the
+# tab in front of the user.
+_CURRENT_PAGE_CUES: tuple[str, ...] = (
+    "right now", "already open", "opened right now", "open right now",
+    "this page", "this email", "this mail", "this message", "this tab",
+    "i have open", "in front of me", "currently open", "currently on",
+)
+
+# Tools that reach past the open tab into the account as a whole.
+_ACCOUNT_SEARCH_TOOLS: frozenset[str] = frozenset({
+    "gmail_read", "gworkspace_analyze", "gdrive_search", "web_search",
+})
 
 _ALWAYS_AVAILABLE_TOOLS: frozenset[str] = frozenset({
     "send_response",
@@ -2276,6 +2300,20 @@ class ToolSelector:
                     if tool not in selected:
                         selected = (list(selected) + [tool]) if isinstance(selected, list) else (set(selected) | {tool})
                     prefer_browser.append(tool)
+
+        # A question about the message already on screen must be answered from
+        # that message. Searching the account is a different operation and, when
+        # offered, the planner reached for it first and then guessed a URL.
+        if (browser_context and self._looks_like_inspection(user_request)
+                and any(cue in " ".join((user_request or "").lower().split())
+                        for cue in _CURRENT_PAGE_CUES)):
+            withheld = [t for t in selected if t in _ACCOUNT_SEARCH_TOOLS]
+            if withheld:
+                selected = ([t for t in selected if t not in _ACCOUNT_SEARCH_TOOLS]
+                            if isinstance(selected, list)
+                            else {t for t in selected if t not in _ACCOUNT_SEARCH_TOOLS})
+                print(f"[ToolSelector] withheld account-search tools for a "
+                      f"current-page request: {sorted(withheld)}")
 
         result = list(selected)
         if prefer_browser:

@@ -455,8 +455,6 @@ function createWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     sendUiActive(mainWindow, mainWindow.isVisible());
   });
-  mainWindow.on("show", () => sendUiActive(mainWindow, true));
-  mainWindow.on("hide", () => sendUiActive(mainWindow, false));
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
 
@@ -585,8 +583,6 @@ function createSidebar() {
   sidebarWindow.webContents.on("did-finish-load", () => {
     sendUiActive(sidebarWindow, sidebarWindow.isVisible());
   });
-  sidebarWindow.on("show", () => sendUiActive(sidebarWindow, true));
-  sidebarWindow.on("hide", () => sendUiActive(sidebarWindow, false));
   sidebarWindow.loadFile(path.join(__dirname, "sidebar", "index.html"));
 
   // Keep it docked when the user drags its edge or the display changes.

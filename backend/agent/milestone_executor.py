@@ -219,6 +219,13 @@ def _classify_provider_failure(error_text: Any) -> tuple[str, str]:
     # with the generic "The AI model failed to respond". Read the status out of
     # the text first; only fall through to the shared classifier otherwise.
     low = text.lower()
+
+    # A policy decision is not a provider outage. Classifying "the user did not
+    # approve this" as a model failure would let the transient-retry path run
+    # it again, which is exactly what a denial must never do.
+    if "policy.user_denied" in low or "policy.denied" in low:
+        return "", ""
+
     # Status codes are matched as whole tokens, not substrings: a quota body
     # carrying "quotaValue: 1403" or a request id with 401 in it would
     # otherwise be reported to the user as a rejected API key.

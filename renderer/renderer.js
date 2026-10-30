@@ -1416,9 +1416,7 @@ function toggleConversationMode() {
 /* ── WebSocket ── */
 
 function scheduleReconnect() {
-  // An inactive presentation must not reconnect: only the mode the user chose
-  // holds a backend socket, so one user never gets two agents.
-  if (app.isDisposed || app.uiInactive || app.reconnectTimer) return;
+  if (app.isDisposed || app.reconnectTimer) return;
   app.reconnectTimer = window.setTimeout(() => {
     app.reconnectTimer = null;
     if (!app.isDisposed) connectWebSocket();
@@ -1427,7 +1425,7 @@ function scheduleReconnect() {
 }
 
 function connectWebSocket() {
-  if (app.isDisposed || app.uiInactive) return;
+  if (app.isDisposed) return;
   if (app.ws && (app.ws.readyState === WebSocket.OPEN || app.ws.readyState === WebSocket.CONNECTING)) return;
 
   try {
@@ -1935,11 +1933,8 @@ async function runOnboarding() {
   setMouseEnabled(true);
   onboardingOverlay.classList.remove("hidden");
   startWelcomeCanvas();
-  // The welcome screen waits on this window's own socket to decide whether the
-  // assistant is up. Showing onboarding means this IS the surface the user is
-  // looking at, so it must never be treated as the inactive presentation —
-  // otherwise it reports "Assistant not responding" against a healthy backend.
-  app.uiInactive = false;
+  // The welcome screen decides whether the assistant is up by watching this
+  // window's own socket, so make sure a connection attempt is in flight.
   connectWebSocket();
   trackBackendReadiness();
   welcomeLaunchBtn?.focus();
@@ -2084,42 +2079,4 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
-}
-
-
-// ── Presentation mode ──
-// main tells each window whether it is the active presentation. The inactive
-// one drops its socket so the backend does not build a second agent for it.
-if (window.overlayAPI && overlayAPI.onUiActive) {
-  overlayAPI.onUiActive((active) => {
-    app.uiInactive = !active;
-    if (active) {
-      // Becoming visible always restarts the connection from scratch. A failed
-      // first attempt (the backend needs ~10s to come up, the renderer loads in
-      // ~1s) leaves a dead socket, and the retry chain can be cancelled while
-      // the window is hidden — after which nothing would ever try again and the
-      // welcome screen sat on "Assistant not responding" against a live backend.
-      app.reconnectDelay = 700;
-      // uiInactive is already false above, so any failure from here on reaches
-      // scheduleReconnect normally. Only restart a socket that is actually
-      // dead — tearing down one that is still CONNECTING would just churn.
-      const dead = !app.ws || app.ws.readyState === WebSocket.CLOSING
-                            || app.ws.readyState === WebSocket.CLOSED;
-      if (dead) {
-        app.ws = null;
-        if (app.reconnectTimer) {
-          window.clearTimeout(app.reconnectTimer);
-          app.reconnectTimer = null;
-        }
-        connectWebSocket();
-      }
-    } else {
-      try { app.ws && app.ws.close(); } catch (_) {}
-      app.ws = null;
-      if (app.reconnectTimer) {
-        window.clearTimeout(app.reconnectTimer);
-        app.reconnectTimer = null;
-      }
-    }
-  });
 }

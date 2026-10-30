@@ -38,7 +38,34 @@ __all__ = [
 _DEFAULT_COOLDOWN_S = 3600.0
 
 _lock = threading.Lock()
-_exhausted: Dict[str, float] = {}      # model name -> epoch seconds when it may work again
+_exhausted: Dict[str, float] = {}      # scope key -> epoch seconds when it may work again
+
+# Free-tier quota is counted per Google Cloud *project*, which is identified by
+# the credential in use. Keying the cooldown on the model alone meant that
+# supplying a key from a different project changed nothing: the model was still
+# marked exhausted, so ClarityOS refused to call the API and reported quota
+# exhaustion without ever trying the new credential.
+#
+# The scope is a short non-reversible fingerprint. The key itself is never
+# stored, logged or derivable from it.
+_credential_scope: str = ""
+
+
+def set_credential_scope(api_key: str) -> str:
+    """Point quota bookkeeping at the credential now in use. Returns the fingerprint."""
+    global _credential_scope
+    import hashlib
+    fp = hashlib.sha256((api_key or "").strip().encode()).hexdigest()[:8] if api_key else ""
+    with _lock:
+        changed = fp != _credential_scope
+        _credential_scope = fp
+    if changed:
+        print(f"[Quota] credential changed (fp {fp or 'none'}) — quota state re-learns from the API")
+    return fp
+
+
+def _scoped(model: str) -> str:
+    return f"{_credential_scope}:{(model or '').strip().lower()}"
 
 
 def _aliases(primary: str, *others: str) -> list:
@@ -55,8 +82,9 @@ def mark_quota_exhausted(failure: ProviderError, served_model: str = "") -> None
         return
     with _lock:
         for name in names:
-            if _exhausted.get(name, 0.0) < until:
-                _exhausted[name] = until
+            scoped = f"{_credential_scope}:{name}"
+            if _exhausted.get(scoped, 0.0) < until:
+                _exhausted[scoped] = until
     print(f"[Quota] {', '.join(sorted(set(names)))} exhausted for "
           f"{failure.retry_hint() or 'a while'} — skipping until it resets")
 
@@ -65,7 +93,7 @@ def quota_exhausted_until(model: str) -> Optional[float]:
     """Epoch seconds until `model` is usable again, or None if it is usable now."""
     if not model:
         return None
-    key = model.strip().lower()
+    key = _scoped(model)
     now = time.time()
     with _lock:
         until = _exhausted.get(key)

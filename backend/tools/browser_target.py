@@ -62,6 +62,39 @@ def parse_browser_target(text: str) -> str:
     return ""
 
 
+# "in the current window", "this tab", "here" — the user is pointing at the
+# browser in front of them, which is just as explicit as naming it.
+_CURRENT_WINDOW_RE = re.compile(
+    r"(?i)\b(?:in|on|to)?\s*(?:the|this)\s+"
+    r"(?:current|same|existing|open)?\s*(?:window|tab|browser|page)\b"
+    r"|\bcurrent window\b|\bthis window\b|\bright here\b|\bover here\b"
+)
+
+
+def means_current_window(text: str) -> bool:
+    return bool(_CURRENT_WINDOW_RE.search(" ".join((text or "").lower().split())))
+
+
+def resolve_target(user_text: str, foreground_browser: str = "") -> str:
+    """
+    Which browser this request should open in, or "" for the system default.
+
+    Order matters:
+      1. A browser the user named wins outright.
+      2. "the current window" means the browser actually in front — resolving
+         that to the OS default is how "open it in the current window" ended up
+         in Edge while the user was looking at Chrome.
+      3. Otherwise, still prefer the foreground browser when there is one. The
+         user is looking at a browser; opening their link somewhere else is
+         surprising, and the default-browser fallback remains for the case
+         where no browser is in front at all.
+    """
+    named = parse_browser_target(user_text)
+    if named:
+        return named
+    return (foreground_browser or "").strip().lower()
+
+
 def resolve_executable(name: str) -> Optional[str]:
     """Full path to the browser's executable, or None if not installed."""
     entry = _BROWSERS.get((name or "").lower())
