@@ -288,4 +288,17 @@ class GeminiProvider(LLMProvider):
                 yield chunk_response
 
         except Exception as e:
-            yield LLMResponse(error=f"Gemini streaming error: {e}", provider=self.name)
+            # str(exc) is empty for several of the exceptions that reach here —
+            # cancellations and some transport errors carry no message — which
+            # produced the useless "Gemini streaming error: ()" the user saw.
+            # Classify it the way the non-streaming path already does, so quota
+            # and overload say what they actually are, and never emit a blank.
+            try:
+                failure = classify_provider_error(e, requested_model=self._model)
+                message = failure.user_message()
+            except Exception:
+                message = ""
+            if not (message or "").strip():
+                detail = str(e).strip() or e.__class__.__name__
+                message = f"Gemini streaming failed: {detail}"
+            yield LLMResponse(error=message, provider=self.name)

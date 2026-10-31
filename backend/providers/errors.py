@@ -124,7 +124,16 @@ class ProviderError:
             return f"{model} is temporarily overloaded on Google's side.{when}"
         if self.kind is ProviderErrorKind.NETWORK:
             return "I couldn't reach the Gemini API. Check your internet connection and try again."
-        return f"The AI model failed to respond ({self.detail[:120]})."
+        # An empty detail rendered as "The AI model failed to respond ()." —
+        # parentheses around nothing, which tells the user less than saying
+        # nothing would have. Several exceptions that land here carry no
+        # message at all, so only show the brackets when there is something
+        # in them.
+        detail = (self.detail or "").strip()
+        if not detail:
+            return ("The AI model failed to respond, and gave no reason. "
+                    "This is usually a dropped connection mid-answer; try again.")
+        return f"The AI model failed to respond ({detail[:120]})."
 
     def log_line(self) -> str:
         """One-line local log record. Never contains credentials."""

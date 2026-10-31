@@ -20,6 +20,7 @@ const bridge = window.overlayAPI || {
   onStartListening: () => () => { },
   onOverlayHidden: () => () => { },
   onResetOverlayPosition: () => () => { },
+  onScan: () => () => { },
   logError: () => { },
   logInfo: () => { },
 };
@@ -43,9 +44,12 @@ const typewriterCursor = document.getElementById("typewriter-cursor");
 const responseTextEl = document.getElementById("response-text");
 const responseCursorEl = document.getElementById("response-cursor");
 const responseDismissEl = document.getElementById("response-dismiss");
+const scanOverlay = document.getElementById("scan-overlay");
+const scanLabelEl = document.getElementById("scan-label");
 const commandPanel = document.getElementById("command-panel");
 const commandInput = document.getElementById("command-input");
 const commandSend = document.getElementById("command-panel-send");
+const commandMic = document.getElementById("command-panel-mic");
 const commandClose = document.getElementById("command-panel-close");
 const pillStopBtn = document.getElementById("pill-stop");
 
@@ -164,12 +168,124 @@ function truncateToWords(text, max = 2) {
   return words.slice(0, max).join(' ') + '…';
 }
 
+/* ── Screen scan visual ───────────────────────────────────────────────────
+   The Chrome extension draws a scan over web pages it reads through the
+   bridge. Reads that bypass the extension — read_screen, glance, and the
+   faster background_fetch route the web gateway now prefers — had no visual,
+   which is why the scan stopped appearing. This draws the same effect over
+   the desktop, for every kind of read.
+
+   Driven entirely off the "doing" progress events the agent already sends, so
+   the scan is only ever on screen while a read is genuinely running. */
+const SCAN_TOOLS = new Set([
+  "read_screen", "glance", "get_ui_tree",
+  "get_web_information", "web_search",
+  "read_page_content", "get_page_summary", "extract_structured_data",
+  "browser_read_page", "browser_read_text",
+]);
+const SCAN_VARIANTS = new Set(["looking", "browsing", "searching", "reading"]);
+
+// The variants are coarser than they look: milestone_executor.py tags every
+// UI tool "looking" and every browser tool "browsing", so typing into a field
+// or merely opening a URL would raise a scan that claims ClarityOS is reading
+// when it is not. Tool name wins over variant for these.
+const NON_READ_TOOLS = new Set([
+  "open_url", "click_ui", "click_element", "type_in_field", "type_text",
+  "press_key", "browser_click_ref", "browser_type_ref", "browser_select_ref",
+  "browser_click_match",
+]);
+
+// Labels mirror what the agent is actually doing, so the pill text and the
+// scan badge never disagree about which surface is being read.
+const SCAN_LABELS = {
+  read_screen: "Reading your screen…",
+  glance: "Looking at your screen…",
+  get_ui_tree: "Reading this window…",
+  web_search: "Searching the web…",
+  get_web_information: "Reading the page…",
+  read_page_content: "Reading the page…",
+  get_page_summary: "Analyzing the page…",
+  extract_structured_data: "Extracting from the page…",
+  browser_read_page: "Reading the page…",
+  browser_read_text: "Reading the page…",
+};
+
+let scanLeaveTimer = null;
+// Set while the scan is driven from main (sidebar mode). This renderer's own
+// state machine is idle then, and its IDLE transitions must not cancel a scan
+// that belongs to a task running in the other window.
+let scanExternallyDriven = false;
+
+function shouldScan(tool, variant) {
+  const name = String(tool || "");
+  if (NON_READ_TOOLS.has(name)) return false;
+  return SCAN_TOOLS.has(name) || SCAN_VARIANTS.has(String(variant || ""));
+}
+
+function startScan(tool, variant) {
+  if (!scanOverlay) return;
+  const label =
+    SCAN_LABELS[tool] ||
+    (variant === "searching" ? "Searching…" : "Reading…");
+  if (scanLabelEl) scanLabelEl.textContent = label;
+
+  // Already sweeping: swap the label only. Re-showing would restart the beam
+  // from the top on every milestone, which reads as a stutter rather than a
+  // continuous scan across a multi-step read.
+  if (!scanOverlay.classList.contains("hidden") && !scanOverlay.classList.contains("scan-leaving")) {
+    return;
+  }
+  clearTimeout(scanLeaveTimer);
+  scanLeaveTimer = null;
+  scanOverlay.classList.remove("scan-leaving");
+  scanOverlay.classList.remove("hidden");
+  restartScanBeam();
+}
+
+/* The beam runs a fixed three sweeps (see styles.css). Re-showing the overlay
+   is not enough to replay a finished animation, so reset it explicitly. */
+function restartScanBeam() {
+  const beam = document.getElementById("scan-beam");
+  if (!beam) return;
+  beam.style.animation = "none";
+  void beam.offsetWidth;          // forces the style change to take effect
+  beam.style.animation = "";
+}
+
+// Three sweeps done: clear the scan even if the agent never sends a stop. A
+// step that runs long, or a dropped stop message, used to leave the beam
+// sweeping the screen with nothing to show for it.
+if (scanOverlay) {
+  scanOverlay.addEventListener("animationend", (event) => {
+    if (event.animationName === "scan-beam-sweep") stopScan();
+  });
+}
+
+function stopScan() {
+  if (!scanOverlay || scanOverlay.classList.contains("hidden")) return;
+  if (scanOverlay.classList.contains("scan-leaving")) return;
+  scanOverlay.classList.add("scan-leaving");
+  // Matches the 0.45s opacity transition; hiding immediately would cut the
+  // beam off mid-sweep.
+  scanLeaveTimer = setTimeout(() => {
+    scanOverlay.classList.add("hidden");
+    scanOverlay.classList.remove("scan-leaving");
+    scanLeaveTimer = null;
+  }, 460);
+}
+
 function setState(next, { tier = "", text = null, appName = "", iconUrl = "", force = false, variant = "" } = {}) {
   if (!force && app.current === next) return;
   app.current = next;
 
   // Clear any previous variant class
   wrapper.classList.remove('variant-browsing', 'variant-typing', 'variant-searching', 'variant-executing', 'variant-planning');
+
+  // A scan belongs to a running read, so it can never outlive the DOING state.
+  // Every exit — answer, idle, error, offline — passes through here, which is
+  // what stops a dropped socket from leaving the beam sweeping forever.
+  // The DOING branch itself re-arms it from the tool on each progress event.
+  if (next !== State.DOING && !scanExternallyDriven) stopScan();
 
   // Hide response card when switching to non-response states
   if (next !== State.RESPONDING && !uiResponse.classList.contains('dismissing')) {
@@ -1471,6 +1587,11 @@ function connectWebSocket() {
           variant: msg.variant || "",
           force: true
         });
+        // After setState: it clears the scan on every non-DOING transition,
+        // and a step that is not a read must clear it too, so the beam tracks
+        // the current tool rather than lingering from an earlier one.
+        if (shouldScan(msg.tool, msg.variant)) startScan(msg.tool, msg.variant);
+        else stopScan();
         return;
       }
 
@@ -1491,6 +1612,28 @@ function connectWebSocket() {
           // Legacy: plain text → default text card
           showResponseCard(text, awaitInput);
         }
+        return;
+      }
+
+      // Dictation feedback. The backend emits these around speech-to-text;
+      // the overlay ignored them, so a spoken request gave no sign it had been
+      // heard and the mic button stayed lit after the turn ended.
+      if (msg.type === "transcribing") {
+        setState(State.DOING, { text: "Transcribing…", variant: "", force: true });
+        return;
+      }
+      if (msg.type === "transcript") {
+        stopDictation({ finalize: false });   // the turn is already closed server-side
+        if (msg.text) {
+          setState(State.DOING, { text: msg.text, variant: "", force: true });
+        }
+        return;
+      }
+      if (msg.type === "transcript_error") {
+        stopDictation({ finalize: false });
+        const detail = [msg.message, msg.hint].filter(Boolean).join(" ");
+        showResponseCard(detail || "I couldn't make that out.");
+        setState(State.IDLE, { force: true });
         return;
       }
 
@@ -1575,6 +1718,10 @@ function connectWebSocket() {
       // is listening, which it cannot be with the backend gone.
       if (statusEl) statusEl.innerText = "Reconnecting…";
       setIslandState('state-offline');
+      // This path sets the island class directly instead of going through
+      // setState, so the scan's usual stop never fires: a read interrupted by
+      // a dropped socket would leave the beam sweeping over a dead overlay.
+      stopScan();
       scheduleReconnect();
     });
   } catch {
@@ -1585,8 +1732,18 @@ function connectWebSocket() {
 /* ── Events ── */
 // Hit-test: check if mouse is over any interactive element
 function isOverInteractive(event) {
-  // Onboarding is a full-screen modal — always interactive while visible
-  if (onboardingOverlay && !onboardingOverlay.classList.contains("hidden")) return true;
+  // The welcome/chooser screen fills the window, but treating the whole window
+  // as interactive made it swallow every click on the machine — including the
+  // ones that dismissed the chooser before it could be read, and the ones the
+  // user meant for the app behind it. Hit-test the card instead, so the rest of
+  // the screen still belongs to the desktop.
+  if (onboardingOverlay && !onboardingOverlay.classList.contains("hidden")) {
+    const card = onboardingOverlay.querySelector(".welcome-view.active")
+              || onboardingOverlay.querySelector(".welcome-view");
+    if (!card) return true;
+    const r = card.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
 
   const x = event.clientX;
   const y = event.clientY;
@@ -1768,7 +1925,30 @@ bridge.onStartListening(() => {
   openCommandPanel();
 });
 
+// Sidebar mode: the sidebar window receives the agent's progress events, and
+// main borrows this window to draw the scan over the screen.
+function bridgeScanHandler(on, label) {
+  scanExternallyDriven = on;
+  if (on) {
+    // The window is borrowed for the scan alone. Without this the pill, glow
+    // and any open card came up with it, so the floating assistant appeared
+    // over the docked sidebar.
+    document.body.classList.add("scan-only");
+    startScan("", "reading");
+    if (scanLabelEl && label) scanLabelEl.textContent = label;
+  } else {
+    stopScan();
+    // Leave it hidden until the fade-out has finished, or the pill flashes on
+    // screen for the half second the beam is still dissolving.
+    setTimeout(() => {
+      if (!scanExternallyDriven) document.body.classList.remove("scan-only");
+    }, 500);
+  }
+}
+bridge.onScan(bridgeScanHandler);
+
 bridge.onOverlayHidden(async () => {
+  stopDictation({ finalize: false });   // never keep the mic live behind a hidden pill
   clearCommandContext();
   closeCommandPanel({ clear: true });
   app.visible = true;
@@ -1797,7 +1977,10 @@ const onboardingVersion = document.getElementById("onboarding-version");
 
 const welcomeStatusEl = document.getElementById("welcome-status");
 const welcomeStatusText = document.getElementById("welcome-status-text");
-const welcomeLaunchBtn = document.getElementById("welcome-launch");
+const welcomeFloatBtn = document.getElementById("welcome-launch-float");
+const welcomeSidebarBtn = document.getElementById("welcome-launch-sidebar");
+// Focus target for the chooser; whichever option is offered first.
+const welcomeLaunchBtn = welcomeFloatBtn || welcomeSidebarBtn;
 
 // ── Converging sound-wave field ──
 // Lines flow inward from the edges toward the emblem. Pure canvas, no assets.
@@ -1937,7 +2120,10 @@ async function runOnboarding() {
   // window's own socket, so make sure a connection attempt is in flight.
   connectWebSocket();
   trackBackendReadiness();
-  welcomeLaunchBtn?.focus();
+  // Deliberately NOT focusing a choice button. A focused <button> is activated
+  // by any stray Enter keypress, and the overlay turns interactive the moment
+  // it appears — both of which dismissed the chooser before it could be read.
+  app.chooserArmedAt = Date.now();
 }
 
 // ── Launch ──
@@ -1954,7 +2140,27 @@ function enterMainView() {
   if (!app.ws || app.ws.readyState > WebSocket.OPEN) connectWebSocket();
 }
 
-welcomeLaunchBtn?.addEventListener("click", enterMainView);
+// The chooser is presented on every launch and the answer is deliberately not
+// stored — the user asked to pick each time rather than be held to last time's
+// choice. enterMainView() dismisses the welcome screen either way; the mode
+// call tells main which surface to actually open.
+async function chooseMode(mode) {
+  // Guard against a click that was already in flight when the chooser became
+  // interactive: without this the window opened and closed in the same frame.
+  const armed = app.chooserArmedAt || 0;
+  if (Date.now() - armed < 600) {
+    return;
+  }
+  enterMainView();
+  try {
+    await bridge.setUiMode?.(mode);
+  } catch (err) {
+    bridge.logError?.(`Could not switch to ${mode}: ${err?.message || err}`);
+  }
+}
+
+welcomeFloatBtn?.addEventListener("click", () => chooseMode("floating"));
+welcomeSidebarBtn?.addEventListener("click", () => chooseMode("sidebar"));
 
 // ── Settings ──
 const settingsOpenBtn = document.getElementById("welcome-settings-open");
@@ -2080,3 +2286,50 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+
+/* ── Push-to-talk ─────────────────────────────────────────────────────────
+   The overlay already streamed microphone audio continuously, but it never
+   told the backend to listen. With the wake word unavailable (pvporcupine is
+   not installed) the server stayed in IDLE and fed every chunk to the dead
+   wake-word detector, so nothing was ever transcribed — and there was no mic
+   control on screen either. This is the same explicit press-to-talk the
+   sidebar uses, over the same protocol.                                     */
+
+async function startDictation() {
+  if (app.dictating) return;
+  if (!app.ws || app.ws.readyState !== WebSocket.OPEN) {
+    statusEl.innerText = "Not connected yet";
+    return;
+  }
+  await startAudioStreaming();              // no-op when already streaming
+  if (!app.audioStream) return;             // mic refused; startAudioStreaming reported it
+
+  app.dictating = true;
+  commandMic?.classList.add("recording");
+  statusEl.innerText = "Listening…";
+  app.ws.send(JSON.stringify({ type: "hotkey_pressed" }));
+}
+
+function stopDictation({ finalize = true } = {}) {
+  if (!app.dictating) return;
+  app.dictating = false;
+  commandMic?.classList.remove("recording");
+
+  // The backend ends a turn on sustained silence, so a manual stop has to send
+  // some: otherwise what was said sits in its buffer and the server stays in
+  // LISTENING. finalize:false abandons the utterance instead (cancel, hide).
+  if (finalize && app.ws && app.ws.readyState === WebSocket.OPEN && app.audioContext) {
+    const silence = new Float32Array(1024);
+    for (let i = 0; i < 10; i += 1) {
+      app.ws.send(JSON.stringify({
+        type: "audio_chunk",
+        payload: arrayBufferToBase64(encodeWAVChunk(silence, app.audioContext.sampleRate)),
+      }));
+    }
+  }
+}
+
+commandMic?.addEventListener("click", () => {
+  app.dictating ? stopDictation() : startDictation();
+});

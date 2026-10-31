@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("sidebarAPI", {
   setCollapsed: (collapsed) => ipcRenderer.invoke("sidebar:set-collapsed", collapsed),
   setAlwaysOnTop: (on) => ipcRenderer.invoke("sidebar:set-always-on-top", on),
   captureScreen: () => ipcRenderer.invoke("sidebar:capture-screen"),
+  // Screen-scan visual. The sidebar is a docked strip, so the scan is drawn by
+  // the overlay window, which main borrows for the duration.
+  setScan: (on, label) => ipcRenderer.invoke("scan:set", { on, label }),
   // Presentation mode. Persisted by main in sidebar-state.json; switching
   // reuses this same window and the same backend connection.
   getUiMode: () => ipcRenderer.invoke("ui:get-mode"),

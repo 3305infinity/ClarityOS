@@ -112,22 +112,22 @@ class ApprovalBroker:
 
         try:
             if emit is None:
-                print(f"[Approval] no UI attached — denying '{tool}'")
+                print(f"[Approval] no UI attached - denying '{tool}'")
                 return False
             try:
                 await emit(pending.to_event(self.timeout_s))
             except Exception as e:
-                print(f"[Approval] could not reach the UI ({e.__class__.__name__}) — denying '{tool}'")
+                print(f"[Approval] could not reach the UI ({e.__class__.__name__}) - denying '{tool}'")
                 return False
 
             try:
                 return bool(await asyncio.wait_for(pending.future, self.timeout_s))
             except asyncio.TimeoutError:
-                print(f"[Approval] '{tool}' expired after {self.timeout_s:.0f}s — denying")
+                print(f"[Approval] '{tool}' expired after {self.timeout_s:.0f}s - denying")
                 return False
             except asyncio.CancelledError:
                 # The task was cancelled while waiting; the action must not run.
-                print(f"[Approval] '{tool}' cancelled while awaiting approval — denying")
+                print(f"[Approval] '{tool}' cancelled while awaiting approval - denying")
                 raise
         finally:
             # Single-use: the id stops being resolvable the moment it settles.
@@ -165,7 +165,7 @@ class ApprovalBroker:
                 pending.future.set_result(False)
                 count += 1
         if count:
-            print(f"[Approval] denied {count} pending request(s) — {reason}")
+            print(f"[Approval] denied {count} pending request(s) - {reason}")
         return count
 
     # ── introspection ────────────────────────────────────────────

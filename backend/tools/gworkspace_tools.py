@@ -1778,8 +1778,12 @@ async def gmail_read(query: str = "", max_results: int = 10) -> str:
 @registry.register(
     name="gmail_draft",
     description=(
-        "Create a Gmail draft (does not send). Useful for composing emails "
-        "for the user to review before sending."
+        "Create a Gmail draft and open it in a compose window (never sends). "
+        "USE THIS whenever the user asks you to draft, compose, write or reply "
+        "to an email. Writing the proposed text into the chat is NOT drafting: "
+        "the user asked for a draft so they could edit and send it, and a "
+        "message in the chat cannot be sent. Call this with the recipient, "
+        "subject and body, then tell the user the compose window is open."
     ),
     parameters={
         "type": "object",
@@ -1808,10 +1812,30 @@ async def gmail_draft(to: str, subject: str, body: str) -> str:
     # Browser path: open compose URL without sending
     params = {"view": "cm", "to": to, "su": subject, "body": body}
     compose_url = "https://mail.google.com/mail/?" + urllib.parse.urlencode(params)
-    webbrowser.open(compose_url)
+    # webbrowser.open() hands this to the Windows default, which is Edge here.
+    # The user is signed into Gmail in Chrome and was reading the mail there,
+    # so the compose window has to open in the same browser — in Edge it lands
+    # on a signed-out Google page, or a different account entirely.
+    where = "your browser"
+    try:
+        from tools.browser_target import reading_browser, launch_url
+        target = reading_browser()
+        if target:
+            opened, message = launch_url(target, compose_url)
+            if opened:
+                where = target.capitalize()
+            else:
+                print(f"[gmail_draft] {message}")
+                webbrowser.open(compose_url)
+        else:
+            webbrowser.open(compose_url)
+    except Exception as exc:
+        print(f"[gmail_draft] browser targeting failed: {exc.__class__.__name__}")
+        webbrowser.open(compose_url)
     return json.dumps({"ok": True, "to": to, "subject": subject,
-                       "method": "gmail_compose_url",
-                       "note": "Opened Gmail compose window as a draft. No OAuth needed."})
+                       "method": "gmail_compose_url", "browser": where,
+                       "note": f"Opened a Gmail compose window in {where} with the "
+                               f"reply filled in, ready to review and send."})
 
 
 # ═══════════════════════════════════════════════════════════════

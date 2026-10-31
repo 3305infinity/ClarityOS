@@ -112,7 +112,32 @@ _INSPECTION_TOOLS: tuple[str, ...] = (
 # the Google Workspace category. The planner's only options were read_screen,
 # get_ui_tree and capture_region_screenshot, so it looped on screenshots and
 # never had a way to obtain an href.
+# Tools that answer a factual question from the web without driving a browser.
+# Ordered best-first: fetching and extracting beats opening a tab and hoping.
+_WEB_INFO_TOOLS: tuple[str, ...] = (
+    "get_web_information", "web_search", "fetch_web_content",
+)
+
+# A plain external-fact question. The RESEARCH category only matches research
+# *tasks* ("compare", "report", "best"), so "what is the weather in patna" got
+# no web tool at all — open_url was the only web capability on offer, and the
+# agent opened eight pages it had no way to read. These are the question shapes
+# that need a current fact from outside the machine.
+_WEB_QUESTION = re.compile(
+    r"(?i)\b(?:weather|temperature|forecast|news|headlines|score|scores|"
+    r"price of|stock|exchange rate|who is|who was|what is|what's|whats|"
+    r"when is|when was|where is|how much|how many|how tall|how old|"
+    r"capital of|population of|meaning of|define)\b"
+)
+
 _BROWSER_READ_TOOLS: tuple[str, ...] = (
+    # Readability-based extractors first: these return the page's actual prose,
+    # which is what "summarise this page" needs. They were registered but never
+    # offered, so the only readers available were the element listers below —
+    # which surface controls and labels, not article text. On a chat SPA that
+    # yields almost nothing, and the agent fell through to a screenshot and
+    # wrote a confident summary from what the picture looked like.
+    "read_page_content", "get_page_summary",
     "browser_read_page", "browser_read_text", "browser_find",
     "browser_list_tabs", "browser_snapshot",
 )
@@ -143,12 +168,96 @@ _CURRENT_PAGE_CUES: tuple[str, ...] = (
     "right now", "already open", "opened right now", "open right now",
     "this page", "this email", "this mail", "this message", "this tab",
     "i have open", "in front of me", "currently open", "currently on",
+    # "Summarise the page open in my browser" matched none of the above, so
+    # the current-page path never ran: the planner was offered web_search,
+    # searched Google for the page's own title, and opened a second copy of
+    # the tab the user was already looking at.
+    "in my browser", "on my screen", "my screen", "on screen",
+    "open tab", "current page", "current tab", "the open page",
+    "i am on", "i'm on", "im on", "i am looking at", "i'm looking at",
+    "im looking at",
+)
+
+# Cues that point unambiguously at the surface in front of the user, as opposed
+# to the merely temporal ones above. "what's the weather right now" contains
+# "right now" and is a question about the world, not about the open tab; cutting
+# navigation for it would make the request unanswerable. Only these stronger
+# cues may withhold navigation.
+_THIS_PAGE_CUES: tuple[str, ...] = (
+    "this page", "this tab", "this email", "this mail", "this message",
+    "current page", "current tab", "the open page", "open tab",
+    "in my browser", "on my screen", "my screen", "on screen",
+    "in front of me", "already open", "currently open", "i have open",
+    "i am on", "i'm on", "im on",
+    "i am looking at", "i'm looking at", "im looking at",
 )
 
 # Tools that reach past the open tab into the account as a whole.
 _ACCOUNT_SEARCH_TOOLS: frozenset[str] = frozenset({
     "gmail_read", "gworkspace_analyze", "gdrive_search", "web_search",
 })
+
+# Tools that leave the page the user is pointing at. For a request about the
+# tab already in front of them, going anywhere else is wrong by construction:
+# the answer is on the page, and the extension can already read it.
+_OFFSITE_TOOLS: frozenset[str] = frozenset({
+    "web_search", "open_url", "web_scrape", "fetch_web_content",
+})
+
+# Requests that start at the open page but do not end there: "summarise this
+# page and suggest 3 similar movies" needs the page *and* a way to look beyond
+# it. Withholding navigation for the whole request left the second half with no
+# tool at all, and the milestone failed with "Sorry, I couldn't complete: Find
+# 3 similar movie recommendations" while the page sat there fully readable.
+_BEYOND_PAGE_RE = re.compile(
+    r"(?i)\b(?:similar|alternatives?|recommend\w*|suggest\w*|more like|"
+    r"compare\s+(?:it\s+)?(?:to|with)|other\s+(?:options|examples|articles)|"
+    r"look\s+up|search\s+for|find\s+(?:me\s+)?(?:some|other|more|\d+))\b"
+)
+
+# Cues naming the browser page itself, as opposed to the screen as a whole.
+# "what's on my screen" genuinely wants a screenshot; "summarise the page open
+# in my browser" wants the page, and the extension already holds its text.
+# A music request does not have to contain the word "play". "open starboy by
+# the weeknd on Spotify" is one, and because the verb was "open" the media path
+# never fired and play_media was left out of scope entirely — so the planner
+# reached for typing the song name into Spotify's search box, with tools it had
+# not been given, and the whole plan was rejected as impossible.
+_MUSIC_REQUEST_RE = re.compile(
+    r"(?i)\b(?:spotify|song|album|playlist|podcast|soundtrack)\b"
+    r"|\bplay\s+(?!.*\b(?:video|game)\b)\w+"
+)
+
+_BROWSER_SURFACE_CUES: tuple[str, ...] = (
+    "this page", "this tab", "this email", "this mail", "this message",
+    "current page", "current tab", "the open page", "open tab",
+    "in my browser", "my browser", "the page", "the webpage", "web page",
+    # "summarise the currently open mail in Chrome" named the surface plainly
+    # and still got a 20s vision call, because none of the cues above matched.
+    # An email open in a browser is a page the extension can read.
+    "currently open", "currently on", "open mail", "open email",
+    "in chrome", "in edge", "in firefox", "in brave",
+)
+
+# Vision tools. Accurate about layout, but they describe pixels: for a page the
+# extension can read directly they cost a Gemini vision call, return a
+# paraphrase rather than the text, and get flagged as the wrong source.
+_SCREENSHOT_TOOLS: frozenset[str] = frozenset({
+    "read_screen", "capture_region_screenshot",
+})
+
+
+def _bridge_is_connected() -> bool:
+    """Is the Chrome extension live right now?
+
+    Only then may the screenshot readers be withheld: without the bridge they
+    are the only thing that can see the page at all.
+    """
+    try:
+        from browser.bridge import browser_bridge
+        return bool(browser_bridge.is_connected())
+    except Exception:
+        return False
 
 _ALWAYS_AVAILABLE_TOOLS: frozenset[str] = frozenset({
     "send_response",
@@ -321,14 +430,40 @@ def resolve_milestone_allowed_tools(
     if not expanded_hints:
         return request_scope, fallback
 
-    # Priority = hint-matched tools intersected with scope + always-available
-    priority = request_scope.intersection(expanded_hints)
-    priority.update(_ALWAYS_AVAILABLE_TOOLS & request_scope)
-    # If intersection was empty (bad hints), promote all to priority
-    if not priority:
+    # Priority = hint-matched tools intersected with scope + always-available.
+    # send_response/await_reply are in every expansion and every scope, so
+    # intersecting with them made the match look non-empty for hints that
+    # matched nothing real — which is how a type_text hint still produced a
+    # priority list, just one with the actual capability missing from it.
+    matched = request_scope.intersection(expanded_hints) - {"send_response", "await_reply"}
+    if not matched:
+        # The hints named nothing this request actually has — a plan that
+        # hinted type_text for "play Starboy on Spotify", say. Promote the
+        # whole scope rather than leaving only the always-available tools.
+        #
+        # The empty-check used to run *after* the always-available tools were
+        # merged in, so it never fired: priority came out as open_app/open_url/
+        # send_response/await_reply, play_media was pushed down to the fallback
+        # tier, and the executor was told to prefer exactly the tools that
+        # cannot do the job.
         priority = set(request_scope)
+    else:
+        priority = matched
+        priority.update(_ALWAYS_AVAILABLE_TOOLS & request_scope)
 
     return priority, fallback
+
+
+# Hosts and paths that explain a feature or manage an account rather than
+# carrying the information a question asks for.
+_NON_CONTENT_URL = re.compile(
+    r"(?i)^https?://(?:support|policies|accounts|myaccount|about|ads|adssettings)[.]"
+    r"|/websearch/answer/|/support/answer/|/privacy|/terms"
+)
+
+
+def _is_non_content_result(url: str) -> bool:
+    return bool(_NON_CONTENT_URL.search((url or "").strip()))
 
 
 def _domain(url: str) -> str:
@@ -687,6 +822,9 @@ def _looks_like_generic_media_open(
         "watch",
         "listen",
         "funny",
+        # Naming the service is as much a media request as naming the medium.
+        "spotify",
+        "track",
     )
     if target_type in {"content", "unknown", ""} and any(marker in text for marker in media_markers):
         return True
@@ -1060,11 +1198,21 @@ async def get_web_information(
                 if match:
                     ref_id = str(match.get("ref_id", "")).strip()
                     label = str(match.get("label", "")).strip()
+                    click_raw = ""
                     if ref_id:
-                        await tool_registry.execute("browser_click_ref", {"ref_id": ref_id})
+                        click_raw = await tool_registry.execute(
+                            "browser_click_ref", {"ref_id": ref_id})
                     elif label:
-                        await tool_registry.execute("browser_click_match", {"query": label})
+                        click_raw = await tool_registry.execute(
+                            "browser_click_match", {"query": label})
                     else:
+                        match = None
+                    # The click's verdict used to be discarded and the target URL
+                    # written into the context regardless. A click that never ran
+                    # therefore left every later step convinced the browser was on
+                    # the target page, so the read took whatever tab was in front
+                    # — once ClarityOS's own dashboard — and answered from it.
+                    if match and _safe_json(click_raw).get("ok") is False:
                         match = None
                     if match:
                         await asyncio.sleep(1.5)
@@ -1072,12 +1220,31 @@ async def get_web_information(
                             await tool_registry.execute("browser_refresh_refs", {})
                         except Exception:
                             pass
-                        context["browser_url"] = target_url
-                        return ""
+                        # Only assert the new URL once a snapshot actually shows
+                        # it. Otherwise fall through to the direct navigation
+                        # below, which waits for a matching snapshot before
+                        # reporting where the browser is.
+                        landed = any(
+                            _domain(str(getattr(snap, "url", "") or "")) == domain_label
+                            for snap in getattr(browser_store, "_snapshots", {}).values()
+                        )
+                        if landed:
+                            context["browser_url"] = target_url
+                            return ""
             except Exception:
                 pass
 
-        await tool_registry.execute("open_url", {"url": target_url})
+        # Same browser as the bridge, or the page we navigate to is not the
+        # page we later read.
+        _nav_args = {"url": target_url}
+        try:
+            from tools.browser_target import bridge_browser
+            _b = bridge_browser()
+            if _b:
+                _nav_args["browser"] = _b
+        except Exception:
+            pass
+        await tool_registry.execute("open_url", _nav_args)
         
         # Wait up to 5 seconds for a snapshot whose URL actually matches the
         # TARGET path — not just the domain.  The old domain-only check would
@@ -1332,6 +1499,33 @@ async def get_web_information(
 
         chosen_url = str(chosen_item.get("href", "") or "").strip()
         chosen_label = str(chosen_item.get("label", "") or "").strip()
+
+        # Search pages carry help, policy and account links alongside results.
+        # One run followed "How Google Weather works" on support.google.com and
+        # then reported a temperature — read from a page explaining the feature,
+        # not one carrying data. Skip those and take the next real result.
+        if _is_non_content_result(chosen_url):
+            replacement = next(
+                (it for it in items
+                 if isinstance(it, dict)
+                 and str(it.get("href", "")).strip()
+                 and not _is_non_content_result(str(it.get("href", "")))),
+                None,
+            )
+            if replacement is not None:
+                print(f"[Gateway] skipping non-content result {_domain(chosen_url)}")
+                chosen_item = replacement
+                chosen_url = str(chosen_item.get("href", "") or "").strip()
+                chosen_label = str(chosen_item.get("label", "") or "").strip()
+            else:
+                return _gateway_error(
+                    f"The only results were help or policy pages (e.g. "
+                    f"{_domain(chosen_url)}), none of which carry the data.",
+                    target_type=target_type,
+                    route=resolved_route,
+                    error_code="search_results_non_content",
+                    query=query,
+                )
         follow_meta = dict(follow_meta or {})
         follow_meta["selected_source_url"] = chosen_url
         follow_meta["selected_source_label"] = chosen_label
@@ -1561,6 +1755,14 @@ class ToolCategories:
     
     # Browser DOM tools — extension-backed browser refs should be the default path.
     BROWSER_DOM = {
+        # Readability-based extractors. These return the page's prose, which is
+        # what a "summarise this page" request needs; the ref-based tools below
+        # return controls and labels. Both are registered, but these two were in
+        # no category at all, so ToolCategories.ALL excluded them and the
+        # selector could never offer them — on a text-heavy SPA the agent got
+        # almost nothing from the element readers and fell back to a screenshot.
+        "read_page_content",
+        "get_page_summary",
         "browser_snapshot",
         "browser_read_page",
         "browser_read_text",
@@ -1936,16 +2138,34 @@ class ToolSelector:
             "edge", "firefox", "mozilla firefox", "chromium", "safari", "arc",
         }
 
+    # "in a new X window", "open another window" — explicitly asking for a new
+    # window is a launch request even without the word "open".
+    _NEW_WINDOW = re.compile(
+        r"(?i)\b(?:a|another|separate|second|fresh)\s+new?\s*\w*\s*window\b"
+        r"|\bnew\s+\w*\s*window\b")
+
     @classmethod
     def _asks_to_launch(cls, user_request: str) -> bool:
         """Explicit launch intent — then open_app stays on the table."""
         text = cls._STATE_OPEN.sub(" ", user_request or "")
+        if cls._NEW_WINDOW.search(text):
+            return True
         return bool(cls._LAUNCH_VERBS.search(text))
 
-    @staticmethod
-    def _looks_like_inspection(user_request: str) -> bool:
+    # Writing something new is not inspecting something that exists. Without
+    # this, "a function that summarizes a list of tasks" matched the verb
+    # "summarize" and the request was treated as inspection — which withheld
+    # open_app from a task that explicitly asked for a new VS Code window.
+    _CREATION = re.compile(
+        r"(?i)\b(?:create|write|make|generate|build|add|populate|scaffold)\b"
+        r"[^.]{0,60}\b(?:file|script|function|class|module|program|project|folder|note)s?\b")
+
+    @classmethod
+    def _looks_like_inspection(cls, user_request: str) -> bool:
         """Is the user asking to look at something that already exists?"""
         low = " ".join((user_request or "").lower().split())
+        if cls._CREATION.search(low):
+            return False
         return any(v in low for v in _INSPECTION_VERBS)
 
     def select(
@@ -2307,15 +2527,88 @@ class ToolSelector:
         if (browser_context and self._looks_like_inspection(user_request)
                 and any(cue in " ".join((user_request or "").lower().split())
                         for cue in _CURRENT_PAGE_CUES)):
-            withheld = [t for t in selected if t in _ACCOUNT_SEARCH_TOOLS]
+            # Navigation is withheld alongside account search. Leaving only the
+            # account tools out still let the planner search the web for the
+            # page's own title and open a second copy of it in another tab.
+            # _ALWAYS_AVAILABLE_TOOLS is intersected with this scope later, so
+            # dropping open_url here really does keep it out.
+            _low = " ".join((user_request or "").lower().split())
+            drop = set(_ACCOUNT_SEARCH_TOOLS)
+            # Only when the request begins AND ends at the open page. A request
+            # that also asks to find or suggest something else still needs a
+            # way to go and look.
+            _beyond = bool(_BEYOND_PAGE_RE.search(user_request or ""))
+            if any(cue in _low for cue in _THIS_PAGE_CUES) and not _beyond:
+                drop |= _OFFSITE_TOOLS
+            # Asking about the page while the extension holds its text: a
+            # screenshot is the wrong instrument. Observed answering "summarise
+            # the page open in my browser" from a 20s vision call that described
+            # a Google results screenshot, while the bridge had the live tab
+            # with 160 elements ready to read.
+            if (any(cue in _low for cue in _BROWSER_SURFACE_CUES)
+                    and not any(cue in _low for cue in ("my screen", "on screen", "the screen"))
+                    and _bridge_is_connected()):
+                drop |= _SCREENSHOT_TOOLS
+            withheld = [t for t in selected if t in drop]
             if withheld:
-                selected = ([t for t in selected if t not in _ACCOUNT_SEARCH_TOOLS]
+                selected = ([t for t in selected if t not in drop]
                             if isinstance(selected, list)
-                            else {t for t in selected if t not in _ACCOUNT_SEARCH_TOOLS})
-                print(f"[ToolSelector] withheld account-search tools for a "
+                            else {t for t in selected if t not in drop})
+                print(f"[ToolSelector] withheld offsite tools for a "
                       f"current-page request: {sorted(withheld)}")
+                # Whatever else happens, something must be able to read the tab.
+                # _get_all_tools() rather than the raw attribute: it is lazily
+                # populated and is None until something asks for it.
+                _known = self._get_all_tools()
+                if "read_page_content" in _known and "read_page_content" not in selected:
+                    selected = ((list(selected) + ["read_page_content"])
+                                if isinstance(selected, list)
+                                else (set(selected) | {"read_page_content"}))
+                # get_page_summary runs the page through the Flash interpreter:
+                # measured at ~15s per call, ~30s more when it times out and
+                # retries, and it spends a second Gemini call on top of the one
+                # that writes the answer. Reading the text takes ~0.5s and the
+                # model summarising it is the same model either way, so for a
+                # page the user is already looking at this only costs time and
+                # quota. It stays available everywhere else.
+                if "read_page_content" in selected and "get_page_summary" in selected:
+                    selected = ([t for t in selected if t != "get_page_summary"]
+                                if isinstance(selected, list)
+                                else {t for t in selected if t != "get_page_summary"})
+                    print("[ToolSelector] preferred read_page_content over "
+                          "get_page_summary for a current-page request")
+
+        # A factual question about the outside world needs a tool that can
+        # FETCH and READ, not just navigate. Skipped when the request is about
+        # what is already on screen — that path has its own readers above.
+        if (_WEB_QUESTION.search(user_request or "")
+                and not self._looks_like_inspection(user_request)
+                and not browser_context):
+            for tool in _WEB_INFO_TOOLS:
+                if tool in self._all_tool_names and tool not in selected:
+                    selected = (list(selected) + [tool]) if isinstance(selected, list) else (set(selected) | {tool})
+                    prefer_browser.append(tool)
+
+        # Whatever verb the user used, a music request needs the tool that
+        # opens music. Without this the planner is handed open_app/open_url and
+        # has to invent a UI-automation route to a thing play_media does in one
+        # call.
+        if (_MUSIC_REQUEST_RE.search(user_request or "")
+                and "play_media" in self._get_all_tools()
+                and "play_media" not in selected):
+            selected = ((list(selected) + ["play_media"])
+                        if isinstance(selected, list)
+                        else (set(selected) | {"play_media"}))
+            print("[ToolSelector] added play_media for a music request")
 
         result = list(selected)
+        if prefer_browser:
+            # Only tools that survived the filters above. This list is built
+            # before them and was prepended unconditionally, so it silently put
+            # back anything they had withheld — get_page_summary came back for a
+            # current-page request even after being dropped, because it is one
+            # of the browser read tools collected here.
+            prefer_browser = [t for t in prefer_browser if t in selected]
         if prefer_browser:
             # Order is the only preference signal the planner prompt carries:
             # DOM reads first, screenshots after, so OCR is the fallback rather

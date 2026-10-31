@@ -19,6 +19,7 @@ cannot drift. Browser payloads defer to the existing validator in
 from __future__ import annotations
 
 import contextvars
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -36,6 +37,15 @@ SOURCE_BY_TOOL: dict[str, str] = {
     "read_page_content": "browser",
     "get_page_summary": "browser",
     "extract_structured_data": "browser",
+    # The abstract gateway is what the planner actually calls; the concrete
+    # read tools above run inside it. Leaving it unmapped made its result
+    # "other", so no browser validation ran on the one tool that retrieves
+    # most page content.
+    "get_web_information": "browser",
+    "web_search": "browser",
+    "browser_read_text": "browser",
+    "web_scrape": "browser",
+    "fetch_web_content": "browser",
 }
 
 # Failure shapes tools actually emit. `error_envelope` stringifies as a Python
@@ -49,6 +59,24 @@ _GENERIC_ONLY = re.compile(
     r"n/?a|null|none|\{\}|\[\])\s*$",
     re.IGNORECASE,
 )
+
+
+# Internal nudges aimed at the model, which have no business in an answer:
+# "Use one of: open_app, quit_app, ..." and the like. Observed verbatim in a
+# user-facing message, where it also pushed the real explanation past the end
+# of the card so the whole thing read "…needed for that. Tool".
+_MODEL_NUDGE_RE = re.compile(
+    r"(?is)\s*(?:use one of|prefer|try one of|available tools)\s*:.*$"
+)
+
+
+def _user_reason(reason: str, limit: int = 180) -> str:
+    """The part of a failure reason worth showing a person."""
+    text = _MODEL_NUDGE_RE.sub("", (reason or "").strip()).strip()
+    if len(text) > limit:
+        cut = text[:limit].rsplit(" ", 1)[0]
+        text = cut + "..."
+    return text
 
 
 @dataclass
@@ -69,8 +97,12 @@ class Verdict:
             "browser": "I couldn't retrieve the current page's content.",
             "screenshot": "I couldn't capture or read the screen.",
             "uia": f"I couldn't read usable content from the window{where}.",
-        }.get(self.source, "I couldn't retrieve the content needed for that.")
-        return f"{base} {self.reason}".strip()
+            # Everything else is an action, not a read. Saying "I couldn't
+            # retrieve the content" about a playback step was simply untrue and
+            # told the user nothing: the real problem was a tool that was not
+            # available.
+        }.get(self.source, "I couldn't complete that step.")
+        return f"{base} {_user_reason(self.reason)}".strip()
 
 
 # Accessibility roles that describe the window rather than its document, and
@@ -111,6 +143,94 @@ def _has_code_evidence(text: str) -> bool:
     return len(_CODE_SIGNAL_RE.findall(text)) >= _MIN_CODE_SIGNALS
 
 
+# Evidence that a UI tree exposed the document rather than the browser's own
+# furniture. Chrome is short role-tagged labels — [AXRadioButton] "tab title -
+# Memory usage - 91.1 MB", "Reload", "Address and search bar"; a page carries
+# running prose. Counted rather than length-tested, like the code check above:
+# a tab strip can be long and still contain nothing from the page.
+_PROSE_LINE_RE = re.compile(r"(?m)^\W*(?:\S+[ \t]+){7,}\S")   # 8+ words on a line
+_SENTENCE_RE = re.compile(r"[a-z]{3,}[.!?](?:\s+[A-Z]|\s*$)")
+
+_MIN_PAGE_SIGNALS = 3
+
+
+def _has_page_evidence(text: str) -> bool:
+    return (len(_PROSE_LINE_RE.findall(text))
+            + len(_SENTENCE_RE.findall(text))) >= _MIN_PAGE_SIGNALS
+
+
+_ENVELOPE_MESSAGE_RE = re.compile(
+    r"""['"]message['"]\s*:\s*['"](?P<msg>[^'"]{3,300})['"]"""
+)
+
+
+def _human_error(text: str) -> str:
+    """The readable part of a tool failure, never the serialized envelope."""
+    raw = (text or "").strip()
+    match = _ENVELOPE_MESSAGE_RE.search(raw)
+    if match:
+        return match.group("msg").strip()
+    first = raw.splitlines()[0] if raw.splitlines() else ""
+    if first.lstrip().startswith(("{", "[")):
+        return "the tool reported an error"
+    return first[:160]
+
+
+def _as_payload(raw: Any) -> Optional[dict]:
+    """The tool's result as a dict, whatever wrapper it arrived in.
+
+    Tools hand their result to the executor as a JSON *string*, so the browser
+    checks below — which required `isinstance(raw, dict)` — never ran at all.
+    That is how a read of ClarityOS's own dashboard was accepted as the weather
+    page: `_page_content_is_usable` rejects it, but was never reached.
+
+    Two shapes carry page content:
+      * the tool's own payload            {"url": …, "content": …}
+      * the gateway's success envelope    {"ok": true, "data": {"url": …}}
+    """
+    payload: Any = raw
+    if isinstance(payload, (bytes, bytearray)):
+        try:
+            payload = payload.decode("utf-8", "replace")
+        except Exception:
+            return None
+    if isinstance(payload, str):
+        text = payload.strip()
+        if not text.startswith("{"):
+            return None
+        try:
+            payload = json.loads(text)
+        except (ValueError, TypeError):
+            return None
+    if not isinstance(payload, dict):
+        return None
+
+    # Unwrap success_envelope, but only when the inner object is the page
+    # payload rather than some unrelated nested field.
+    inner = payload.get("data")
+    if isinstance(inner, dict) and ("url" in inner or "content" in inner or "title" in inner):
+        merged = dict(inner)
+        # Keep the envelope's verdict: the inner payload often omits "ok".
+        if "ok" in payload and "ok" not in merged:
+            merged["ok"] = payload["ok"]
+        return merged
+    return payload
+
+
+def _bridge_live() -> bool:
+    """Is the Chrome extension connected right now?
+
+    Decides whether a screenshot of a web page is a reasonable fallback or an
+    avoidable detour. Any failure here means "assume not connected", so a
+    broken lookup can never reject a read the agent had no alternative to.
+    """
+    try:
+        from browser.bridge import browser_bridge
+        return bool(browser_bridge.is_connected())
+    except Exception:
+        return False
+
+
 def _looks_like_error(text: str) -> bool:
     head = text.strip()[:400].lower()
     if any(head.startswith(p) for p in _ERROR_PREFIXES):
@@ -134,15 +254,16 @@ def classify(tool_name: str, raw: Any, *, expected_source: str = "") -> Verdict:
         return Verdict(False, source, "The tool returned nothing.", meta=meta)
 
     if _looks_like_error(text):
-        # Keep the tool's own wording: it is usually the actionable part.
-        detail = text.strip().split("\n", 1)[0][:160]
-        return Verdict(False, source, detail, meta=meta)
+        # Keep the tool's own wording, but never the raw envelope: dumping a
+        # serialized {"ok": false, "error": {...}} into the conversation tells
+        # the user nothing and looks broken.
+        return Verdict(False, source, _human_error(text), meta=meta)
 
     if _GENERIC_ONLY.match(text):
         return Verdict(False, source, "The tool returned a status message, not content.", meta=meta)
 
     if source == "browser":
-        payload = raw if isinstance(raw, dict) else None
+        payload = _as_payload(raw)
         if payload is not None:
             if not payload.get("ok", True):
                 return Verdict(False, "browser",
@@ -176,9 +297,16 @@ def classify(tool_name: str, raw: Any, *, expected_source: str = "") -> Verdict:
                            "Read from the editor's on-screen text, so it covers "
                            "only the visible portion of the file.",
                            partial=True, meta=meta)
-        if expected_source == "browser" and not body:
+        if expected_source == "browser" and not _has_page_evidence(body):
+            # Previously this only rejected a completely empty body, so a tree
+            # holding nothing but the tab strip — [AXRadioButton] "… - Memory
+            # usage - 91.1 MB" — counted as the web page. The agent accepted it,
+            # learned nothing, and called get_ui_tree again five times over.
+            # Name the tool that can actually do this, or it just retries.
             return Verdict(False, "uia",
-                           "Only window chrome was exposed, not the page content.",
+                           "The UI tree exposed only browser chrome (tabs, toolbar, "
+                           "window title), not the page text. Use read_page_content "
+                           "to read the page through the extension instead.",
                            meta=meta)
 
     if source == "editor":
@@ -186,6 +314,18 @@ def classify(tool_name: str, raw: Any, *, expected_source: str = "") -> Verdict:
         if "<redacted>" in text and len(text) < 200:
             return Verdict(False, "editor",
                            "The file's contents were redacted as secrets.", meta=meta)
+
+    # A screenshot of a web page is a paraphrase of pixels, not the page text.
+    # While the extension is live it is also avoidable, so accepting it as a
+    # partial answer shipped a wrong summary of a Google results screenshot
+    # with a footnote, instead of reading the tab the bridge already held.
+    # Without the bridge a screenshot is the only option and stays allowed.
+    if source == "screenshot" and expected_source == "browser" and _bridge_live():
+        return Verdict(False, "screenshot",
+                       "That was read from a screenshot, not from the page. The "
+                       "browser extension is connected, so read the tab with "
+                       "read_page_content instead.",
+                       meta=meta)
 
     if expected_source and source not in ("other", expected_source):
         return Verdict(True, source,
@@ -349,10 +489,20 @@ def ungrounded_urls(text: str) -> list:
 # Progress text that asserts work on content that must already be in hand.
 # The second alternation covers claims about a specific artefact — "Send the
 # extracted hackathon link" was announced with no link ever retrieved.
+# Claims that something has ALREADY been produced. Only these are gated on
+# retrieval having succeeded.
+#
+# This used to match the verbs too ("summarize", "analyze"), which meant a
+# milestone goal like "Extract and summarize the content of the active webpage"
+# was replaced by "Working on it…" and, once a retrieval failed, suppressed
+# altogether — the assistant went quiet in the middle of the task. Announcing
+# what you are about to do is not a false claim; saying it is done is.
 _DEPENDENT_RE = re.compile(
-    r"(?i)\b(?:summari[sz]|present|report|explain|describe|analy[sz]|"
-    r"compose|draft|write up|conclude|assess)\w*\b"
-    r"|\b(?:the\s+)?(?:extracted|retrieved|collected|gathered|found)\s+\w+"
+    r"(?i)\b(?:here\'?s|here is)\b"
+    r"|\bhas been (?:created|drafted|written|saved|sent|prepared)\b"
+    r"|\b(?:the\s+)?(?:extracted|retrieved|collected|gathered)\s+\w+"
+    r"|\b(?:presenting|showing|sharing)\s+the\b"
+    r"|\b(?:summary|draft|result|answer)\s+(?:is|are)\s+ready\b"
 )
 # Progress text that asserts a window was opened or focused.
 _OPEN_CLAIM_RE = re.compile(r"(?i)\b(?:open|opening|launch|focus|focusing|switch)\w*\b")
@@ -393,6 +543,7 @@ def progress_text(description: str, tool: str = "") -> Optional[str]:
             return None
         # Switching retrieval method is the one repetition worth narrating.
         if (family and family != "other" and led.last_family
+                and led.last_family != "other"
                 and family != led.last_family and led.failed):
             text = f"{led.last_family.capitalize()} didn't work — trying {family}: {text}"
         led.last_progress = text

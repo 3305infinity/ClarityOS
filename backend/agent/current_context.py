@@ -107,6 +107,12 @@ def _is_editor(app: str) -> bool:
     return (app or "").strip().lower() in _EDITOR_APPS
 
 
+def _title_key(text: str) -> str:
+    """Lowercase alphanumerics only — tolerates the separators and suffixes
+    Chrome adds to window titles without needing to model them."""
+    return "".join(ch for ch in (text or "").lower() if ch.isalnum())[:60]
+
+
 def _browser_identity(ctx: CurrentContext) -> None:
     """Fill tab identity from the live Browser Bridge snapshot, if it is current."""
     try:
@@ -137,6 +143,26 @@ def _browser_identity(ctx: CurrentContext) -> None:
             f"the last page snapshot is {age:.0f}s old, so it may not be the tab "
             f"currently in front"
         )
+        return
+
+    # Fresh is not the same as *the right tab*. The extension resolves the
+    # active tab with chrome.tabs.query({lastFocusedWindow: true}), which picks
+    # a tab from whichever Chrome window Chrome last considered focused — with
+    # two Chrome windows open that is routinely not the one on screen. Observed:
+    # a 1-second-old snapshot of web.whatsapp.com while the user was looking at
+    # a Google results tab in a different window.
+    #
+    # The OS window title is the independent check: Chrome titles its window
+    # "<tab title> - Google Chrome", so the live tab's title must appear there.
+    if ctx.page_title and ctx.window_title:
+        head = _title_key(ctx.page_title)
+        if head and head not in _title_key(ctx.window_title):
+            ctx.snapshot_fresh = False
+            ctx.ambiguity_reason = (
+                f"the extension is reporting the tab '{ctx.page_title[:60]}', but the "
+                f"window in front of you is '{ctx.window_title[:60]}' — it is reading a "
+                f"different Chrome window"
+            )
 
 
 def _editor_identity(ctx: CurrentContext) -> None:
@@ -255,7 +281,10 @@ def binding_problem(ctx: CurrentContext, user_request: str) -> str:
                 f"{ctx.app or 'not an editor'}.")
 
     if want == "browser" and ctx.is_browser and not ctx.snapshot_fresh:
-        return (f"I can see {ctx.app} in front, but {ctx.ambiguity_reason}. "
-                f"Reload or click the page once so the extension re-reads it.")
+        # Reached only after a refresh was already requested and still failed,
+        # so do not tell the user to do something the agent just tried.
+        return (f"I can see {ctx.app} in front, but the ClarityOS extension did not "
+                f"send me this tab's contents, even after I asked it to re-read. "
+                f"Open the extension and press 'Capture snapshot', or reload the tab.")
 
     return ""

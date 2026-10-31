@@ -71,6 +71,13 @@ def start_task_budget(seconds: Optional[float] = None) -> float:
     deadline = time.monotonic() + max(5.0, budget)
     _task_deadline.set(deadline)
     _task_failures.set({})
+    # Navigation budget belongs to one request too, or a later task inherits an
+    # exhausted allowance and cannot open anything.
+    try:
+        from tools.mac_tools import reset_task_navigations
+        reset_task_navigations()
+    except Exception:
+        pass
     return deadline
 
 

@@ -119,7 +119,17 @@ def create_app(hub: Optional[Hub] = None, port: int = DEFAULT_PORT, web_dir: Opt
             try:
                 bridge = await start_bridge(hub, port=bridge_port)
             except OSError as e:
-                print(f"[Hub] ⚠ extension bridge not started: {e}")
+                # ASCII only, and never let logging break startup. The previous
+                # message carried a warning glyph; on a cp1252 console that
+                # print raised UnicodeEncodeError, which is a ValueError and so
+                # escaped this handler — turning "port 8765 is already taken by
+                # the ClarityOS app" into "Application startup failed. Exiting."
+                try:
+                    print(f"[Hub] extension bridge not started on port "
+                          f"{bridge_port}: {e}. The ClarityOS app is probably "
+                          f"serving it already; the hub works without it.")
+                except Exception:
+                    pass
 
         async def poll():
             while True:

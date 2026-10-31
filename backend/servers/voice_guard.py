@@ -40,6 +40,49 @@ _DENIED_BY_USER = ("The user did not approve this action. Do not retry it; "
                    "ask what they prefer.")
 
 
+# ── Consent already given for an approved plan ──────────────────────────────
+#
+# A plan card spells out what will happen ("a draft reply has been created in
+# Gmail") and the user presses Proceed. The per-tool guard then asked again for
+# the very action they had just approved, and when that second prompt went
+# unanswered the step came back as "The user did not approve this action" — on
+# a plan they had explicitly approved seconds earlier.
+#
+# Approving a plan is consent for the actions that plan describes, so record it
+# and spend it. Deliberately narrow:
+#   * scoped to the tools the approved plan actually named;
+#   * each grant is single-use, so an approved plan cannot authorise a second
+#     unrelated send later in the same session;
+#   * cleared whenever a new plan is proposed or a task ends;
+#   * "deny" is untouched — a capability switched off in Settings stays off.
+_plan_approved_tools: set = set()
+
+
+def note_plan_approved(tools) -> None:
+    """Record that the user approved a plan that uses `tools`."""
+    global _plan_approved_tools
+    names = {str(t).strip() for t in (tools or ()) if str(t).strip()}
+    _plan_approved_tools = names
+    if names:
+        print(f"[VoiceGuard] plan approved by the user; will not re-ask for: "
+              f"{sorted(names)}")
+
+
+def clear_plan_approval(reason: str = "") -> None:
+    global _plan_approved_tools
+    if _plan_approved_tools:
+        print(f"[VoiceGuard] cleared plan approval{(' - ' + reason) if reason else ''}")
+    _plan_approved_tools = set()
+
+
+def _spend_plan_approval(tool: str) -> bool:
+    """Consume a plan-level approval for `tool`, if one is outstanding."""
+    if tool in _plan_approved_tools:
+        _plan_approved_tools.discard(tool)
+        return True
+    return False
+
+
 def _configured_secret_values() -> list:
     """
     Current API-key values, so an approval summary can never echo one back to the
@@ -162,11 +205,18 @@ class VoiceToolGuard:
         decision = self.policy.check(name, args or {})
 
         if decision.action == "deny":
-            print(f"[VoiceGuard] denied '{name}' — {decision.reason}")
+            print(f"[VoiceGuard] denied '{name}' - {decision.reason}")
             await self._notify({"type": "tool_blocked", "tool": name,
                                 "capability": decision.capability, "reason": decision.reason})
             return str(error_envelope(code="policy.denied",
                                       message=f"Blocked by user policy: {decision.reason}"))
+
+        if decision.action == "ask" and _spend_plan_approval(name):
+            print(f"[VoiceGuard] '{name}' covered by the plan the user already approved")
+            await self._notify({"type": "tool_preapproved", "tool": name,
+                                "capability": decision.capability,
+                                "reason": "covered by the approved plan"})
+            return await orig(name, args)
 
         if decision.action == "ask":
             approved = await self.approvals.request(

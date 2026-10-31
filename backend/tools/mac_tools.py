@@ -8,6 +8,7 @@ typing, keyboard shortcuts, screen reading, and window management.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import re
 import webbrowser
 import urllib.parse
@@ -362,12 +363,17 @@ def _mentions_spotify(text: str) -> bool:
     return bool(re.search(r"(?i)\bspotify\b", text or ""))
 
 
+def _mentions_youtube(text: str) -> bool:
+    """Asked for YouTube by name, so Spotify must not be substituted."""
+    return bool(re.search(r"(?i)\b(?:you\s*tube|yt)\b", text or ""))
+
+
 # ── 4. play_media ──
 @registry.register(
     name="play_media",
-    description=("Play music. If the request mentions Spotify, this drives the Spotify "
-                 "desktop app and confirms what actually started playing. Otherwise it "
-                 "opens YouTube search results (which does NOT start playback)."),
+    description=("Open music in Spotify. Opens the Spotify desktop app with the track "
+                 "searched and ready for the user to click; it does NOT start playback. "
+                 "Only opens YouTube instead when the request names YouTube."),
     parameters={
         "type": "object",
         "properties": {
@@ -384,17 +390,67 @@ async def play_media(query: str) -> str:
     # This used to open one unconditionally and return "Opened YouTube search",
     # which the agent relayed as "Playing <track> on YouTube" — wrong app, and
     # a success claim for something that never played.
-    if _mentions_spotify(query):
+    # "open Spotify and play starboy by the weeknd" is planned as two steps, and
+    # the second one arrives here as just the track name — the word "Spotify"
+    # stayed behind in the open_app step. Testing only the query text therefore
+    # sent it to YouTube, which is both the wrong app and not playback.
+    # Spotify already being open is the same instruction by other means.
+    use_spotify = _mentions_spotify(query)
+    if not use_spotify and not _mentions_youtube(query):
+        # Requiring Spotify to be *running* was still too strict: "open Spotify
+        # and play Starboy" is planned as a single play_media call, so nothing
+        # has launched it yet when this decision is made, and the request fell
+        # through to a YouTube search page that plays nothing at all.
+        # Installed is the right test — play_track launches it.
+        try:
+            from tools.spotify_tools import installed, _running
+            use_spotify = _running() or installed()
+            if use_spotify:
+                print("[play_media] routing to Spotify (installed); YouTube "
+                      "search would not play anything")
+        except Exception:
+            use_spotify = False
+
+    if use_spotify:
         from tools.spotify_tools import play_track
         cleaned = _SPOTIFY_WORD.sub(" ", query).strip() or query
         return await play_track(cleaned)
 
+    # YouTube is opened only when it was actually asked for. A YouTube search
+    # page plays nothing, so falling back to one was never a way of carrying
+    # out "play X" — it just put an unwanted tab on screen while the request
+    # went unmet. If Spotify is not available, say so instead of substituting.
+    if not _mentions_youtube(query):
+        return ("ERROR: I could not play that. Spotify does not appear to be "
+                "installed on this PC, and I will not open a YouTube search "
+                "instead because that would not play anything either. Install "
+                "Spotify, or ask me to open it on YouTube and I will.")
+
     encoded = urllib.parse.quote_plus(query)
     url = f"https://www.youtube.com/results?search_query={encoded}"
-    webbrowser.open(url)
+    # webbrowser.open() hands the URL to the Windows default, which is Edge
+    # here — the same mismatch already fixed in open_url and web_search. The
+    # user is working in Chrome, so a video opening in Edge is both surprising
+    # and unreadable by the extension.
+    where = ""
+    try:
+        from tools.browser_target import reading_browser, launch_url
+        target = reading_browser()
+        if target:
+            opened, message = launch_url(target, url)
+            if opened:
+                where = f" in {target.capitalize()}"
+            else:
+                print(f"[play_media] {message}")
+                webbrowser.open(url)
+        else:
+            webbrowser.open(url)
+    except Exception as exc:
+        print(f"[play_media] browser targeting failed: {exc.__class__.__name__}")
+        webbrowser.open(url)
     # Say what actually happened: results are on screen, nothing is playing yet.
-    return (f"Opened YouTube search results for '{query}'. Nothing is playing yet — "
-            f"pick a video, or ask me to play it in Spotify instead.")
+    return (f"Opened YouTube search results for '{query}'{where}. Nothing is playing "
+            f"yet — pick a video, or ask me to play it in Spotify instead.")
 
 
 # ── 5. web_search ──
@@ -413,8 +469,30 @@ async def play_media(query: str) -> str:
     }
 )
 async def web_search(query: str) -> str:
+    # A search is a navigation too. Counting only open_url let a task alternate
+    # search -> site -> search -> site indefinitely: an observed run searched
+    # twice and opened two sites while already holding usable weather text.
+    used = _note_navigation(f"search:{' '.join((query or '').lower().split())}")
+    if used > MAX_NAVIGATIONS_PER_TASK:
+        return (f"ERROR: already navigated {used - 1} times for this request. "
+                f"Answer from the page you have already read, or say what is missing.")
+
     encoded = urllib.parse.quote_plus(query)
     url = f"https://www.google.com/search?q={encoded}"
+    # Search results are read back through the Browser Bridge, so they have to
+    # open in the browser the extension is attached to. webbrowser.open() uses
+    # the Windows default — Edge here — so the agent searched in one browser and
+    # then read an unrelated tab from Chrome.
+    try:
+        from tools.browser_target import bridge_browser, launch_url
+        target = bridge_browser()
+        if target:
+            ok, message = launch_url(target, url)
+            if ok:
+                return f"Opened web search for '{query}' in {target.capitalize()}"
+            print(f"[web_search] {message}")
+    except Exception as exc:
+        print(f"[web_search] bridge targeting unavailable ({exc.__class__.__name__})")
     webbrowser.open(url)
     return f"Opened web search for '{query}'"
 
@@ -592,6 +670,24 @@ async def run_shortcut(keys: str) -> str:
 _recent_url_opens: dict = {}  # cooldown_key -> timestamp
 _OPEN_URL_COOLDOWN = 30  # seconds
 
+# How many distinct pages one request may open before it must read something.
+MAX_NAVIGATIONS_PER_TASK = 3
+# Deliberately a plain module-level dict, not a ContextVar. Tools run from
+# several asyncio tasks and a worker thread, each of which gets its own *copy*
+# of a contextvar — so the count reset to zero between calls and the cap never
+# fired. An observed run opened four pages with the limit set to three.
+_task_navigations: dict = {}
+
+
+def _note_navigation(key: str) -> int:
+    """Record a navigation for the current task; returns the running count."""
+    _task_navigations[key] = _task_navigations.get(key, 0) + 1
+    return sum(_task_navigations.values())
+
+
+def reset_task_navigations() -> None:
+    _task_navigations.clear()
+
 @registry.register(
     name="open_url",
     description="Open a URL in the browser. Automatically checks if the URL is already open in an existing tab and switches to it instead of creating a duplicate. Only opens a new tab when necessary.",
@@ -639,15 +735,30 @@ async def open_url(url: str, force_new_tab: bool = False, browser: str = "") -> 
         if query:
             cooldown_key = f"{cooldown_key}?{query}"
 
-    if cooldown_key and not force_new_tab:
+    # The cooldown used to be skipped whenever force_new_tab was set, and the
+    # planner sets it freely ("...in a new tab"). Re-opening the SAME address is
+    # never useful, new tab or not — an observed run opened the same Google
+    # search twice and wttr.in three times without reading any of them.
+    if cooldown_key:
         last_open = _recent_url_opens.get(cooldown_key)
         if last_open and (_time.time() - last_open) < _OPEN_URL_COOLDOWN:
             elapsed = _time.time() - last_open
             return (
-                f"Already opened {cooldown_key} {elapsed:.0f}s ago. "
-                f"Use browser_read_page() to interact with the page, "
-                f"or browser_switch_tab(url='{url}') to switch to it."
+                f"ERROR: already opened {cooldown_key} {elapsed:.0f}s ago and it is "
+                f"still open. Do not open it again — read it instead with "
+                f"read_page_content() or browser_read_page()."
             )
+
+    # Per-task navigation budget. Opening page after page without reading any of
+    # them is the loop this prevents: each navigation looks successful, so the
+    # repeated-failure guard never fired and the task just kept browsing.
+    used = _note_navigation(cooldown_key or url)
+    if used > MAX_NAVIGATIONS_PER_TASK:
+        return (
+            f"ERROR: already navigated {used - 1} times for this request without "
+            f"reading a page. Read what is open with read_page_content() and answer "
+            f"from it, or tell the user what is missing."
+        )
 
     if not force_new_tab:
         # Check if the URL (or its domain) is already open in a tab
@@ -666,6 +777,18 @@ async def open_url(url: str, force_new_tab: bool = False, browser: str = "") -> 
     # .open() hands the URL to the OS default, which is how "open it in Chrome"
     # ended up in Edge while the tool still reported success.
     target = (browser or "").strip().lower()
+    if not target:
+        # Default to the browser the ClarityOS extension is attached to. Reading
+        # happens through that extension, so opening anywhere else guarantees a
+        # mismatch: pages were opening in Edge (the Windows default) while every
+        # read came from the Chrome session, which is why the extension never
+        # seemed to "refresh to the current tab".
+        try:
+            from tools.browser_target import reading_browser
+            target = reading_browser()
+        except Exception:
+            target = ""
+
     if target:
         from tools.browser_target import launch_url, verify_foreground
         ok, message = launch_url(target, url)

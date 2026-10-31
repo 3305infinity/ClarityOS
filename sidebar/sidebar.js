@@ -52,6 +52,59 @@ function setState(state, label) {
   S.busy = working;
   $("b-stop").hidden = !working;
   $("b-send").hidden = working;
+  // A scan belongs to a running read. Every exit from "doing" passes through
+  // here, so a dropped connection or a finished answer always clears it.
+  if (!working) setScan(false);
+}
+
+/* ── Screen scan ──
+   The sidebar is a docked strip, so it cannot draw a screen-wide scan itself.
+   Main borrows the overlay window for the duration. Kept in step with
+   renderer/renderer.js: the same tools and variants decide when a read is
+   genuinely happening, and the same deny-set keeps the scan off actions that
+   only look like reads because of their progress variant. */
+const SCAN_TOOLS = new Set([
+  "read_screen", "glance", "get_ui_tree",
+  "get_web_information", "web_search",
+  "read_page_content", "get_page_summary", "extract_structured_data",
+  "browser_read_page", "browser_read_text",
+]);
+const SCAN_VARIANTS = new Set(["looking", "browsing", "searching", "reading"]);
+const NON_READ_TOOLS = new Set([
+  "open_url", "click_ui", "click_element", "type_in_field", "type_text",
+  "press_key", "browser_click_ref", "browser_type_ref", "browser_select_ref",
+  "browser_click_match",
+]);
+const SCAN_LABELS = {
+  read_screen: "Reading your screen…",
+  glance: "Looking at your screen…",
+  get_ui_tree: "Reading this window…",
+  web_search: "Searching the web…",
+  get_web_information: "Reading the page…",
+  read_page_content: "Reading the page…",
+  get_page_summary: "Analyzing the page…",
+  extract_structured_data: "Extracting from the page…",
+  browser_read_page: "Reading the page…",
+  browser_read_text: "Reading the page…",
+};
+
+let scanOn = false;
+
+function setScan(on, label = "") {
+  if (on === scanOn && !on) return;
+  scanOn = on;
+  try {
+    window.sidebarAPI?.setScan?.(on, label);
+  } catch { /* the visual is decoration; never break a task over it */ }
+}
+
+function updateScanForTool(tool, variant) {
+  const name = String(tool || "");
+  const show =
+    !NON_READ_TOOLS.has(name) &&
+    (SCAN_TOOLS.has(name) || SCAN_VARIANTS.has(String(variant || "")));
+  if (show) setScan(true, SCAN_LABELS[name] || "Reading…");
+  else setScan(false);
 }
 
 function toast(text, ms = 3200) {
@@ -127,6 +180,7 @@ function handle(msg) {
 
   if (msg.type === "doing") {
     setState("doing", msg.app || msg.text || "Working");
+    updateScanForTool(msg.tool, msg.variant);
     if (msg.text) {
       const line = bubble("sys", msg.text);
       line.dataset.transient = "1";

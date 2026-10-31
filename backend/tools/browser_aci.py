@@ -537,6 +537,19 @@ async def get_page_summary(session_id: str = "") -> str:
         return _error_payload(error, error_code="no_snapshot")
 
     # Show scanning visual on the page while AI analyzes
+    # Refuse to analyse ClarityOS's own dashboard. It runs in a Chrome tab, so
+    # it can be the active tab when a read happens — and summarising it produced
+    # an "answer" describing the search that was still running.
+    _own = (snapshot.url or "").lower()
+    if "127.0.0.1:8787" in _own or "localhost:8787" in _own:
+        return _error_payload(
+            "The active tab is the ClarityOS dashboard, not the page you asked about. "
+            "Open that page in the browser and ask again.",
+            error_code="clarityos_own_page",
+            url=snapshot.url,
+            title=snapshot.title,
+        )
+
     page_domain = _url_domain(snapshot.url) or "page"
     _queue_scanning_action(
         snapshot,
@@ -548,7 +561,33 @@ async def get_page_summary(session_id: str = "") -> str:
     try:
         interpreted = await summarize_page_with_flash(snapshot)
     except BrowserInterpretationError as exc:
+        # The Flash interpreter needs its own Gemini call, so it dies when the
+        # daily quota is gone — and took the whole retrieval with it, even
+        # though the page's text was already on screen and readable. Fall back
+        # to the plain reader: a weather page answers the question without any
+        # model call at all.
         _queue_scanning_action(snapshot, start=False, session_id=session_id)
+        print(f"[get_page_summary] {exc.error_code}: falling back to plain page text")
+        try:
+            raw_text = await read_page_content(
+                max_chars=4000, scroll_pages=0, session_id=session_id
+            )
+            parsed = json.loads(raw_text)
+        except Exception:
+            parsed = None
+        if isinstance(parsed, dict) and parsed.get("content"):
+            return json.dumps({
+                "ok": True,
+                "url": parsed.get("url", snapshot.url),
+                "title": parsed.get("title", snapshot.title),
+                "page_type": "unknown",
+                "summary": parsed.get("content", "")[:4000],
+                "headings": [],
+                "degraded_mode": True,
+                "route": "plain_text_fallback",
+                "note": (f"Page analysis was unavailable ({exc.error_code}); this is the "
+                         f"page's readable text instead."),
+            }, ensure_ascii=False)
         return _error_payload(
             exc.reason,
             error_code=exc.error_code,
@@ -735,6 +774,45 @@ async def read_page_content(
 
             if more.get("at_bottom", False):
                 break
+
+    # The extracted text must belong to the tab that is actually open. Observed:
+    # after navigating to accuweather, this returned the BBC Weather page read a
+    # step earlier — plausible content from the wrong site, which the agent then
+    # treated as the answer for the page it thought it was on. Compare against
+    # the live snapshot and refuse rather than hand back another page.
+    live = _lookup_snapshot(session_id)
+    live_url = str(getattr(live, "url", "") or "")
+    read_url = str(result.get("url", "") or "")
+
+    # ClarityOS's own dashboard is a Chrome tab, so it can be the active tab
+    # when a read happens — and then this returned the hub's Activity panel as
+    # the page content. The domain check below cannot catch it: the snapshot
+    # and the read agree, both are the dashboard. get_page_summary already
+    # refuses this; read_page_content did not, and a weather request was
+    # answered from the hub's own page.
+    _own = (read_url or live_url).lower()
+    if "127.0.0.1:8787" in _own or "localhost:8787" in _own:
+        _queue_scanning_action(live, start=False, session_id=session_id)
+        return _error_payload(
+            "The active tab is the ClarityOS dashboard, not the page you asked "
+            "about. Open that page in the browser and read it again.",
+            error_code="clarityos_own_page",
+            url=read_url or live_url,
+            title=result.get("title", ""),
+            content_length=0,
+        )
+
+    if live_url and read_url and _url_domain(live_url) != _url_domain(read_url):
+        _queue_scanning_action(live, start=False, session_id=session_id)
+        return _error_payload(
+            f"The page text came from {_url_domain(read_url)} but the open tab is "
+            f"{_url_domain(live_url)} — the extension had not re-read the new page "
+            f"yet. Refresh and read again.",
+            error_code="stale_page_content",
+            url=read_url,
+            title=result.get("title", ""),
+            content_length=0,
+        )
 
     # Rebuild final result
     result["content"] = all_content[:max_chars]

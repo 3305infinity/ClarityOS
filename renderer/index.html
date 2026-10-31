@@ -180,12 +180,38 @@
         class="command-input"
         placeholder="Type a request..."
         rows="1"></textarea>
+      <button class="command-panel-mic" id="command-panel-mic" aria-label="Speak a request" title="Speak (click again to stop)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+      </button>
       <button class="command-panel-send" id="command-panel-send" aria-label="Run command">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
     </div>
 
     <!-- ═══ Welcome screen (shown on launch; never blocks on API keys) ═══ -->
+    
+
+  </div>
+
+<!-- ═══ Screen-scan visual (shown while the agent reads) ═══
+     A direct child of <body> for the same reason as the welcome overlay, and
+     one more: .stage carries a transform for the drag offset, and a transform
+     is also a containing block for position:fixed — nested inside it the beam
+     would sweep the pill instead of the screen.
+
+     Purely decorative. It is deliberately absent from the mousemove hit-test
+     in renderer.js, so it never takes a click away from the desktop. -->
+    <div class="scan-overlay hidden" id="scan-overlay" aria-hidden="true">
+      <div class="scan-frame"></div>
+      <div class="scan-beam" id="scan-beam"></div>
+      <div class="scan-label" id="scan-label">Reading your screen…</div>
+    </div>
+
+<!-- Kept a direct child of <body>: the glass pill sets backdrop-filter,
+         which makes it a containing block for position:fixed descendants.
+         Nested inside it, this full-screen overlay was laid out against the
+         44px pill and clipped by its overflow:hidden, so the welcome screen
+         rendered shifted and cut off instead of filling the window. -->
     <div class="welcome-overlay hidden" id="onboarding-overlay">
       <canvas class="welcome-canvas" id="welcome-canvas" aria-hidden="true"></canvas>
       <div class="welcome-vignette" aria-hidden="true"></div>
@@ -207,8 +233,10 @@
           <span class="ws-text" id="welcome-status-text">Starting assistant…</span>
         </div>
 
+        <p class="welcome-choose">How would you like to work today?</p>
         <div class="welcome-actions">
-          <button class="welcome-btn primary" id="welcome-launch">Launch ClarityOS</button>
+          <button class="welcome-btn primary" id="welcome-launch-float">Floating assistant</button>
+          <button class="welcome-btn primary" id="welcome-launch-sidebar">Docked sidebar</button>
           <button class="welcome-btn ghost" id="welcome-settings-open">Settings</button>
         </div>
 
@@ -271,10 +299,9 @@
       </div>
     </div>
 
-  </div>
-
   <script src="../node_modules/katex/dist/katex.min.js"></script>
   <script src="./renderer.js"></script>
-</body>
+
+    </body>
 
 </html>

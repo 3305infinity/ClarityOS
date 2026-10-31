@@ -188,3 +188,49 @@ _APP_NAMES: dict[str, str] = {
     "firefox": "Firefox",
     "brave": "Brave Browser",
 }
+
+
+# ── Aligning navigation with the Browser Bridge ─────────────────────────────
+
+def bridge_browser() -> str:
+    """Canonical browser the ClarityOS extension is connected to, or "".
+
+    Navigation and reading have to happen in the SAME browser. web_search and
+    open_url were going through webbrowser.open() — the Windows default, which
+    is Edge here — while browser_refresh_refs and read_page_content pulled from
+    the Chrome extension's session. The agent navigated in one browser and read
+    an unrelated tab from another, so a weather search returned a Gemini chat
+    page and "no structured items matched".
+    """
+    try:
+        from browser.bridge import browser_bridge
+        if not browser_bridge.is_connected():
+            return ""
+        session = str(browser_bridge.connected_session_id() or "").lower()
+    except Exception:
+        return ""
+
+    for name in _BROWSERS:
+        if session.startswith(name):          # e.g. "chrome-session-1793..."
+            return name
+    # Connected but the session id does not name a browser: prefer a running
+    # Chromium-family browser the extension could plausibly live in.
+    for name in ("chrome", "edge", "brave"):
+        if is_running(name):
+            return name
+    return ""
+
+
+def reading_browser() -> str:
+    """Browser that pages must open in so they can be read back.
+
+    bridge_browser() returns "" whenever the bridge lookup fails — a different
+    process, a momentary disconnect — and open_url then fell back to the system
+    default, which is Edge here. The page opened where nothing could read it.
+    Chrome is where the extension is installed, so prefer it whenever it is
+    running rather than dropping to the OS default.
+    """
+    found = bridge_browser()
+    if found:
+        return found
+    return "chrome" if is_running("chrome") else ""

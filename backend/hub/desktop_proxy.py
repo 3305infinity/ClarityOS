@@ -225,6 +225,18 @@ def install(link: HelperLink, registry) -> None:
         # drop the argument entirely, so the backend tool's targeting never ran
         # on Windows — where this proxy is always installed.
         target = (browser or "").strip().lower()
+        if not target:
+            # This override replaces mac_tools.open_url entirely, so the default
+            # added there never applied here — and with no explicit browser the
+            # call fell through to the Windows helper, which uses the system
+            # default. That is Edge, where the ClarityOS extension is not
+            # installed, so the page could never be read back.
+            try:
+                from tools.browser_target import reading_browser
+                target = reading_browser()
+            except Exception:
+                target = ""
+
         if target:
             try:
                 from tools.browser_target import launch_url, verify_foreground

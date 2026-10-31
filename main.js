@@ -469,11 +469,14 @@ function centerNearTop() {
 // The overlay spans the work area and floats at "screen-saver" level, which is
 // above the sidebar's "floating" level — so without this it would render on top
 // of the docked panel. Reserve the sidebar's strip instead of overlapping it.
-function layoutOverlay() {
+function layoutOverlay({ full = false } = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const area = screen.getPrimaryDisplay().workArea;
   let reserved = 0;
-  if (sidebarWindow && !sidebarWindow.isDestroyed() && sidebarWindow.isVisible()) {
+  // The welcome screen is a launch gate, not the assistant: it must use the
+  // whole work area. Squeezing it into the strip left over beside the docked
+  // sidebar is what pushed its centred content off the left of the screen.
+  if (!full && sidebarWindow && !sidebarWindow.isDestroyed() && sidebarWindow.isVisible()) {
     reserved = sidebarWindow.getSize()[0];
   }
   mainWindow.setBounds({
@@ -711,6 +714,57 @@ function toggleUiMode() {
   return applyUiMode(readUiMode() === "sidebar" ? "floating" : "sidebar");
 }
 
+// ── Screen scan in sidebar mode ───────────────────────────────────────────
+// The scan is drawn by the overlay renderer, but in sidebar mode the overlay
+// window is hidden, so a screen read showed nothing at all. Borrow the window
+// for the duration of the scan only.
+//
+// Two things make this safe, and both are load-bearing:
+//   * showInactive() — show() would make ClarityOS the foreground window, and
+//     a screen read is precisely when that must not happen: the agent reads
+//     the frontmost window, and a focus change also triggers a forced replan.
+//   * forward:false — no mouse forwarding means no global mouse hook and no
+//     renderer hit-testing, so every click goes to the desktop underneath.
+//     This is the configuration a hidden overlay already uses.
+let scanBorrowedOverlay = false;
+
+function setScanVisual(on, label = "") {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  if (on) {
+    if (!mainWindow.isVisible()) {
+      if (isQuitting) return false;
+      layoutOverlay({ full: true });
+      setMousePassthrough(true, { forward: false });
+      mainWindow.setAlwaysOnTop(true, WINDOW_LEVEL);
+      mainWindow.showInactive();
+      scanBorrowedOverlay = true;
+      // Deliberately no sendUiActive(): this window is on screen to draw, not
+      // to take part in the conversation. Marking it active would open a
+      // second agent connection behind the sidebar.
+    }
+    mainWindow.webContents.send("scan:show", String(label || ""));
+    return true;
+  }
+  mainWindow.webContents.send("scan:hide");
+  if (scanBorrowedOverlay) {
+    scanBorrowedOverlay = false;
+    // Let the fade-out finish before the window goes away.
+    setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (scanBorrowedOverlay) return;          // a new scan started meanwhile
+      if (readUiMode() !== "sidebar") return;   // user switched to the overlay
+      mainWindow.setAlwaysOnTop(false);
+      mainWindow.hide();
+    }, 500);
+  }
+  return true;
+}
+
+ipcMain.handle("scan:set", (_event, payload) => {
+  const { on = false, label = "" } = payload || {};
+  return setScanVisual(Boolean(on), label);
+});
+
 ipcMain.handle("ui:get-mode", () => readUiMode());
 ipcMain.handle("ui:set-mode", (_event, mode) => applyUiMode(mode));
 
@@ -813,6 +867,73 @@ function createTray() {
 }
 
 // Rebuilt whenever the mode changes so the checkmark reflects reality.
+// ── Hub dashboard ──────────────────────────────────────────────────────────
+// The hub refuses a bare http://127.0.0.1:8787/ — it needs the per-install UI
+// token in the URL fragment. Nothing in the app opened it for you, so the only
+// way in was to find the token by hand and paste it. This builds the real URL
+// and opens it in the browser the Chrome extension lives in, so the hub's
+// extension-dependent panels actually work.
+//
+// The token is read and handed straight to the browser; it is never logged.
+function hubUrlWithToken() {
+  try {
+    const tokensPath = path.join(app.getPath("appData"), "ClarityOS", "tokens.json");
+    if (!fs.existsSync(tokensPath)) return "";
+    const ui = JSON.parse(fs.readFileSync(tokensPath, "utf-8")).ui;
+    return ui ? `http://127.0.0.1:8787/#token=${encodeURIComponent(ui)}` : "";
+  } catch (error) {
+    console.error(`[ClarityOS] Could not read the hub token: ${error.message}`);
+    return "";
+  }
+}
+
+function chromeExecutable() {
+  const candidates = [
+    path.join(process.env["ProgramFiles"] || "", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env["ProgramFiles(x86)"] || "", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env["LOCALAPPDATA"] || "", "Google/Chrome/Application/chrome.exe"),
+  ];
+  return candidates.find((c) => c && fs.existsSync(c)) || "";
+}
+
+async function openHubDashboard() {
+  // The hub is a SEPARATE process (start-hub.ps1); this app only runs the voice
+  // server on :8000. Opening the dashboard when nothing is serving :8787 just
+  // shows a dead page, so say what to start instead.
+  const up = await canReachPort(8787, 1200);
+  if (!up) {
+    dialog.showMessageBox({
+      type: "info",
+      title: "ClarityOS Hub is not running",
+      message: "The Hub dashboard runs as its own process.",
+      detail: "Start it from the project folder:\n\n    .\\start-hub.ps1\n\n"
+            + "Then choose this menu item again and it will open with your access "
+            + "token already filled in.",
+      buttons: ["OK"],
+    }).catch(() => {});
+    return false;
+  }
+
+  const url = hubUrlWithToken();
+  if (!url) {
+    console.error("[ClarityOS] No UI token yet — start the hub once, then try again.");
+    return false;
+  }
+  // Prefer Chrome: the hub's page-reading panels depend on the ClarityOS
+  // extension, which is installed there, not in the default browser.
+  const chrome = chromeExecutable();
+  if (chrome) {
+    try {
+      spawn(chrome, [url], { detached: true, stdio: "ignore" }).unref();
+      return true;
+    } catch (error) {
+      console.error(`[ClarityOS] Could not launch Chrome: ${error.message}`);
+    }
+  }
+  shell.openExternal(url);
+  return true;
+}
+
 function buildTrayMenu() {
   if (!tray) return;
   const mode = readUiMode();
@@ -830,6 +951,8 @@ function buildTrayMenu() {
         checked: mode === "floating",
         click: () => applyUiMode("floating"),
       },
+      { type: "separator" },
+      { label: "Open Hub dashboard (in Chrome)", click: () => openHubDashboard() },
       { type: "separator" },
       { label: "Show overlay", click: () => wakeOverlay() },
       { label: "Hide overlay", click: () => hideOverlay() },
@@ -961,21 +1084,27 @@ app.whenReady().then(async () => {
   registerHotkey();
   createTray();
 
-  // Restore the presentation the user chose last time. Which surface opens is
-  // now a stored decision rather than a side effect of startup order, which is
-  // why it used to come up as a sidebar sometimes and a floating overlay other
-  // times. First run has no stored choice: keep the existing default (sidebar)
-  // on screen and let the renderer offer the one-time pick, so nothing is
-  // blocked behind a modal.
-  const savedMode = readUiMode();
-  if (savedMode) {
-    applyUiMode(savedMode, { persist: false });
-  } else {
-    showSidebar();
-    if (sidebarWindow && !sidebarWindow.isDestroyed()) {
-      sidebarWindow.webContents.send("ui:choose-mode");
-    }
-  }
+  // Ask on every launch rather than restoring a stored choice: which surface
+  // suits the moment changes, and being locked into last time's answer was
+  // the complaint. The overlay hosts the chooser across the FULL work area —
+  // laying it out beside a docked sidebar pushed its centred content off the
+  // left edge. The sidebar stays hidden until it is actually chosen.
+  hideSidebar();
+  layoutOverlay({ full: true });
+  // The chooser has to be on top or it is invisible behind whatever the user
+  // was already working in. Interactivity still comes from the renderer's own
+  // hit-testing, so this does not swallow clicks once a mode is picked.
+  mainWindow.setAlwaysOnTop(true, WINDOW_LEVEL);
+  mainWindow.show();
+  // Mouse forwarding is what lets the renderer hit-test the pill and the
+  // chooser. show() alone left the window click-through, so nothing responded
+  // and the pill could not even be dragged. wakeOverlay() does the same.
+  setMousePassthrough(true, { forward: true });
+  mainWindow.focus();
+  // Interactivity is left to the renderer's own hit-testing, which already
+  // treats the welcome card as clickable and hands the rest of the screen back
+  // to the desktop. Forcing passthrough off here made the full-width chooser
+  // swallow every click on the machine until a choice was made.
   buildTrayMenu();
 
   // Always bring the backend up. A Gemini key can come from the encrypted

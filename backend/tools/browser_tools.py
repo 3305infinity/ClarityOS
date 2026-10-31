@@ -187,11 +187,30 @@ def _page_content_is_usable(payload: dict) -> Optional[dict]:
     """
     url = str(payload.get("url") or "").strip()
     title = str(payload.get("title") or "").strip()
-    text = str(payload.get("text") or payload.get("content") or "")
+    # get_page_summary returns its result as "summary" — it has no "content"
+    # key at all. Reading only text/content scored every summary as zero
+    # characters, so a page the interpreter had just spent 15s describing was
+    # reported as "Only 0 characters of readable text came back".
+    text = str(payload.get("text") or payload.get("content")
+               or payload.get("summary") or "")
 
     internal_schemes = ("chrome://", "edge://", "about:", "devtools://",
                         "chrome-extension://", "view-source:", "brave://")
     lowered = url.lower()
+
+    # ClarityOS's own dashboard is not page content. The hub runs in a Chrome
+    # tab, so when it happened to be the active tab the agent summarised its own
+    # Activity panel and reported that as the answer — a page describing the
+    # search it was in the middle of performing.
+    if lowered and ("127.0.0.1:8787" in lowered or "localhost:8787" in lowered):
+        return {
+            "ok": False,
+            "error": "clarityos_own_page",
+            "message": ("That tab is the ClarityOS dashboard, not the page you asked "
+                        "about. Switch to the page you want me to read."),
+            "url": url,
+            "title": title,
+        }
 
     if lowered and any(lowered.startswith(scheme) for scheme in internal_schemes):
         return {
@@ -849,12 +868,22 @@ async def _queue_browser_action(action: str, ref_id: str, session_id: str = "", 
     if not action_result:
         # Timeout waiting for action execution
         report = verify_action_result(result)
+        # The queue accepted the action; the page never confirmed it ran. That
+        # is not success. Reporting ok:true here told the agent the click had
+        # navigated, so it read "the current page" — which was still whatever
+        # tab was in front, once the ClarityOS dashboard itself — and answered
+        # from it. An unobserved click has to be reported as unconfirmed so the
+        # caller navigates directly instead of trusting a page change that may
+        # never have happened.
         return json.dumps({
-            "ok": True, # Queue was ok, but execution timed out
+            "ok": False,
+            "error_code": "action_unconfirmed",
             "action": result.action,
             "ref_id": result.ref_id,
             "action_id": result.action_id,
-            "message": "Action queued but execution timed out. Snapshot may still be updating.",
+            "message": ("The click was sent but the page never confirmed it ran, "
+                        "so I cannot tell whether it navigated. Open the target "
+                        "URL directly instead of assuming this worked."),
             "pre_generation": result.pre_generation,
             "post_generation": result.post_generation,
             "verification": {

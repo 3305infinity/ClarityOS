@@ -20,6 +20,7 @@ tool sequences.
 
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json
 import re
 import time as _time
@@ -831,6 +832,35 @@ class MilestoneExecutor:
                     break
                 continue
 
+            spent = self._vision_budget_spent(actions, tool)
+            if spent:
+                decision_failures += 1
+                last_result = spent
+                stall_warning = f"  {last_result}"
+                print(f"[MilestoneExec] blocked {tool}: vision budget spent")
+                if decision_failures >= 3:
+                    print("[MilestoneExec] Stalled: kept asking to look at the screen")
+                    break
+                continue
+
+            # Opening yet another page once the content is already in hand is
+            # how a question that was answered by the first source turned into
+            # four navigations and no answer.
+            if tool in self._NAVIGATION_TOOLS or (
+                tool == "get_web_information"
+                and str((args or {}).get("target_type", "")).strip().lower() == "search_results"
+            ):
+                pointless = self._navigation_is_pointless(actions)
+                if pointless:
+                    decision_failures += 1
+                    last_result = pointless
+                    stall_warning = f"  {last_result}"
+                    print(f"[MilestoneExec] blocked redundant navigation via {tool}")
+                    if decision_failures >= 3:
+                        print("[MilestoneExec] Stalled: kept navigating with content already retrieved")
+                        break
+                    continue
+
             # Cache hit: serve a previously successful get_web_information result without
             # a network round-trip.  Key on (target_type, url, query) — same call same result.
             if tool == "get_web_information":
@@ -1119,6 +1149,65 @@ class MilestoneExecutor:
             return True
         return self._is_known_empty_json(result_text)
 
+    # Tools that return a whole surface rather than an answer to a question.
+    # Calling one again only helps if the surface changed, so an identical
+    # result means the previous call already said everything this one can.
+    _RESCAN_TOOLS: frozenset[str] = frozenset({
+        "get_ui_tree", "read_screen", "browser_refresh_refs",
+        "read_page_content", "get_page_summary", "extract_structured_data",
+        "browser_read_page", "browser_read_text",
+    })
+
+    def _repeat_identity(self, action: MilestoneAction) -> str:
+        """What an action really targeted, for counting repeats that matter.
+
+        Keyed off the *result* for rescan tools, not the args. The model keeps
+        rewording its arguments ("search the tree for the temperature", "search
+        Chrome for Patna weather details") while the tree it gets back is byte
+        for byte the same, so an args-based check never sees a repeat.
+        """
+        tool = action.tool
+        if tool in ("open_url", "web_search"):
+            args = action.args or {}
+            target = str(args.get("url", "") or args.get("query", "") or "").strip()
+            target = target.lower().rstrip("/")
+            return f"{tool}|{target}" if target else ""
+        if tool in self._RESCAN_TOOLS:
+            body = " ".join((action.result or "").split())
+            if len(body) < 40:
+                return ""          # too short to fingerprint meaningfully
+            digest = _hashlib.sha1(body[:4000].encode("utf-8", "replace")).hexdigest()
+            return f"{tool}|{digest}"
+        return ""
+
+    def _redundant_repeat(self, actions: list[MilestoneAction]) -> tuple[str, str]:
+        """(stall_reason, warning) for actions that cannot add new evidence.
+
+        The identical-streak check below only fires on consecutive calls with
+        byte-identical args. A loop that alternates — get_ui_tree, open_url,
+        get_ui_tree, open_url — never builds a streak, which is how one
+        milestone ran get_ui_tree five times and opened the same URL three
+        times and still finished with no weather data.
+        """
+        counts: dict[str, int] = {}
+        warning = ""
+        for action in actions:
+            key = self._repeat_identity(action)
+            if not key:
+                continue
+            counts[key] = counts.get(key, 0) + 1
+            tool = key.split("|", 1)[0]
+            if counts[key] >= 3:
+                return (f"{tool} produced the same result {counts[key]} times; "
+                        f"repeating it cannot yield new evidence"), ""
+            if counts[key] == 2:
+                warning = (
+                    f"{tool} has already returned this exact result once before. "
+                    f"Calling it again will not help; switch to a different tool "
+                    f"or a different source."
+                )
+        return "", warning
+
     def _detect_stall(self, actions: list[MilestoneAction]) -> tuple[bool, str]:
         """Detect milestone stalls and produce warning text for next LLM turn."""
         warning = ""
@@ -1142,6 +1231,13 @@ class MilestoneExecutor:
                     f"({identical_streak}×). You MUST try a completely different tool or approach. "
                     "For messaging apps: use click_ui or type_in_field to interact with the UI."
                 )
+
+        # Repeats that are not back-to-back, which the streak check above misses.
+        redundant_stall, redundant_warning = self._redundant_repeat(actions)
+        if redundant_stall:
+            return False, redundant_stall
+        if redundant_warning and not warning:
+            warning = redundant_warning
 
         zero_yield_streak = 0
         for action in reversed(actions):
@@ -1208,6 +1304,96 @@ class MilestoneExecutor:
             return False, "repeated reading of the same source without new evidence"
 
         return True, warning
+
+    # Tools that actually return page/screen content, as opposed to tools that
+    # merely move the browser somewhere.
+    _CONTENT_READ_TOOLS: frozenset[str] = frozenset({
+        "get_web_information", "read_page_content", "get_page_summary",
+        "extract_structured_data", "browser_read_page", "browser_read_text",
+        "read_screen", "web_scrape", "fetch_web_content",
+    })
+    # Tools that put the browser on a different page.
+    _NAVIGATION_TOOLS: frozenset[str] = frozenset({"open_url", "web_search"})
+
+    def _retrieved_content_chars(self, action: MilestoneAction) -> int:
+        """Characters of real content this action produced, else 0.
+
+        Anything the guards already rejected — the ClarityOS dashboard, a stale
+        page, a browser-chrome-only UI tree — comes back as ok:false and must
+        not count, or the agent would be told to answer from content it was
+        just told it could not use.
+        """
+        if not action.success or action.tool not in self._CONTENT_READ_TOOLS:
+            return 0
+        text = (action.result or "").strip()
+        if len(text) < 200:
+            return 0
+        if text.startswith("{"):
+            try:
+                data = json.loads(text)
+            except (TypeError, ValueError):
+                data = None
+            if isinstance(data, dict):
+                if data.get("ok") is False:
+                    return 0
+                inner = data.get("data") if isinstance(data.get("data"), dict) else data
+                length = int(inner.get("content_length", 0) or 0)
+                items = inner.get("items")
+                if length <= 0 and not (isinstance(items, list) and items):
+                    return 0
+                if self._is_known_empty_json(text):
+                    return 0
+                return length or len(text)
+        return len(text)
+
+    # Vision calls: 20-55s each, and each one spends Gemini quota. Their output
+    # is a fresh paraphrase every time, so the result-fingerprint repeat check
+    # never sees two calls as identical — a milestone was observed calling
+    # read_screen more than ten times, burning minutes and the day's quota
+    # without ever getting closer to an answer. Cap them outright.
+    _VISION_TOOLS: frozenset[str] = frozenset({
+        "read_screen", "capture_region_screenshot",
+    })
+    MAX_VISION_CALLS_PER_MILESTONE = 2
+
+    def _vision_budget_spent(self, actions: list[MilestoneAction], tool: str) -> str:
+        if tool not in self._VISION_TOOLS:
+            return ""
+        used = sum(1 for a in actions if a.tool in self._VISION_TOOLS)
+        if used < self.MAX_VISION_CALLS_PER_MILESTONE:
+            return ""
+        return (
+            f"You have already looked at the screen {used} times in this step. "
+            f"Looking again will return another description of the same screen. "
+            f"Use what you saw, read the page directly, or say what is missing."
+        )
+
+    def _navigation_is_pointless(self, actions: list[MilestoneAction]) -> str:
+        """Why opening another page would not help, or "".
+
+        Observed repeatedly: the first page answered the question, and the
+        agent kept opening further URLs anyway until it ran out of budget and
+        gave up — "teen chaar URL kholke baith gaya jabki pehle mein hi answer
+        aa gaya tha". One more source is allowed after content arrives, in case
+        the first read was thin; beyond that there is nothing to gain.
+        """
+        content_chars = 0
+        navigations_after_content = 0
+        for action in actions:
+            got = self._retrieved_content_chars(action)
+            if got:
+                content_chars = max(content_chars, got)
+                continue
+            if content_chars and action.tool in self._NAVIGATION_TOOLS:
+                navigations_after_content += 1
+        if content_chars and navigations_after_content >= 1:
+            return (
+                f"You already retrieved {content_chars} characters of page content "
+                f"in this step, and have opened another source since. Do not open "
+                f"more pages: answer from the content you already have, or report "
+                f"what is missing from it."
+            )
+        return ""
 
     def _is_substantive_result(self, action: MilestoneAction) -> bool:
         """Substantive result threshold for partial-success fallback."""

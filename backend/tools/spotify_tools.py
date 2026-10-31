@@ -11,17 +11,26 @@ search page is not playback, and success was claimed without anything playing.
 
 What this does instead
 ----------------------
-Drives the real Spotify desktop app through mechanisms it already supports:
+Opens the track in the real Spotify desktop app and stops there:
 
   * `spotify:search:<query>` — Spotify registers this URI scheme on install, so
     the desktop client opens its own search for the term. No API, no auth.
-  * the existing Windows automation tools to press Play on the result.
-  * the window title as the verification signal: Spotify shows "Track - Artist"
-    while a track is playing and plain "Spotify"/"Spotify Free"/"Spotify
-    Premium" when idle or paused. That is observable without any account access.
 
-There is no Spotify Web API integration here, and none is assumed. If playback
-cannot be confirmed from the window title, this says so rather than guessing.
+Why it does not press Play
+--------------------------
+Every route to actually starting playback was tried and each one was worse
+than leaving it to the user:
+
+  * there is no Play button to click — Spotify is an Electron app and its whole
+    window surfaces as a single unnamed group in UI Automation;
+  * the media key does not play the requested track, it resumes whatever was
+    queued before, so asking for one song started another;
+  * `spotify:track:<id>` does play the right track, but the id had to be
+    scraped from open.spotify.com through the browser extension: a Chrome tab
+    and several seconds per song, and then it auto-played a version the user
+    had not picked.
+
+So this opens the search and says so. The user clicks the track they want.
 """
 
 from __future__ import annotations
@@ -39,12 +48,9 @@ print = partial(print, flush=True)
 SPOTIFY_IMAGE = "Spotify.exe"
 
 # Titles Spotify shows when nothing is playing. Anything else is a track.
-_IDLE_TITLE_RE = re.compile(r"^\s*spotify(\s+(free|premium))?\s*$", re.IGNORECASE)
 
 # How long to let the app launch, search, and start playing.
 LAUNCH_WAIT_S = 12.0
-SEARCH_WAIT_S = 6.0
-PLAY_CONFIRM_S = 8.0
 
 
 def _running() -> bool:
@@ -61,58 +67,38 @@ def _running() -> bool:
     return SPOTIFY_IMAGE.lower() in out.lower()
 
 
-def window_title() -> str:
-    """Spotify's main window title, or "" when it has none visible."""
+def installed() -> bool:
+    """Is Spotify present on this PC, whether or not it is running?
+
+    `_running()` was too strict a test for routing a playback request: "open
+    Spotify and play Starboy" gets planned as a single play_media call, so
+    Spotify has not been launched yet at the moment the decision is made, and
+    the request fell through to a YouTube search page that plays nothing.
+
+    The registered `spotify:` URI handler is the authoritative signal — it is
+    what ensure_running() and play_track() actually use, and it covers the
+    Microsoft Store build, which does not live under Program Files.
+    """
     if os.name != "nt":
-        return ""
-    import ctypes
-    from ctypes import wintypes
-    user32 = ctypes.windll.user32
+        return False
     try:
-        out = subprocess.run(
-            ["tasklist", "/FI", f"IMAGENAME eq {SPOTIFY_IMAGE}", "/NH"],
-            capture_output=True, text=True, timeout=6,
-            creationflags=0x08000000,
-        ).stdout or ""
-    except Exception:
-        return ""
-    pids = {int(p.split()[1]) for p in out.splitlines()
-            if p.strip() and p.split()[1].isdigit()}
-    if not pids:
-        return ""
-
-    found: list[str] = []
-
-    @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
-    def _cb(hwnd, _):
-        pid = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if pid.value in pids and user32.IsWindowVisible(hwnd):
-            n = user32.GetWindowTextLengthW(hwnd)
-            if n:
-                buf = ctypes.create_unicode_buffer(n + 1)
-                user32.GetWindowTextW(hwnd, buf, n + 1)
-                if buf.value.strip():
-                    found.append(buf.value.strip())
+        import winreg
+        winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "spotify"))
         return True
-
-    try:
-        user32.EnumWindows(_cb, 0)
     except Exception:
-        return ""
-    # Prefer a title that looks like a track over the bare app name.
-    for title in found:
-        if not _IDLE_TITLE_RE.match(title):
-            return title
-    return found[0] if found else ""
+        pass
+    for path in (
+        os.path.join(os.environ.get("APPDATA", ""), "Spotify", "Spotify.exe"),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps", "Spotify.exe"),
+        os.path.join(os.environ.get("ProgramFiles", ""), "Spotify", "Spotify.exe"),
+    ):
+        if path and os.path.isfile(path):
+            return True
+    return False
 
 
-def now_playing() -> Optional[str]:
-    """"Track - Artist" when something is playing, else None."""
-    title = window_title()
-    if not title or _IDLE_TITLE_RE.match(title):
-        return None
-    return title
+
+
 
 
 async def _wait_for(predicate, timeout_s: float, interval: float = 0.6):
@@ -138,6 +124,26 @@ async def ensure_running() -> bool:
     return bool(await _wait_for(_running, LAUNCH_WAIT_S))
 
 
+# ── resolving a track id through the browser ────────────────────────────────
+#
+# `spotify:search:` only *shows* results; the media key then resumes whatever
+# was queued before, so asking for Starboy could start something else entirely.
+# `spotify:track:<id>` plays the exact track — but the id has to come from
+# somewhere, and there are no Spotify API credentials configured here.
+#
+# open.spotify.com is readable without an account, and ClarityOS already has a
+# Chrome extension that can read a page. So: open the search there, read the
+# first /track/<id> link out of the snapshot, and hand that id to the desktop
+# app. Costs a browser tab and a few seconds; in exchange the right track plays.
+
+
+# How long to wait for the extension to publish a snapshot of the results.
+
+
+
+
+
+
 async def open_search(query: str) -> bool:
     """Show Spotify's own search results for `query` in the desktop app."""
     term = urllib.parse.quote(query.strip())
@@ -153,37 +159,27 @@ async def open_search(query: str) -> bool:
 
 # ── matching ────────────────────────────────────────────────────────────────
 
-_NOISE = {"the", "a", "an", "by", "song", "track", "play", "on", "spotify", "feat", "ft"}
 
 
-def _tokens(text: str) -> set:
-    words = re.findall(r"[a-z0-9]+", (text or "").lower())
-    return {w for w in words if w not in _NOISE and len(w) > 1}
 
 
-def title_matches(query: str, title: str) -> bool:
-    """Is the track in the window title the one that was asked for?
-
-    Spotify's media key resumes whatever was queued before, so "it is playing"
-    and "it is playing what you asked for" are different questions. Requires
-    every meaningful word of the request to appear in the title.
-    """
-    want, got = _tokens(query), _tokens(title)
-    if not want or not got:
-        return False
-    return want.issubset(got)
 
 
-def _media_key() -> None:
-    import ctypes
-    VK_MEDIA_PLAY_PAUSE = 0xB3
-    user32 = ctypes.windll.user32
-    user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 0, 0)
-    user32.keybd_event(VK_MEDIA_PLAY_PAUSE, 0, 2, 0)
 
 
 async def play_track(query: str) -> str:
-    """Open `query` in Spotify and try to start it. Reports what really happened."""
+    """Open `query` in Spotify's search. Does not start playback.
+
+    Playback used to be attempted here and it was never worth it. Spotify is an
+    Electron app with no usable UI Automation tree, so there is no Play button
+    to click; the media key only resumes whatever was queued before, which
+    started the wrong song; and resolving a track id through the browser to use
+    `spotify:track:` meant opening a Chrome tab and waiting seconds for it,
+    which then auto-played a version the user had not chosen.
+
+    So: open the search and hand it over. One URI call, no browser, no waiting,
+    and the user picks the track they actually want.
+    """
     if os.name != "nt":
         return "ERROR: Spotify control is only implemented for Windows."
     want = (query or "").strip()
@@ -191,35 +187,11 @@ async def play_track(query: str) -> str:
         return "ERROR: no track given."
 
     if not await ensure_running():
-        return ("ERROR: I couldn't start the Spotify desktop app. Open it once "
-                "manually and try again.")
+        return ("ERROR: Spotify did not start. It is installed, but the app did not "
+                "come up within the wait. Open Spotify once by hand and ask me again.")
 
-    was_playing = now_playing()
     if not await open_search(want):
         return "ERROR: Spotify is running but would not accept the search request."
-    await asyncio.sleep(SEARCH_WAIT_S)
 
-    # The media key is the only playback trigger available without the Web API:
-    # Spotify is an Electron app and exposes no usable UI Automation tree (its
-    # whole window surfaces as a single unnamed group), so there is no Play
-    # button to click.
-    if not now_playing():
-        _media_key()
-
-    playing = await _wait_for(now_playing, PLAY_CONFIRM_S)
-
-    if not playing:
-        return (f"I opened '{want}' in Spotify's search, but playback did not start. "
-                f"Press Play in Spotify, or tell me to try again.")
-
-    if title_matches(want, playing):
-        return f"PLAYING: {playing} (confirmed in the Spotify desktop app)"
-
-    # Playing, but not what was asked for — the key resumed the old queue.
-    # Leave the user's audio as we found it rather than silently changing it.
-    if not was_playing:
-        _media_key()
-        await asyncio.sleep(1.0)
-    return (f"Spotify is open with '{want}' searched, but the track that started was "
-            f"'{playing}', not what you asked for — Spotify resumed its previous queue. "
-            f"Click the track in Spotify's search results to play it.")
+    return (f"Spotify is open with '{want}' in its search results - play it at "
+            f"your convenience.")

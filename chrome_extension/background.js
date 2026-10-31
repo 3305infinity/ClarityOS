@@ -770,7 +770,14 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.tabs.onActivated.addListener(() => {
   if (authenticated) {
     pushActiveTabSnapshot();
+    return;
   }
+  // The MV3 service worker sleeps after ~30s idle. A tab switch wakes it, but
+  // the bridge socket has not re-authenticated yet, so this push used to be
+  // dropped silently — leaving the backend holding a snapshot of whichever tab
+  // was active before the worker slept. Reconnecting re-runs the handshake,
+  // which already pushes the active tab's snapshot on success.
+  connectBridge();
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

@@ -789,6 +789,35 @@ class ClarityOSAgentV2:
             if str(decl.get("name", "")).strip()
         }
 
+    @staticmethod
+    def _note_plan_approval(plan) -> None:
+        """Tell the guard which tools the user just approved, via the plan.
+
+        Scoped to the tools this plan names, and each grant is single-use, so
+        approving one plan cannot authorise an unrelated action later. A
+        capability switched off in Settings is still refused.
+        """
+        try:
+            from servers.voice_guard import note_plan_approved
+        except Exception:
+            return
+        tools: set = set()
+        for milestone in getattr(plan, "milestones", []) or []:
+            for tool in (getattr(milestone, "hint_tools", None) or []):
+                name = str(tool).strip()
+                if name:
+                    tools.add(name)
+        if tools:
+            note_plan_approved(tools)
+
+    @staticmethod
+    def _clear_plan_approval(reason: str = "") -> None:
+        try:
+            from servers.voice_guard import clear_plan_approval
+            clear_plan_approval(reason)
+        except Exception:
+            pass
+
     def _unsupported_plan_hints(
         self,
         plan: MilestonePlan,
@@ -802,10 +831,56 @@ class ClarityOSAgentV2:
                 for tool in (milestone.hint_tools or [])
                 if str(tool).strip() and str(tool).strip() not in {"send_response", "await_reply"}
             })
-            missing = [tool for tool in hinted if tool not in allowed]
+            # A hint is satisfied when an *equivalent* tool is available, not
+            # only the exact one named. The planner hinting press_key while
+            # type_in_field is on offer is a wording difference, not a missing
+            # capability — rejecting the whole plan for it produced "I can't
+            # execute the current plan" on tasks that were entirely doable.
+            # The milestone executor already widens hints this way at run time;
+            # planning now uses the same table.
+            missing = [
+                tool for tool in hinted
+                if tool not in allowed
+                and not self._hint_satisfied(tool, allowed)
+                and not self._goal_has_dedicated_tool(milestone.goal, tool, allowed)
+            ]
             if missing:
                 issues.append((milestone.id, milestone.goal, missing))
         return issues
+
+    # Hints that describe driving an app's UI by hand.
+    _UI_INPUT_HINTS = frozenset({
+        "type_text", "type_in_field", "click_ui", "click_element",
+        "press_key", "run_shortcut", "get_ui_tree",
+    })
+    # Goals a dedicated tool already covers end to end.
+    _MUSIC_GOAL_RE = _re.compile(
+        r"(?i)\b(?:play|playing|listen|song|track|album|playlist|music|spotify)\b"
+    )
+
+    @classmethod
+    def _goal_has_dedicated_tool(cls, goal: str, tool: str, allowed: set) -> bool:
+        """Does an offered tool already do this goal, making the hint moot?
+
+        "Search for and start playing 'Starboy'" was planned as typing into
+        Spotify's search box, so the plan hinted type_text — which is not on
+        offer for a music request — and the whole thing was rejected with "I
+        can't execute the current plan". play_media *was* on offer and does the
+        entire goal in one call, with no typing involved. The hint named a
+        technique; the capability was there.
+        """
+        if tool in cls._UI_INPUT_HINTS and "play_media" in allowed:
+            return bool(cls._MUSIC_GOAL_RE.search(goal or ""))
+        return False
+
+    @staticmethod
+    def _hint_satisfied(tool: str, allowed: set) -> bool:
+        """Is some equivalent of `tool` available in the offered surface?"""
+        try:
+            from tools.selector import _MILESTONE_HINT_EQUIVALENTS
+        except Exception:
+            return False
+        return bool(_MILESTONE_HINT_EQUIVALENTS.get(tool, set()) & set(allowed))
 
     def _enforce_plan_tool_contract(
         self,
@@ -845,9 +920,15 @@ class ClarityOSAgentV2:
         plan_tools = self._planned_tool_names(pending.plan)
         is_web_flow_plan = bool(plan_tools.intersection(WEB_FLOW_TOOLS))
         if old_app and new_app and old_app != new_app:
-            # Approval can be spoken/typed via ClarityOS's Electron panel while the
-            # original browser task context is still valid. Don't invalidate for that.
-            if is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in {"electron", "clarityos"}:
+            # Answering the approval prompt IS an interaction with ClarityOS, so
+            # ClarityOS becoming the foreground app is not a change in the user's
+            # context — it is the user replying to the question we just asked.
+            # This exemption used to apply only to web-flow plans, so approving a
+            # file-creation plan invalidated it, forced a replan, and (when the
+            # replan failed) dead-ended on "I couldn't refresh the plan".
+            if new_app in {"electron", "clarityos"}:
+                pass
+            elif is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in {"electron", "clarityos"}:
                 pass
             elif is_web_flow_plan and old_app in BROWSER_APP_NAMES and new_app in BROWSER_APP_NAMES:
                 pass
@@ -993,6 +1074,9 @@ class ClarityOSAgentV2:
         ws_callback: Optional[WSCallback],
         note: str = "",
     ) -> tuple[str, bool]:
+        # Showing a plan means nothing has been approved yet. Any consent left
+        # over from an earlier plan must not carry into this one.
+        self._clear_plan_approval("a new plan is awaiting approval")
         steps_payload = self._modal_steps_from_plan(pending.plan)
         message = "Review this plan and choose Proceed to execute it."
         if note:
@@ -1298,11 +1382,18 @@ class ClarityOSAgentV2:
                         available_tools=selected_tools,
                     )
                     if refreshed_plan is None:
-                        refreshed_plan = MilestonePlan(
-                            task_summary=pending.original_user_request,
-                            needs_clarification=True,
-                            clarification_prompt="I couldn't refresh the plan. Please try again.",
-                        )
+                        # The user already approved a concrete plan. If the
+                        # refresh cannot run (provider down, quota spent), fall
+                        # back to the plan they approved rather than discarding
+                        # their consent and asking them to start over.
+                        print("[AgentV2] Replan unavailable — running the approved plan as-is.")
+                        if ws_callback:
+                            await ws_callback({
+                                "type": "doing",
+                                "text": "Couldn't refresh the plan — running the one you approved.",
+                                "tool": "planner",
+                            })
+                        refreshed_plan = pending.plan
                     refreshed_plan = self._enforce_plan_tool_contract(refreshed_plan, llm_tool_declarations)
                     if refreshed_plan.needs_clarification:
                         result = await self._handle_clarification(
@@ -1356,6 +1447,12 @@ class ClarityOSAgentV2:
 
                 self._pending_plan = None
                 print(f"[AgentV2] Executing frozen approved plan: {pending.plan.task_summary}")
+                # The plan card described these actions and the user pressed
+                # Proceed. Without this the per-tool guard asked a second time
+                # for the same action — and an unanswered second prompt came
+                # back as "The user did not approve this action" on a plan they
+                # had just approved.
+                self._note_plan_approval(pending.plan)
                 llm_tool_declarations = self.tool_selector.get_llm_tool_declarations(pending.selected_tools)
                 final_response, awaiting = await self._execute_milestone_plan(
                     plan=pending.plan,
@@ -1751,6 +1848,24 @@ class ClarityOSAgentV2:
         try:
             from agent.current_context import capture as _capture_ctx, binding_problem
             self._current_context = _capture_ctx(task_id=str(id(plan)))
+
+            # A stale snapshot is not a dead end — the extension can be asked
+            # for a fresh one. Previously this reported "the extension has not
+            # published a page yet" and stopped, so the user was told to reload
+            # a page that was already open and fine. The MV3 service worker
+            # sleeps after ~30s idle and drops the tab-switch push, which is
+            # exactly when this happens.
+            ctx = self._current_context
+            if ctx and ctx.is_browser and not ctx.snapshot_fresh:
+                print("[AgentV2] |  browser snapshot is stale — asking the extension to re-read")
+                try:
+                    await tool_registry.execute("browser_refresh_refs", {})
+                    self._current_context = _capture_ctx(task_id=str(id(plan)))
+                    if self._current_context.snapshot_fresh:
+                        print("[AgentV2] |  snapshot refreshed from the extension")
+                except Exception as _ref_exc:
+                    print(f"[AgentV2] |  refresh failed ({_ref_exc.__class__.__name__})")
+
             self._binding_problem = binding_problem(self._current_context, user_text)
             print(f"[AgentV2] |  current context: {self._current_context.describe()}")
             if self._binding_problem:
@@ -2171,8 +2286,26 @@ class ClarityOSAgentV2:
                 # is the actual reason, and it tells the user what to change.
                 final_response = self._binding_problem
             else:
-                failed_goals = [m.goal for m in failed]
-                final_response = f"Sorry, I couldn't complete: {', '.join(failed_goals[:3])}"
+                # Repeating the goal back says nothing the user did not
+                # already know: "Sorry, I couldn't complete: Find 3 similar
+                # movie recommendations" gives them no idea what went wrong or
+                # what to do next. The executor records why each milestone
+                # stopped — say that.
+                first = failed[0] if failed else None
+                goal = str(getattr(first, "goal", "") or "").strip()
+                why = str(getattr(first, "result_summary", "") or "").strip()
+                for noise in ("TASK_DEADLINE:", "STALLED:", "FAILED:"):
+                    if why.startswith(noise):
+                        why = why[len(noise):].strip()
+                if why and why.lower() != goal.lower():
+                    final_response = f"I couldn't finish \"{goal}\" - {why}"
+                else:
+                    final_response = (
+                        f"I couldn't finish \"{goal}\", and I don't have a specific "
+                        f"reason to give you - nothing I tried moved it forward."
+                    )
+                if len(failed) > 1:
+                    final_response += f" ({len(failed) - 1} other step(s) also did not finish.)"
         else:
             final_response = f"Partially completed ({len(completed)}/{len(plan.milestones)} milestones)."
 
@@ -2198,6 +2331,50 @@ class ClarityOSAgentV2:
             self._last_answer_urls = _urlre.findall(final_response)
         except Exception as _url_exc:
             print(f"[AgentV2] |  (URL grounding skipped: {_url_exc})")
+
+        # ── Say where the answer actually came from ──
+        # A partial verdict means the content came from a different surface than
+        # the request named — typically a screenshot standing in for the page
+        # when the browser extension had nothing to give. That note was only
+        # emitted as a progress line, so the answer itself still read like a
+        # confident reading of the page, complete with a "Source URL" header.
+        # Attach it to the answer, which is the part the user keeps.
+        try:
+            notes = list(dict.fromkeys(getattr(self, "_partial_retrieval_notes", []) or []))
+            if notes and final_response and not plan.has_failed():
+                caveat = " ".join(n.rstrip(".") + "." for n in notes[:2])
+                final_response = (
+                    final_response.rstrip()
+                    + f"\n\n_Note: {caveat} Treat the details above as what was visible "
+                      f"on screen, not a verified reading of the page._"
+                )
+                print(f"[AgentV2] |  answer carries {len(notes)} partial-retrieval note(s)")
+        except Exception as _note_exc:
+            print(f"[AgentV2] |  (partial note skipped: {_note_exc})")
+
+        # ── Never present an answer that was never retrieved ──
+        # Observed: every retrieval failed on quota, and the reply was still
+        # "Here is the current weather in Patna." — a sentence that promises
+        # content, followed by none. If nothing was retrieved, say why.
+        try:
+            from agent.retrieval_guard import (retrieval_attempted, retrieval_succeeded,
+                                               last_failure_reason)
+            if retrieval_attempted() and not retrieval_succeeded():
+                body = (final_response or "").strip()
+                promises = _re.search(
+                    r"(?i)(?:here (?:is|are)|here'?s|below (?:is|are)|"
+                    r"the (?:current|latest))", body)
+                # A short promise with no substance behind it is the failure case.
+                if promises and len(body) < 220:
+                    reason = last_failure_reason() or "the page content could not be read"
+                    final_response = (
+                        f"I couldn't get that — {reason.rstrip('.')}. "
+                        f"Nothing below this line was actually retrieved, so I'd rather "
+                        f"not guess. Try again, or open the page and ask me to read it."
+                    )
+                    print("[AgentV2] |  replaced an unsupported answer with the real reason")
+        except Exception as _hon_exc:
+            print(f"[AgentV2] |  (answer honesty check skipped: {_hon_exc})")
 
         # ── Send final response ──
         try:

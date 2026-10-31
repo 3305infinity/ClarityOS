@@ -29,6 +29,18 @@ contextBridge.exposeInMainWorld("overlayAPI", {
     ipcRenderer.on("overlay-hidden", handler);
     return () => ipcRenderer.removeListener("overlay-hidden", handler);
   },
+  // Scan driven from outside this renderer: in sidebar mode the sidebar sees
+  // the agent's progress events and main borrows this window to draw on.
+  onScan: (handler) => {
+    const show = (_e, label) => handler(true, String(label || ""));
+    const hide = () => handler(false, "");
+    ipcRenderer.on("scan:show", show);
+    ipcRenderer.on("scan:hide", hide);
+    return () => {
+      ipcRenderer.removeListener("scan:show", show);
+      ipcRenderer.removeListener("scan:hide", hide);
+    };
+  },
   logError: (msg) => ipcRenderer.send("log-error", msg),
   logInfo: (msg) => ipcRenderer.send("log-info", msg),
 
