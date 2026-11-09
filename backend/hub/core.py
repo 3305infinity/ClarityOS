@@ -152,8 +152,8 @@ class Hub:
             "helper": self.helper.status(),
             "voice": {
                 "stt_provider": s["stt_provider"], "tts_provider": s["tts_provider"],
-                "stt_ready": s["stt_provider"] == "google" or sec.get({"gnani": "GNANI_API_KEY", "sarvam": "SARVAM_API_KEY"}.get(s["stt_provider"], ""), False),
-                "tts_ready": s["tts_provider"] == "google" or sec.get({"gnani": "GNANI_API_KEY", "sarvam": "SARVAM_API_KEY"}.get(s["tts_provider"], ""), False),
+                "stt_ready": s["stt_provider"] == "google" or sec.get({"gnani": "GNANI_API_KEY", "gnani-stream": "GNANI_API_KEY", "sarvam": "SARVAM_API_KEY"}.get(s["stt_provider"], ""), False),
+                "tts_ready": s["tts_provider"] == "google" or sec.get({"gnani": "GNANI_API_KEY", "gnani-stream": "GNANI_API_KEY", "sarvam": "SARVAM_API_KEY"}.get(s["tts_provider"], ""), False),
             },
             "brain_ready": sec.get("GEMINI_API_KEY", False),
             "busy": bool(self.active and not self.active.done()),

@@ -119,10 +119,13 @@ CAPABILITIES = ["browser", "desktop", "shell", "files_read", "files_write",
 PERMISSION_MODES = ("allow", "ask", "deny")
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    "stt_provider": "google",          # google | gnani | sarvam
+    # Gnani is the voice stack: Prisma v2.5 over the realtime socket for STT,
+    # Timbre v2.5 for TTS. Google stays configured as the fallback so a missing
+    # GNANI_API_KEY degrades instead of leaving the assistant deaf and mute.
+    "stt_provider": "gnani-stream",    # google | gnani | gnani-stream | sarvam
     "stt_language": "en-IN",           # en-IN also understands Hindi-English mixed speech on Gnani
     "stt_fallback": "google",
-    "tts_provider": "google",          # google | gnani | sarvam
+    "tts_provider": "gnani",           # google | gnani | sarvam
     "tts_enabled": True,
     "tts_speed": 1.0,
     "gnani_tts_model": "timbre-v2.5",
@@ -142,7 +145,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 }
 
 _ENUMS = {
-    "stt_provider": ("google", "gnani", "sarvam"),
+    # gnani-stream is the same Prisma v2.5 model over the realtime socket.
+    "stt_provider": ("google", "gnani", "gnani-stream", "sarvam"),
     "stt_fallback": ("", "google", "gnani", "sarvam"),
     "tts_provider": ("google", "gnani", "sarvam"),
     "voice_mode": ("push_to_talk", "hands_free"),

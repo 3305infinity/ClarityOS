@@ -146,6 +146,28 @@ class ModelRouter:
         self._initialized = False
         self._init_lock = asyncio.Lock()
 
+    async def _initialize_evon(self) -> bool:
+        """Point all three tiers at a configured Evon deployment.
+
+        Evon is one served model, not a cheap/fast/powerful family, so the
+        router's tiers all resolve to it. Returns False — leaving Gemini to be
+        set up as usual — when nothing is configured or the server is down.
+        """
+        try:
+            from providers.evon import EvonProvider, is_configured
+        except Exception as exc:
+            print(f"[Router] Evon provider unavailable ({exc.__class__.__name__})")
+            return False
+        if not is_configured():
+            print("[Router] CLARITYOS_LLM_PROVIDER=evon but EVON_BASE_URL is not set")
+            return False
+        provider = EvonProvider()
+        if not await provider.is_available():
+            return False
+        self._router = self._fast = self._powerful = provider
+        print(f"[Router] ✓ EVON (all tiers): {provider.name}")
+        return True
+
     async def initialize(self):
         """Lazily init Gemini providers. Thread-safe via asyncio.Lock."""
         if self._initialized:
@@ -154,6 +176,16 @@ class ModelRouter:
             # Double-check after acquiring lock
             if self._initialized:
                 return
+
+            # Optional: Evon on a deployment the user runs and configures.
+            # Gemini stays the default; this only takes over when explicitly
+            # selected AND actually reachable, so a stale setting or a server
+            # that is down can never leave the agent with no provider at all.
+            if os.environ.get("CLARITYOS_LLM_PROVIDER", "gemini").strip().lower() == "evon":
+                if await self._initialize_evon():
+                    self._initialized = True
+                    return
+                print("[Router] Evon unavailable - falling back to Gemini")
 
             api_key = os.environ.get("GEMINI_API_KEY", "")
             if not api_key:

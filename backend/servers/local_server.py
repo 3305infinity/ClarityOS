@@ -62,6 +62,7 @@ except ImportError:
     print("[Voice] pvporcupine not installed — wake word will be disabled")
 from voice.stt import get_stt_provider, NoSpeechError, STTRequestError
 from voice.stt import SAMPLE_RATE as STT_SAMPLE_RATE
+from voice.stt import GNANI_MAX_AUDIO_S, pcm_duration_s
 
 
 def _resample_pcm16(pcm: bytes, src_rate: int, dst_rate: int, channels: int = 1) -> bytes:
@@ -197,6 +198,12 @@ class VoiceAssistant:
         self.push_to_talk = False
         self._onset_deadline = 0.0
         self.MIN_BUFFER_SIZE = 16000 * 2 * 0.3  # Min 0.3 seconds of audio
+        # Longest clip the configured engine will accept. Only Gnani documents
+        # one; Google and Sarvam keep their previous unbounded behaviour.
+        self.MAX_CLIP_S = GNANI_MAX_AUDIO_S
+        # Live realtime-STT socket for the take in progress, when the engine
+        # supports one. None for the REST engines.
+        self._stream_session = None
         self.grace_chunks_remaining = 0  # Grace period after await_reply
         self.waiting_for_voice = False  # True = require voice onset before recording
         self.waiting_for_reply = False  # True = do not abort on STT silence
@@ -473,8 +480,79 @@ class VoiceAssistant:
             except Exception:
                 pass
 
-    async def handle_audio_chunk(self, websocket, b64_payload):
-        """Decode base64 WAV, strip header, get raw PCM bytes."""
+    async def _finish_transcription(self) -> str:
+        """Transcript for the take just captured, streamed or batched.
+
+        With a live socket the audio is already on its way, so this only
+        commits the utterance and collects the result. If that fails for any
+        reason, the buffered PCM is still here and goes over REST — the
+        fallback the engines already had.
+        """
+        session = self._stream_session
+        if session is None:
+            return await self.stt.transcribe(bytes(self.audio_buffer))
+        self._stream_session = None
+        try:
+            return await session.finish()
+        except NoSpeechError:
+            raise
+        except Exception as e:
+            print(f"[Audio] realtime transcript failed ({e}); retrying over REST")
+            await session.close()
+            return await self.stt.transcribe(bytes(self.audio_buffer))
+
+    def _streaming_stt(self):
+        """The configured engine, if it can stream. None for REST engines."""
+        return self.stt if hasattr(self.stt, "session") else None
+
+    async def _stream_pcm(self, pcm_data: bytes) -> None:
+        """Open the realtime session on first audio, then push this chunk.
+
+        Any socket problem drops the session and leaves `audio_buffer` intact,
+        so transcribe_and_act still has the full take to send over REST.
+        """
+        engine = self._streaming_stt()
+        if engine is None:
+            return
+        try:
+            if self._stream_session is None:
+                self._stream_session = engine.session(STT_SAMPLE_RATE)
+                await self._stream_session.open()
+            await self._stream_session.send_pcm(pcm_data)
+        except Exception as e:
+            print(f"[Audio] realtime STT unavailable ({e}); falling back to REST for this take")
+            await self._close_stream_session()
+
+    async def _close_stream_session(self) -> None:
+        if self._stream_session is not None:
+            try:
+                await self._stream_session.close()
+            except Exception:
+                pass
+            self._stream_session = None
+
+    def _max_clip_seconds(self) -> float:
+        """Clip ceiling for the engine in use, or 0 when it does not document one.
+
+        Kept provider-specific on purpose: capping Google or Sarvam here would
+        change behaviour they never asked for.
+        """
+        name = getattr(self.stt, "name", "") or ""
+        return self.MAX_CLIP_S if "gnani" in name else 0.0
+
+    async def handle_audio_chunk(self, websocket, b64_payload, fmt: str = "", rate: int = 0):
+        """Decode a client audio chunk to raw 16 kHz mono PCM.
+
+        Two wire formats, both base64:
+          * `format: "pcm16"` — raw signed 16-bit little-endian frames, with the
+            capture rate in `rate`. Used by the overlay so realtime STT frames
+            are not wrapped and unwrapped on every 32 ms of audio.
+          * no `format` — a self-describing WAV chunk, which is what the sidebar
+            still sends. The header carries the rate.
+        Either way the rate is known, which is what the resampler below needs:
+        a browser may hand back a 44.1/48 kHz context even when 16 kHz was
+        asked for, and transcribing that unchanged reads as "no speech".
+        """
         # Mute mic pipeline while TTS is playing to prevent feedback.
         # The watchdog guarantees the gate cannot latch shut if the renderer
         # never reports playback finished.
@@ -484,13 +562,18 @@ class VoiceAssistant:
             return
 
         try:
-            wav_bytes = base64.b64decode(b64_payload)
-            
-            # Use Python's wave module to read the WAV chunk
-            with wave.open(io.BytesIO(wav_bytes), 'rb') as w:
-                pcm_data = w.readframes(w.getnframes())
-                chunk_rate = w.getframerate()
-                chunk_channels = w.getnchannels()
+            raw = base64.b64decode(b64_payload)
+
+            if fmt == "pcm16":
+                pcm_data = raw
+                chunk_rate = rate or STT_SAMPLE_RATE
+                chunk_channels = 1
+            else:
+                # Use Python's wave module to read the WAV chunk
+                with wave.open(io.BytesIO(raw), 'rb') as w:
+                    pcm_data = w.readframes(w.getnframes())
+                    chunk_rate = w.getframerate()
+                    chunk_channels = w.getnchannels()
 
             # Everything downstream (silence detection, the STT engines) assumes
             # 16 kHz mono. A browser is free to hand the renderer a 44.1/48 kHz
@@ -574,6 +657,37 @@ class VoiceAssistant:
         # Phase 2: Normal buffering + silence detection
         self.audio_buffer.extend(pcm_data)
 
+        # Realtime engine: push this chunk out now rather than waiting for the
+        # take to finish. The socket's own voice detection decides where
+        # utterances end, so the RMS silence check below is skipped entirely —
+        # running both would cut takes short and race the server's segments.
+        if self._streaming_stt() is not None:
+            await self._stream_pcm(pcm_data)
+            max_s = self._max_clip_seconds()
+            if max_s and pcm_duration_s(bytes(self.audio_buffer)) >= max_s:
+                print(f"=> CLIP LIMIT ({max_s:.0f}s) reached. Committing utterance...")
+                self.state = "LOADING"
+                await websocket.send(json.dumps({
+                    "type": "progress", "state": "state-loading"
+                }))
+                asyncio.create_task(self.transcribe_and_act(websocket))
+            return
+
+        # Cut the take at the engine's maximum clip length instead of
+        # recording past it and having the upload refused. Gnani's REST
+        # endpoint accepts 30 s; a long dictation used to be sent whole and
+        # come back as an error, losing everything the user had just said.
+        max_s = self._max_clip_seconds()
+        if max_s and pcm_duration_s(bytes(self.audio_buffer)) >= max_s:
+            print(f"=> CLIP LIMIT ({max_s:.0f}s) reached. Processing what we have...")
+            self.state = "LOADING"
+            self.consecutive_silence_chunks = 0
+            await websocket.send(json.dumps({
+                "type": "progress", "state": "state-loading"
+            }))
+            asyncio.create_task(self.transcribe_and_act(websocket))
+            return
+
         if rms < 250:
             self.consecutive_silence_chunks += 1
         else:
@@ -650,7 +764,7 @@ class VoiceAssistant:
             # Hand the raw 16 kHz mono PCM to the configured STT engine
             # (Google / Gnani Vachana / Sarvam). Raises NoSpeechError or STTRequestError.
             try:
-                text = await self.stt.transcribe(bytes(self.audio_buffer))
+                text = await self._finish_transcription()
                 print(f"=> TRANSCRIBED: {text}")
 
                 # Show the user what was heard before acting on it. Sent once,
@@ -790,6 +904,9 @@ class VoiceAssistant:
         # Reset state
         self.state = "IDLE"
         self.audio_buffer = bytearray()
+        # A take that ended any other way (error, interrupt, cancel) must not
+        # leave the realtime socket open behind it.
+        await self._close_stream_session()
 
 
 # ── Extension pairing through the Electron UI ───────────────────────────────
@@ -961,7 +1078,10 @@ async def main_handler(websocket):
                     greeting_task = None
                 
                 if msg_type == "audio_chunk":
-                    await assistant.handle_audio_chunk(websocket, data.get("payload", ""))
+                    await assistant.handle_audio_chunk(
+                        websocket, data.get("payload", ""),
+                        fmt=str(data.get("format", "") or ""),
+                        rate=int(data.get("rate", 0) or 0))
                 elif msg_type == "cancel_task":
                     await assistant.cancel_active_task(websocket)
                 elif msg_type == "toggle_conversation_mode":

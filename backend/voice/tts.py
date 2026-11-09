@@ -40,7 +40,9 @@ AUDIO_ENCODING = "OGG_OPUS"
 # Max characters per synthesis call (Google TTS limit is 5000)
 MAX_CHARS_PER_CALL = 4800
 
-# Concurrency limit for parallel sentence synthesis
+# Concurrency limit for parallel sentence synthesis. Per-engine limits in
+# tts_providers.MAX_CONCURRENT override it — Gnani accepts one request at a
+# time and answers the rest with 429.
 MAX_CONCURRENT_SYNTH = 4
 
 # First audio arrives only when the first chunk finishes synthesising, so keep
@@ -226,6 +228,8 @@ class TTSEngine:
         if self.provider_name not in ("google", "") and self._alt is None:
             print(f"[TTS] Unknown CLARITYOS_TTS_PROVIDER '{self.provider_name}' — using google")
             self.provider_name = "google"
+        self._max_concurrent = tts_providers.MAX_CONCURRENT.get(
+            self.provider_name, MAX_CONCURRENT_SYNTH)
         # If the alternative engine fails (bad key, offline, quota) fall back to Google once.
         self._fallback_google = os.environ.get("CLARITYOS_TTS_FALLBACK", "google").strip().lower() == "google"
 
@@ -370,6 +374,54 @@ class TTSEngine:
             return None
         return await self._synthesize_one(cleaned)
 
+    def _can_stream_audio(self) -> bool:
+        """Does the configured engine deliver audio progressively?"""
+        return (os.environ.get("CLARITYOS_TTS_STREAM", "1").strip().lower()
+                not in ("0", "false", "no")
+                and self._alt is not None
+                and hasattr(self._alt, "synthesize_stream"))
+
+    async def _stream_from_provider(self, sentences: list[str]) -> AsyncIterator[TTSChunk]:
+        """Forward provider chunks as TTSChunks, in order, across all sentences.
+
+        `seq` has to keep rising across the whole answer — the renderer orders
+        its playback queue by it — so the provider's per-sentence chunk_index
+        is offset rather than used raw. `final` is set once, on the last chunk
+        of the last sentence, because that is what stops playback downstream.
+
+        If the stream fails part-way the sentence is retried through the normal
+        synthesis path, which keeps the existing Google / Windows SAPI
+        fallbacks intact.
+        """
+        seq = 0
+        last = len(sentences) - 1
+        for index, sentence in enumerate(sentences):
+            emitted = 0
+            try:
+                async for chunk_index, audio, is_final in self._alt.synthesize_stream(sentence):
+                    if not audio:
+                        continue
+                    playable = self._alt.playable_chunk(audio)
+                    emitted += 1
+                    yield TTSChunk(
+                        audio=playable,
+                        seq=seq,                       # chunk_index, offset to stay global
+                        final=(index == last and is_final),
+                        text=sentence,
+                    )
+                    seq += 1
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(f"[TTS] ⚠ {self.provider_name} streaming failed: {e}")
+                if emitted:
+                    continue                           # partial audio already spoken
+                audio = await self._synthesize_one(sentence)
+                if audio:
+                    yield TTSChunk(audio=audio, seq=seq,
+                                   final=(index == last), text=sentence)
+                    seq += 1
+
     async def stream_synthesize(
         self,
         text: str,
@@ -404,8 +456,18 @@ class TTSEngine:
         print(f"[TTS] 🔊 Streaming {len(sentences)} sentence(s), "
               f"{len(cleaned)} chars, engine={self.provider_name}")
 
-        # Launch all synthesis tasks concurrently (with semaphore)
-        sem = asyncio.Semaphore(MAX_CONCURRENT_SYNTH)
+        # Engines that stream their own audio go down a separate path: waiting
+        # for a whole sentence to finish synthesizing before any of it is sent
+        # is exactly the delay streaming removes.
+        if self._can_stream_audio():
+            async for chunk in self._stream_from_provider(sentences):
+                yield chunk
+            return
+
+        # Launch all synthesis tasks concurrently (with semaphore). The width
+        # is the engine's, not a fixed 4: queueing four sentences at Gnani only
+        # produced three 429s and a gap in the middle of the answer.
+        sem = asyncio.Semaphore(self._max_concurrent)
 
         async def _synth_with_limit(s: str) -> Optional[bytes]:
             async with sem:

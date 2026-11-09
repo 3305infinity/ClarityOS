@@ -1259,6 +1259,38 @@ function writeString(view, offset, string) {
   }
 }
 
+/* ── Frame splitter for realtime STT ──
+   Gnani's socket accepts frames of exactly 1024 bytes — 512 signed 16-bit
+   mono samples — and refuses anything else. createScriptProcessor(1024) hands
+   us 1024 *samples*, which is 2048 bytes: twice the frame size. These two
+   numbers look identical and are not, so the conversion is done here, once,
+   and the leftover tail is carried into the next callback rather than padded
+   (padding would feed the recogniser silence nobody spoke). */
+const PCM_FRAME_BYTES = 1024;
+let pcmCarry = new Uint8Array(0);
+
+function pcmFrames(samples) {
+  const pcm = new ArrayBuffer(samples.length * 2);
+  floatTo16BitPCM(new DataView(pcm), 0, samples);
+
+  const merged = new Uint8Array(pcmCarry.length + pcm.byteLength);
+  merged.set(pcmCarry, 0);
+  merged.set(new Uint8Array(pcm), pcmCarry.length);
+
+  const frames = [];
+  let offset = 0;
+  while (merged.length - offset >= PCM_FRAME_BYTES) {
+    frames.push(merged.slice(offset, offset + PCM_FRAME_BYTES).buffer);
+    offset += PCM_FRAME_BYTES;
+  }
+  pcmCarry = merged.slice(offset);
+  return frames;
+}
+
+function resetPcmFrames() {
+  pcmCarry = new Uint8Array(0);
+}
+
 // Packages the raw Float32Array PCM chunk into a full WAV file Buffer
 function encodeWAVChunk(samples, sampleRate) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
@@ -1323,17 +1355,19 @@ async function startAudioStreaming() {
       const inputBuffer = event.inputBuffer.getChannelData(0); // Mono Float32Array
       const sampleRate = app.audioContext.sampleRate; // Typically 16000 here
 
-      // Pack into a WAV wrapper
-      const wavBuffer = encodeWAVChunk(inputBuffer, sampleRate);
-
-      // Convert to base64
-      const base64Audio = arrayBufferToBase64(wavBuffer);
-
-      // Stream to Python Backend
-      app.ws.send(JSON.stringify({
-        type: "audio_chunk",
-        payload: base64Audio
-      }));
+      // Raw PCM, not WAV. Gnani's realtime socket takes raw signed 16-bit
+      // little-endian frames and nothing else, so wrapping every 32 ms of
+      // audio in a RIFF header here only to strip it again in Python is work
+      // that buys nothing. The rate travels in the message instead of in a
+      // header, so the backend can still spot a 44.1/48 kHz context.
+      for (const frame of pcmFrames(inputBuffer)) {
+        app.ws.send(JSON.stringify({
+          type: "audio_chunk",
+          format: "pcm16",
+          rate: sampleRate,
+          payload: arrayBufferToBase64(frame),
+        }));
+      }
     };
 
     app.sourceNode.connect(app.scriptProcessor);
@@ -1350,6 +1384,9 @@ async function startAudioStreaming() {
 }
 
 async function stopAudioStreaming() {
+  // Drop any partial frame, or the tail of this take would be prepended to
+  // the first frame of the next one.
+  resetPcmFrames();
   if (app.scriptProcessor) {
     app.scriptProcessor.disconnect();
     app.scriptProcessor = null;

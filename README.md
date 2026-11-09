@@ -1,11 +1,8 @@
 # ClarityOS
 **AI desktop assistant for Windows** — a docked sidebar or a transparent glass-pill overlay, driven by voice and text, that controls your PC.
 Built with Electron + Python. Thinks with Gemini. Acts through a local Hub, a Windows helper, and a Chrome extension.
----
-
 
 ---
-
 
 ## Features
 - **Two presentation modes** — a **Docked Sidebar** for longer conversations, or a **Floating Assistant** pill for quick requests. Pick one from the tray; the choice is remembered across restarts
