@@ -136,6 +136,8 @@ const app = {
   ttsPlaying: false,
   ttsStarting: false,     // guards the decode race (two chunks starting at once)
   ttsCurrentSource: null, // currently playing AudioBufferSourceNode
+  ttsScheduled: [],       // sources queued on the audio clock, newest last
+  ttsNextStart: 0,        // ctx time the next buffer must begin, for gapless play
   _ttsSeen: new Set(),    // seqs already queued — drops duplicate frames
   _ttsNextSeq: 0,         // fallback when the backend omits seq
 
@@ -1460,10 +1462,17 @@ async function handleTTSChunk(data) {
 }
 
 function playNextTTSChunk() {
+  // Buffers are scheduled ahead on the audio clock, so one source ending does
+  // not mean the speakers are quiet — the next may already be mid-playback.
+  // Reporting done here would cut the reply short and reopen the mic over our
+  // own voice.
+  if (app.ttsScheduled.length) return;
+
   if (app.ttsQueue.length === 0) {
     app.ttsPlaying = false;
     app.ttsStarting = false;
     app.ttsCurrentSource = null;
+    app.ttsNextStart = 0;
     app._ttsSeen.clear();          // next reply starts a fresh seq window
     app._ttsNextSeq = 0;
     // Remove speaking variant
@@ -1507,18 +1516,43 @@ function playNextTTSChunk() {
 function startNextBuffer(ctx) {
   const item = app.ttsQueue.shift();
   if (!item) { playNextTTSChunk(); return; }
-  // Only ever one live source: stop any stragglers before starting the next.
-  if (app.ttsCurrentSource) {
-    try { app.ttsCurrentSource.onended = null; app.ttsCurrentSource.stop(); } catch {}
-    app.ttsCurrentSource = null;
-  }
   app.ttsStarting = false;
+
+  // Schedule on the audio clock, not on onended.
+  //
+  // This used to be `source.start(0)` with the next buffer started from the
+  // previous one's `onended`. That callback is an event-loop turn, so every
+  // buffer boundary carried a few milliseconds of silence — an audible click.
+  // With whole sentences per buffer that happened a handful of times per
+  // reply; once Timbre's SSE stream split each sentence into many small
+  // chunks it happened dozens of times, which is the crackling.
+  //
+  // Starting each buffer at the exact time the previous one ends removes the
+  // gap entirely: the audio is contiguous to the sample.
+  const now = ctx.currentTime;
+  // A little lead the first time so the first buffer is scheduled, not raced.
+  let at = app.ttsNextStart || 0;
+  if (at < now) at = now + 0.02;
+
   const source = ctx.createBufferSource();
   source.buffer = item.buffer;
   source.connect(ctx.destination);
-  source.onended = () => playNextTTSChunk();
-  source.start(0);
+  source.start(at);
+  app.ttsNextStart = at + item.buffer.duration;
+  app.ttsScheduled.push(source);
+
+  // Continuity no longer depends on this; it only reports when the speakers
+  // have actually gone quiet so the queue can drain and the mic can reopen.
+  source.onended = () => {
+    const i = app.ttsScheduled.indexOf(source);
+    if (i >= 0) app.ttsScheduled.splice(i, 1);
+    playNextTTSChunk();
+  };
   app.ttsCurrentSource = source;
+
+  // Anything already decoded can be scheduled straight away — each lands
+  // exactly where the last one ends.
+  if (app.ttsQueue.length) startNextBuffer(ctx);
 }
 
 // Say it once, in the UI — a console warning alone looks like working audio.
@@ -1533,11 +1567,13 @@ function reportAudioBlocked() {
 
 function stopTTS() {
   app.ttsQueue = [];
-  if (app.ttsCurrentSource) {
-    // Drop onended first, or stop() would trigger playNextTTSChunk and restart.
-    try { app.ttsCurrentSource.onended = null; app.ttsCurrentSource.stop(); } catch {}
-    app.ttsCurrentSource = null;
+  // Several buffers may be scheduled ahead on the audio clock now, so stopping
+  // only the current one would leave the rest to play after a Stop.
+  for (const source of app.ttsScheduled.splice(0)) {
+    try { source.onended = null; source.stop(); } catch {}
   }
+  app.ttsCurrentSource = null;
+  app.ttsNextStart = 0;
   app.ttsPlaying = false;
   app.ttsStarting = false;
   app._ttsSeen.clear();

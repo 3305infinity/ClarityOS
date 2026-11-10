@@ -31,7 +31,9 @@ import json
 import os
 import re
 import time
-import webbrowser
+import webbrowser  # noqa: F401 - kept for callers that still import it
+
+from tools.browser_target import open_in_browser
 from typing import Optional, List
 
 from runtime_state import runtime_state_store
@@ -681,7 +683,7 @@ async def gdocs_create(title: str, body: str = "") -> str:
                         f"https://docs.googleapis.com/v1/documents/{doc_id}:batchUpdate",
                         body={"requests": requests}, token=token)
         url = f"https://docs.google.com/document/d/{doc_id}/edit"
-        webbrowser.open(url)
+        open_in_browser(url)
         runtime_state_store.update_request_state(active_doc_url=url)
         return json.dumps({"ok": True, "doc_id": doc_id, "url": url,
                            "body_length": len(body)})
@@ -1015,7 +1017,7 @@ async def gsheets_create(title: str, headers: list[str] | None = None,
                              body=body, token=token)
         spreadsheet_id = result.get("spreadsheetId", "")
         url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
-        webbrowser.open(url)
+        open_in_browser(url)
         return json.dumps({
             "ok": True,
             "spreadsheet_id": spreadsheet_id,
@@ -1024,7 +1026,7 @@ async def gsheets_create(title: str, headers: list[str] | None = None,
         })
 
     # Fallback: open blank sheet and paste TSV
-    webbrowser.open("https://sheets.new")
+    open_in_browser("https://sheets.new")
     await asyncio.sleep(3.0)
     if headers or rows:
         tsv_lines: list[str] = []
@@ -1368,12 +1370,12 @@ async def gslides_create(title: str, slides: list[dict] | None = None) -> str:
                             body={"requests": text_requests}, token=token)
 
         url = f"https://docs.google.com/presentation/d/{pres_id}/edit"
-        webbrowser.open(url)
+        open_in_browser(url)
         return json.dumps({"ok": True, "presentation_id": pres_id, "url": url,
                            "slides_created": len(slides or [])})
 
     # Fallback
-    webbrowser.open("https://slides.new")
+    open_in_browser("https://slides.new")
     await asyncio.sleep(3.0)
     return json.dumps({"ok": True, "url": "https://slides.new",
                        "note": "Opened blank presentation. Use keyboard tools to add content."})
@@ -1446,7 +1448,7 @@ async def gslides_add_slide(presentation_url_or_id: str, title: str = "",
     # Cmd+M = new slide, then type into the title/body placeholders
     # First ensure the presentation is open
     if presentation_url_or_id and presentation_url_or_id.startswith("http"):
-        webbrowser.open(presentation_url_or_id)
+        open_in_browser(presentation_url_or_id)
         await asyncio.sleep(2.5)
     # Insert new slide (Cmd+M in Slides)
     await _osascript('tell application "System Events" to keystroke "m" using command down')
@@ -1512,7 +1514,7 @@ async def gdrive_search(query: str, max_results: int = 10) -> str:
 
     # Browser path: open Drive search page and scrape results
     search_url = f"https://drive.google.com/drive/search?q={urllib.parse.quote(query)}"
-    webbrowser.open(search_url)
+    open_in_browser(search_url)
     await asyncio.sleep(3.0)
     js = (
         "(function(){"
@@ -1608,7 +1610,7 @@ async def gdrive_upload(local_path: str, drive_name: str = "",
 
     # Browser path: reveal file in Finder and open Drive — user drags to upload
     await asyncio.create_subprocess_exec("open", "-R", expanded)
-    webbrowser.open("https://drive.google.com/drive/my-drive")
+    open_in_browser("https://drive.google.com/drive/my-drive")
     return json.dumps({"ok": True, "local_path": expanded, "name": filename,
                        "method": "manual_drag_and_drop",
                        "note": f"Opened Google Drive and revealed '{filename}' in Finder. "
@@ -1683,7 +1685,7 @@ async def gmail_send(to: str, subject: str, body: str,
     if bcc:
         params["bcc"] = bcc
     compose_url = "https://mail.google.com/mail/?" + urllib.parse.urlencode(params)
-    webbrowser.open(compose_url)
+    open_in_browser(compose_url)
     await asyncio.sleep(2.5)
     # Auto-click Send button via keyboard shortcut (Ctrl+Enter in Gmail)
     await _osascript('tell application "System Events" to keystroke return using {command down}')
@@ -1743,7 +1745,7 @@ async def gmail_read(query: str = "", max_results: int = 10) -> str:
     gmail_url = "https://mail.google.com/mail/u/0/"
     if query:
         gmail_url += f"#search/{urllib.parse.quote(query)}"
-    webbrowser.open(gmail_url)
+    open_in_browser(gmail_url)
     await asyncio.sleep(3.0)  # wait for Gmail to load
 
     # Scrape visible email rows from the Gmail thread list
@@ -1812,26 +1814,9 @@ async def gmail_draft(to: str, subject: str, body: str) -> str:
     # Browser path: open compose URL without sending
     params = {"view": "cm", "to": to, "su": subject, "body": body}
     compose_url = "https://mail.google.com/mail/?" + urllib.parse.urlencode(params)
-    # webbrowser.open() hands this to the Windows default, which is Edge here.
-    # The user is signed into Gmail in Chrome and was reading the mail there,
-    # so the compose window has to open in the same browser — in Edge it lands
-    # on a signed-out Google page, or a different account entirely.
-    where = "your browser"
-    try:
-        from tools.browser_target import reading_browser, launch_url
-        target = reading_browser()
-        if target:
-            opened, message = launch_url(target, compose_url)
-            if opened:
-                where = target.capitalize()
-            else:
-                print(f"[gmail_draft] {message}")
-                webbrowser.open(compose_url)
-        else:
-            webbrowser.open(compose_url)
-    except Exception as exc:
-        print(f"[gmail_draft] browser targeting failed: {exc.__class__.__name__}")
-        webbrowser.open(compose_url)
+    # Must open in the browser the user is signed into, not the system
+    # default — see tools/browser_target.open_in_browser.
+    where = open_in_browser(compose_url)
     return json.dumps({"ok": True, "to": to, "subject": subject,
                        "method": "gmail_compose_url", "browser": where,
                        "note": f"Opened a Gmail compose window in {where} with the "
@@ -1921,7 +1906,7 @@ async def gcal_create_event(title: str, start: str, end: str,
         params["add"] = ",".join(attendees)
 
     cal_url = "https://calendar.google.com/calendar/render?" + urllib.parse.urlencode(params)
-    webbrowser.open(cal_url)
+    open_in_browser(cal_url)
     return json.dumps({"ok": True, "title": title, "start": start, "end": end,
                        "method": "calendar_prefill_url",
                        "note": "Opened Google Calendar new-event form with all fields pre-filled. No OAuth needed."})
@@ -1987,7 +1972,7 @@ async def gcal_list_events(time_min: str = "", time_max: str = "",
                            "events": summary}, ensure_ascii=False)
 
     # Browser path: open Google Calendar and scrape visible events from the DOM
-    webbrowser.open("https://calendar.google.com/calendar/r/week")
+    open_in_browser("https://calendar.google.com/calendar/r/week")
     await asyncio.sleep(3.5)  # wait for calendar to load
     raw = await _bridge_extract("gcal")
     if raw is None:

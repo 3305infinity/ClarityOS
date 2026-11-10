@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from voice import stt, tts_providers
-from voice.stt import GnaniSTT, SarvamSTT, FallbackSTT, NoSpeechError, STTRequestError, pcm_to_wav
+from voice.stt import GnaniSTT, NoSpeechError, STTRequestError, pcm_to_wav
 
 PCM = b"\x01\x02" * 8000
 REAL = httpx.AsyncClient
@@ -57,51 +57,6 @@ def test_gnani_stt_errors(monkeypatch):
         run(GnaniSTT(api_key="K").transcribe(PCM))
 
 
-def test_sarvam_stt(monkeypatch):
-    seen = {}
-
-    def handler(req):
-        seen["key"] = req.headers.get("api-subscription-key")
-        seen["model"] = b"saaras:v3" in req.content
-        return httpx.Response(200, json={"transcript": "नमस्ते दुनिया", "language_code": "hi-IN"})
-
-    mock_http(monkeypatch, handler)
-    assert run(SarvamSTT(api_key="S", language="").transcribe(PCM)) == "नमस्ते दुनिया"
-    assert seen == {"key": "S", "model": True}
-
-
-def test_fallback_only_on_request_errors(monkeypatch):
-    class Bad:
-        name = "bad"
-        async def transcribe(self, pcm, sample_rate=16000):
-            raise STTRequestError("down")
-
-    class Quiet(Bad):
-        async def transcribe(self, pcm, sample_rate=16000):
-            raise NoSpeechError("silence")
-
-    class Good:
-        name = "good"
-        async def transcribe(self, pcm, sample_rate=16000):
-            return "fallback text"
-
-    assert run(FallbackSTT(Bad(), Good()).transcribe(PCM)) == "fallback text"
-    with pytest.raises(NoSpeechError):          # silence must not trigger a second (paid) call
-        run(FallbackSTT(Quiet(), Good()).transcribe(PCM))
-
-
-def test_factory_selection(monkeypatch):
-    stt.reset_stt_provider()
-    monkeypatch.setenv("CLARITYOS_STT_PROVIDER", "gnani")
-    monkeypatch.delenv("CLARITYOS_STT_FALLBACK", raising=False)
-    p = stt.get_stt_provider()
-    assert p.name == "gnani+google"
-    stt.reset_stt_provider()
-    monkeypatch.setenv("CLARITYOS_STT_PROVIDER", "bogus")
-    assert stt.get_stt_provider().name == "google"
-    stt.reset_stt_provider()
-
-
 def test_pcm_to_wav_header():
     w = pcm_to_wav(PCM)
     assert w[:4] == b"RIFF" and w[8:12] == b"WAVE"
@@ -130,17 +85,6 @@ def test_gnani_tts(monkeypatch):
     assert b["audio_config"]["container"] == "wav" and b["audio_config"]["encoding"] == "linear_pcm"
 
 
-def test_sarvam_tts(monkeypatch):
-    monkeypatch.setenv("SARVAM_API_KEY", "S")
-    monkeypatch.setenv("SARVAM_TTS_PACE", "1.3")
-    wav = b"RIFF" + b"\x00" * 300
-    half = base64.b64encode(wav).decode()
-    mock_http(monkeypatch, lambda r: httpx.Response(200, json={"audios": [half[:40], half[40:]]}))
-    assert run(tts_providers.SarvamTTS().synthesize("नमस्ते")) == wav
-    p = tts_providers.SarvamTTS().build_payload("hi")
-    assert p["model"] == "bulbul:v3" and p["speaker"] == "shubh" and p["pace"] == 1.3
-
-
 def test_tts_http_error(monkeypatch):
     monkeypatch.setenv("GNANI_API_KEY", "K")
     mock_http(monkeypatch, lambda r: httpx.Response(429, json={"error": {"message": "slow down"}}))
@@ -154,21 +98,6 @@ def test_detect_language():
     assert d("Hello how are you") == "en-IN"
     assert d("வணக்கம் நண்பர்களே") == "ta-IN"
     assert d("Chrome खोलो please") in ("hi-IN", "en-IN")
-
-
-def test_tts_engine_falls_back_to_google(monkeypatch):
-    from voice import tts
-    monkeypatch.setenv("CLARITYOS_TTS_PROVIDER", "gnani")
-    monkeypatch.delenv("GNANI_API_KEY", raising=False)
-    tts.reset_tts_engine()
-    eng = tts.TTSEngine()
-    assert eng.provider_name == "gnani"
-
-    async def fake_google(self, text):
-        return b"GOOGLE-AUDIO"
-    monkeypatch.setattr(tts.TTSEngine, "_synthesize_google", fake_google)
-    assert run(eng._synthesize_one("hi there")) == b"GOOGLE-AUDIO"      # no key -> fell back
-    tts.reset_tts_engine()
 
 
 def test_hindi_danda_sentence_split():
@@ -224,3 +153,53 @@ def test_bolna_requires_approval_and_is_selected_for_call_requests():
     assert p.check("bolna_call", {"recipient_phone_number": "+91"}).action == "ask"   # sensitive even when 'allow'
     from tools.selector import ToolCategories
     assert "bolna_call" in ToolCategories.ALL
+
+
+# ── Gnani is the only voice vendor ──────────────────────────────────────────
+# These guard the replacement itself: a well-meaning "add a fallback engine"
+# change would make the assistant quietly stop using Gnani, which is the one
+# thing this build must not do.
+
+def test_factory_is_gnani_only(monkeypatch):
+    """Any retired or unknown engine name resolves to Gnani realtime."""
+    for name in ("google", "sarvam", "bogus", "windows"):
+        stt.reset_stt_provider()
+        monkeypatch.setenv("CLARITYOS_STT_PROVIDER", name)
+        assert stt.get_stt_provider().name == "gnani-stream"
+    stt.reset_stt_provider()
+    monkeypatch.delenv("CLARITYOS_STT_PROVIDER", raising=False)
+    assert stt.get_stt_provider().name == "gnani-stream"      # default
+    stt.reset_stt_provider()
+    monkeypatch.setenv("CLARITYOS_STT_PROVIDER", "gnani")
+    assert stt.get_stt_provider().name == "gnani"             # REST still selectable
+    stt.reset_stt_provider()
+
+
+def test_retired_engines_are_gone():
+    """The other vendors' code is deleted, not merely unreachable."""
+    for gone in ("GoogleSTT", "SarvamSTT", "FallbackSTT"):
+        assert not hasattr(stt, gone), f"{gone} should no longer exist"
+    for gone in ("SarvamTTS", "WindowsSapiTTS", "build_local_provider"):
+        assert not hasattr(tts_providers, gone), f"{gone} should no longer exist"
+    assert set(stt._PROVIDERS) == {"gnani", "gnani-stream"}
+    assert set(tts_providers.MAX_CHARS) == {"gnani"}
+
+
+def test_tts_build_provider_always_gnani():
+    assert isinstance(tts_providers.build_provider("sarvam"), tts_providers.GnaniTTS)
+    assert isinstance(tts_providers.build_provider("google"), tts_providers.GnaniTTS)
+    assert isinstance(tts_providers.build_provider(""), tts_providers.GnaniTTS)
+
+
+def test_tts_failure_is_reported_not_substituted(monkeypatch):
+    """With no key: return None, call nothing else, stay enabled."""
+    from voice import tts
+    monkeypatch.delenv("GNANI_API_KEY", raising=False)
+    tts.reset_tts_engine()
+    eng = tts.TTSEngine()
+    assert eng.provider_name == "gnani"
+
+    assert run(eng._synthesize_one("hi there")) is None
+    # A failed sentence must not switch speech off for the rest of the session.
+    assert eng.enabled is True
+    tts.reset_tts_engine()

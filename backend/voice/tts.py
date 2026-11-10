@@ -1,9 +1,13 @@
 """
-ClarityOS — Streamed TTS via Google Cloud Text-to-Speech (Neural2)
-==================================================================
-Splits response text into sentences, synthesizes each sentence
-concurrently, and yields audio chunks in order so the first sentence
-plays while later ones are still synthesizing.
+ClarityOS — Streamed TTS via Gnani Timbre v2.5
+==============================================
+Splits response text into sentences and yields audio chunks in order, so the
+first sentence plays while later ones are still being synthesized. Timbre's
+SSE endpoint streams within a sentence too, so speech starts before even the
+first sentence has finished rendering.
+
+Speech synthesis is Gnani only — there is no second engine and no switch to
+one. GNANI_API_KEY is what makes the assistant speak.
 
 Usage:
     from voice.tts import TTSEngine
@@ -29,15 +33,9 @@ print = partial(print, flush=True)
 #  Configuration
 # ═══════════════════════════════════════════════════════════════
 
-# Default Neural2 voice — natural, mid-cost ($16/1M chars)
-DEFAULT_VOICE = os.environ.get("CLARITYOS_TTS_VOICE", "en-US-Neural2-J")
-DEFAULT_LANGUAGE = os.environ.get("CLARITYOS_TTS_LANGUAGE", "en-US")
-DEFAULT_SPEAKING_RATE = float(os.environ.get("CLARITYOS_TTS_SPEED", "1.05"))
-
-# Audio encoding: OGG_OPUS is compact and plays natively in Chromium
-AUDIO_ENCODING = "OGG_OPUS"
-
-# Max characters per synthesis call (Google TTS limit is 5000)
+# Upper bound on a single synthesis call. The per-engine budget in
+# tts_providers.MAX_CHARS is what actually applies; this is the ceiling used
+# when an engine does not declare one.
 MAX_CHARS_PER_CALL = 4800
 
 # Concurrency limit for parallel sentence synthesis. Per-engine limits in
@@ -195,43 +193,22 @@ def split_sentences(text: str, max_chars: int = MAX_CHARS_PER_CALL) -> list[str]
 
 class TTSEngine:
     """
-    Async streamed TTS via Google Cloud Text-to-Speech.
+    Async streamed TTS via Gnani Timbre v2.5.
 
-    Lazily initializes the Google TTS client on first use.
-    Synthesizes sentences concurrently and yields audio chunks
-    in order for streaming playback.
+    Synthesizes sentences in order and yields audio chunks for streaming
+    playback — progressively over SSE when the engine supports it.
     """
 
-    def __init__(
-        self,
-        voice: str = DEFAULT_VOICE,
-        language: str = DEFAULT_LANGUAGE,
-        speaking_rate: float = DEFAULT_SPEAKING_RATE,
-    ):
-        self.voice_name = voice
-        self.language_code = language
-        self.speaking_rate = speaking_rate
-        self._client = None
+    def __init__(self):
         self._enabled = True
-        # Offline backstop, built on first need (see _get_local).
-        self._local = None
-        self._local_tried = False
-        self._google_ok = True
-        self._announced_google_down = False
-        self._announced_local = False
+        self._announced_failure = False
 
-        # Pluggable engine: google (default) | gnani | sarvam  — see voice/tts_providers.py
         from voice import tts_providers
-        self.provider_name = os.environ.get("CLARITYOS_TTS_PROVIDER", "google").strip().lower()
+        self.provider_name = "gnani"
         self._alt = tts_providers.build_provider(self.provider_name)
         self._max_chars = tts_providers.MAX_CHARS.get(self.provider_name, MAX_CHARS_PER_CALL)
-        if self.provider_name not in ("google", "") and self._alt is None:
-            print(f"[TTS] Unknown CLARITYOS_TTS_PROVIDER '{self.provider_name}' — using google")
-            self.provider_name = "google"
         self._max_concurrent = tts_providers.MAX_CONCURRENT.get(
             self.provider_name, MAX_CONCURRENT_SYNTH)
-        # If the alternative engine fails (bad key, offline, quota) fall back to Google once.
-        self._fallback_google = os.environ.get("CLARITYOS_TTS_FALLBACK", "google").strip().lower() == "google"
 
     @property
     def enabled(self) -> bool:
@@ -241,129 +218,30 @@ class TTSEngine:
     def enabled(self, value: bool):
         self._enabled = value
 
-    def _get_client(self):
-        """Lazily create the Google TTS client."""
-        if self._client is None:
-            try:
-                from google.cloud import texttospeech
-                self._client = texttospeech.TextToSpeechAsyncClient()
-                print("[TTS] ✓ Google Cloud TTS client initialized")
-            except ImportError:
-                self._report_google_unavailable(
-                    "google-cloud-texttospeech is not installed")
-                return None
-            except Exception as e:
-                # Almost always missing Application Default Credentials. Speech
-                # only: planning and desktop actions do not use Google Cloud auth.
-                detail = str(e)
-                if "default credentials" in detail.lower():
-                    self._report_google_unavailable(
-                        "no Google Cloud credentials (set GOOGLE_APPLICATION_CREDENTIALS "
-                        "in backend/.env, or CLARITYOS_TTS_PROVIDER=gnani|sarvam with that "
-                        "provider's key)")
-                else:
-                    self._report_google_unavailable(detail[:200])
-                return None
-        return self._client
-
-    def _report_google_unavailable(self, why: str) -> None:
-        """
-        Log once and stand down from Google — without disabling speech.
-
-        This used to set `_enabled = False`, which made `stream_synthesize`
-        return immediately and produce zero chunks, so nothing ever reached the
-        renderer. The offline voice now covers this case instead.
-        """
-        self._google_ok = False
-        if not self._announced_google_down:
-            self._announced_google_down = True
-            print(f"[TTS] ⚠ Google Cloud TTS unavailable — {why}. "
-                  f"Falling back to the built-in voice; Gemini planning is unaffected.")
-
     async def _synthesize_one(self, text: str) -> Optional[bytes]:
+        """Synthesize one segment with Gnani.
+
+        There is no second engine to try. On failure this says so once and
+        returns None: the sentence is skipped, the rest of the answer still
+        plays, and `enabled` is deliberately left alone — a bad key or an empty
+        balance is a reason to report, not a reason to switch speech off for
+        the session.
         """
-        Synthesize one segment: configured engine → Google → local Windows voice.
-
-        The local engine is the backstop that keeps the assistant audible when no
-        cloud credentials are configured. Returning None here means every engine
-        failed, and the reason has already been logged.
-        """
-        if self._alt is not None:
-            try:
-                return await self._alt.synthesize(text)
-            except Exception as e:
-                print(f"[TTS] ⚠ {self.provider_name} synthesis failed: {e}")
-                if not self._fallback_google:
-                    return await self._synthesize_local(text)
-                print("[TTS] ↪ falling back to Google TTS for this sentence")
-
-        audio = await self._synthesize_google(text)
-        if audio:
-            return audio
-        return await self._synthesize_local(text)
-
-    def _get_local(self):
-        """Lazily build the offline Windows synthesizer (None off Windows)."""
-        if self._local is None and not self._local_tried:
-            self._local_tried = True
-            from voice import tts_providers
-            self._local = tts_providers.build_local_provider()
-            if self._local is None:
-                print("[TTS] ⚠ No offline voice available on this platform")
-        return self._local
-
-    async def _synthesize_local(self, text: str) -> Optional[bytes]:
-        """Last resort: the built-in OS voice. Needs no credentials."""
-        provider = self._get_local()
-        if provider is None:
-            self._note_all_engines_failed()
-            return None
         try:
-            audio = await provider.synthesize(text)
+            return await self._alt.synthesize(text)
         except Exception as e:
-            print(f"[TTS] ⚠ Offline voice failed: {e}")
-            self._note_all_engines_failed()
-            return None
-        if audio and not self._announced_local:
-            self._announced_local = True
-            print("[TTS] 🔈 Using the built-in Windows voice "
-                  "(set GOOGLE_APPLICATION_CREDENTIALS, GNANI_API_KEY or "
-                  "SARVAM_API_KEY for a higher-quality voice)")
-        return audio
-
-    def _note_all_engines_failed(self) -> None:
-        """Disable only when nothing at all can speak, and say so once."""
-        if self._enabled:
-            self._enabled = False
-            print("[TTS] ⚠ Every speech engine failed — replies will be text-only")
-
-    async def _synthesize_google(self, text: str) -> Optional[bytes]:
-        client = self._get_client()
-        if not client:
+            if not self._announced_failure:
+                self._announced_failure = True
+                print(f"[TTS] Gnani synthesis failed: {e}")
+                print("[TTS] Check GNANI_API_KEY and your Gnani credits.")
             return None
 
-        try:
-            from google.cloud import texttospeech
 
-            request = texttospeech.SynthesizeSpeechRequest(
-                input=texttospeech.SynthesisInput(text=text),
-                voice=texttospeech.VoiceSelectionParams(
-                    language_code=self.language_code,
-                    name=self.voice_name,
-                ),
-                audio_config=texttospeech.AudioConfig(
-                    audio_encoding=texttospeech.AudioEncoding.OGG_OPUS,
-                    speaking_rate=self.speaking_rate,
-                    pitch=0.0,
-                ),
-            )
 
-            response = await client.synthesize_speech(request=request)
-            return response.audio_content
 
-        except Exception as e:
-            print(f"[TTS] ⚠ Synthesis error: {e}")
-            return None
+
+
+
 
     async def synthesize(self, text: str) -> Optional[bytes]:
         """Synthesize full text as a single audio blob."""
@@ -389,26 +267,32 @@ class TTSEngine:
         is offset rather than used raw. `final` is set once, on the last chunk
         of the last sentence, because that is what stops playback downstream.
 
-        If the stream fails part-way the sentence is retried through the normal
-        synthesis path, which keeps the existing Google / Windows SAPI
-        fallbacks intact.
+        If the stream fails part-way the sentence is retried once over Timbre's
+        REST endpoint, which is the same engine by a non-streaming route.
         """
         seq = 0
         last = len(sentences) - 1
         for index, sentence in enumerate(sentences):
             emitted = 0
             try:
+                # Hold one chunk back so the last real piece of audio can carry
+                # `final`. The stream's own end marker has no audio — emitting
+                # it would send the renderer an empty buffer, and skipping it
+                # would mean `final` never arrives and playback never ends.
+                pending: Optional[TTSChunk] = None
                 async for chunk_index, audio, is_final in self._alt.synthesize_stream(sentence):
                     if not audio:
                         continue
-                    playable = self._alt.playable_chunk(audio)
+                    # synthesize_stream already yields sample-aligned,
+                    # independently decodable WAV.
+                    if pending is not None:
+                        yield pending
+                        seq += 1
+                    pending = TTSChunk(audio=audio, seq=seq, final=False, text=sentence)
                     emitted += 1
-                    yield TTSChunk(
-                        audio=playable,
-                        seq=seq,                       # chunk_index, offset to stay global
-                        final=(index == last and is_final),
-                        text=sentence,
-                    )
+                if pending is not None:
+                    pending.final = (index == last)
+                    yield pending
                     seq += 1
             except asyncio.CancelledError:
                 raise
@@ -530,6 +414,6 @@ def get_tts_engine() -> TTSEngine:
 
 
 def reset_tts_engine() -> None:
-    """Drop the singleton so the next call re-reads CLARITYOS_TTS_* / GNANI_* / SARVAM_* env vars."""
+    """Drop the singleton so the next call re-reads CLARITYOS_TTS_* / GNANI_* env vars."""
     global _tts_engine
     _tts_engine = None

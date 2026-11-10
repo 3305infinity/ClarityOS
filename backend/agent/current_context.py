@@ -24,6 +24,7 @@ than binding the request to the wrong window.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -68,6 +69,10 @@ class CurrentContext:
     page_title: str = ""
     snapshot_age_s: Optional[float] = None
     snapshot_fresh: bool = False
+    # True when the tab came from the extension while some other app owned the
+    # foreground — a screen recorder, a chat window. The page is still
+    # readable; only keyboard/mouse automation would need focus.
+    focus_elsewhere: bool = False
 
     # Editor, when the foreground app is one
     editor: str = ""
@@ -224,12 +229,80 @@ def capture(task_id: str = "") -> CurrentContext:
     elif _is_editor(ctx.app):
         ctx.editor = ctx.app
         _editor_identity(ctx)
+    else:
+        # Something else owns the foreground — a screen recorder, a chat app,
+        # ClarityOS's own window. That does not mean the browser is out of
+        # reach: the extension publishes the active tab regardless of which
+        # window has focus, and reading it needs no focus at all.
+        #
+        # Refusing here told a user recording their screen to "bring the
+        # browser forward and ask again" while the tab was sitting there,
+        # readable, the whole time.
+        _browser_from_bridge(ctx)
 
     return ctx
 
 
+def _browser_from_bridge(ctx: CurrentContext) -> None:
+    """Adopt the extension's active tab when the foreground is not a browser.
+
+    A stale snapshot is adopted too, with `snapshot_fresh` left False. That is
+    deliberate: staleness means "do not trust this page *content*", not "there
+    is no browser". The caller reacts to a stale snapshot by asking the
+    extension to re-read — but that refresh is gated on a browser being
+    identified at all, so bailing out here skipped it and the user was told to
+    "bring the browser forward" instead.
+
+    The extension only pushes on navigation and tab switches, and its service
+    worker sleeps after ~30s idle. Someone reading an email while recording
+    their screen is past that window almost immediately.
+    """
+    try:
+        from browser.store import browser_store
+        from tools.browser_target import bridge_browser
+    except Exception:
+        return
+    try:
+        snapshot = browser_store.get_snapshot()
+    except Exception:
+        snapshot = None
+    if snapshot is None:
+        return
+
+    url = str(getattr(snapshot, "url", "") or "")
+    if not url.startswith("http"):
+        return
+
+    age = time.time() - float(getattr(snapshot, "timestamp", 0) or 0)
+    ctx.browser = bridge_browser() or "chrome"
+    ctx.tab_id = str(getattr(snapshot, "tab_id", "") or "")
+    ctx.url = url
+    ctx.page_title = str(getattr(snapshot, "title", "") or "")
+    ctx.snapshot_age_s = age
+    ctx.snapshot_fresh = age <= SNAPSHOT_STALE_AFTER_S
+    ctx.focus_elsewhere = True
+
+
 # ── Binding ────────────────────────────────────────────────────────────────
 # What the request is *about*, and whether a given context can answer it.
+
+# Whole words only. These were plain substring tests, so "show the top three
+# in a table" matched "tab" and the agent decided a fresh Amazon search was a
+# question about the browser tab already open — then refused the task because
+# the extension had not sent that tab's contents. Nothing about the request
+# was ever about the open tab.
+_BROWSER_SURFACE_RE = re.compile(
+    r"(?i)\b(?:gmail|e-?mail|mail|page|web\s*page|tab|tabs|website|web\s*site|"
+    r"browser|chrome|edge|firefox|url|link)\b"
+)
+_EDITOR_SURFACE_RE = re.compile(
+    r"(?i)\b(?:vs\s*code|vscode|visual\s+studio\s+code|editor|code\s+on\s+screen|"
+    r"this\s+file|current\s+file|open\s+file|source\s+code)\b"
+)
+_SCREEN_SURFACE_RE = re.compile(
+    r"(?i)\b(?:screen|window)\b|\bwhat'?s\s+open\b"
+)
+
 
 def required_surface(user_request: str) -> str:
     """
@@ -242,15 +315,11 @@ def required_surface(user_request: str) -> str:
     low = " ".join((user_request or "").lower().split())
     if not low:
         return ""
-    browser_words = ("gmail", "email", "mail", "page", "tab", "website", "web page",
-                     "browser", "chrome", "edge", "firefox", "url", "link")
-    editor_words = ("vs code", "vscode", "visual studio code", "editor", "code on screen",
-                    "this file", "current file", "open file", "source code")
-    if any(w in low for w in editor_words):
+    if _EDITOR_SURFACE_RE.search(low):
         return "editor"
-    if any(w in low for w in browser_words):
+    if _BROWSER_SURFACE_RE.search(low):
         return "browser"
-    if any(w in low for w in ("screen", "window", "what's open", "whats open")):
+    if _SCREEN_SURFACE_RE.search(low):
         return "screen"
     return ""
 
@@ -283,8 +352,10 @@ def binding_problem(ctx: CurrentContext, user_request: str) -> str:
     if want == "browser" and ctx.is_browser and not ctx.snapshot_fresh:
         # Reached only after a refresh was already requested and still failed,
         # so do not tell the user to do something the agent just tried.
-        return (f"I can see {ctx.app} in front, but the ClarityOS extension did not "
-                f"send me this tab's contents, even after I asked it to re-read. "
-                f"Open the extension and press 'Capture snapshot', or reload the tab.")
+        where = (f"{ctx.browser.capitalize()} has the page open (behind {ctx.app})"
+                 if ctx.focus_elsewhere else f"I can see {ctx.app} in front")
+        return (f"{where}, but the ClarityOS extension did not send me this tab's "
+                f"contents, even after I asked it to re-read. Open the extension "
+                f"and press 'Capture snapshot', or reload the tab.")
 
     return ""

@@ -37,11 +37,7 @@ except ImportError:
     pvporcupine = None  # type: ignore
     print("[Voice] pvporcupine not installed — wake word disabled")
 
-try:
-    import speech_recognition as sr
-except ImportError:
-    sr = None  # type: ignore
-    print("[Voice] speech_recognition not installed — STT disabled")
+from voice.stt import get_stt_provider, NoSpeechError, STTRequestError
 
 # Local macOS tools & perception
 from tools import registry as tool_registry
@@ -54,11 +50,10 @@ import agent.perception as perception
 # Cloud Orchestrator WebSocket URL
 CLOUD_URL = os.environ.get("CLARITYOS_CLOUD_URL", "ws://localhost:8080")
 
-# Picovoice Access Key for wake word
-PICOVOICE_ACCESS_KEY = os.environ.get(
-    "PICOVOICE_ACCESS_KEY",
-    "lDvqq7J641WbqdzMsPCdLlawELhfGZOGhaceFzl3ZYYYzeeuXq55YA=="
-)
+# Picovoice access key for the wake word. Read from the environment only —
+# a key committed to source is a key anyone with the repo can spend, and it
+# cannot be rotated without shipping a new build. Unset means no wake word.
+PICOVOICE_ACCESS_KEY = os.environ.get("PICOVOICE_ACCESS_KEY", "")
 
 
 def _map_user_action_to_text(action: str) -> str:
@@ -83,7 +78,6 @@ class VoiceProcessor:
         self.state = "IDLE"
         self.porcupine = None
         self.audio_buffer = bytearray()
-        self.recognizer = sr.Recognizer()
         self.consecutive_silence_chunks = 0
         self.SILENCE_THRESHOLD_CHUNKS = 7
         self.MIN_BUFFER_SIZE = 16000 * 2 * 0.3
@@ -93,7 +87,9 @@ class VoiceProcessor:
 
         # Initialize Porcupine
         try:
-            if PICOVOICE_ACCESS_KEY and PICOVOICE_ACCESS_KEY != "YOUR_KEY_HERE":
+            if not PICOVOICE_ACCESS_KEY:
+                print("[Voice] PICOVOICE_ACCESS_KEY is not set — wake word disabled")
+            else:
                 project_root = os.path.abspath(os.path.join(_backend_dir, ".."))
                 custom_ppn = os.path.join(project_root, "hey_clarityos.ppn")
                 if os.path.exists(custom_ppn):
@@ -124,23 +120,18 @@ class VoiceProcessor:
                     return True
         return False
 
-    def transcribe(self, audio_buffer: bytearray) -> Optional[str]:
-        """Convert buffered PCM audio to text using Google STT."""
-        wav_io = io.BytesIO()
-        with wave.open(wav_io, 'wb') as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(16000)
-            w.writeframes(audio_buffer)
-        wav_io.seek(0)
+    async def transcribe(self, audio_buffer: bytearray) -> Optional[str]:
+        """Convert buffered 16 kHz mono PCM to text with Gnani Prisma.
 
+        Returns None rather than raising: the caller treats "nothing was said"
+        and "the engine could not be reached" the same way — there is no
+        command to run either way — but only the second is worth a log line.
+        """
         try:
-            with sr.AudioFile(wav_io) as source:
-                audio_data = self.recognizer.record(source)
-            return self.recognizer.recognize_google(audio_data)
-        except sr.UnknownValueError:
+            return await get_stt_provider().transcribe(bytes(audio_buffer))
+        except NoSpeechError:
             return None
-        except sr.RequestError as e:
+        except STTRequestError as e:
             print(f"[Voice] STT error: {e}")
             return None
 
@@ -360,7 +351,7 @@ class MacClient:
 
     async def transcribe_and_send(self, websocket):
         """Transcribe audio, capture context, send both to cloud."""
-        text = self.voice.transcribe(self.voice.audio_buffer)
+        text = await self.voice.transcribe(self.voice.audio_buffer)
 
         if not text:
             if self.voice.waiting_for_reply:

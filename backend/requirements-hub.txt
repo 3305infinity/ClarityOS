@@ -10,5 +10,3 @@ requests>=2.28.0
 fastapi>=0.110
 uvicorn[standard]>=0.29
 keyring>=24.0              # Windows Credential Manager for API keys
-SpeechRecognition>=3.10.0  # Google STT (also the backup when Gnani/Sarvam fail)
-google-cloud-texttospeech>=2.16.0   # optional: Google TTS (needs Google Cloud credentials). Gnani/Sarvam need none.

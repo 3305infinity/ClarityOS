@@ -24,6 +24,9 @@ const S = {
   audio: null,
   queue: [],
   playing: false,
+  scheduled: [],       // sources queued on the audio clock, for gapless playback
+  nextStart: 0,        // ctx time the next buffer must begin
+  ttsEnded: true,      // no audio is on its way until a tts_chunk says otherwise
   greeted: false,
   mic: { active: false, stream: null, ctx: null, source: null, processor: null },
 };
@@ -258,8 +261,18 @@ function handle(msg) {
     return;
   }
 
-  if (msg.type === "tts_chunk") { enqueueAudio(msg); return; }
+  if (msg.type === "tts_chunk") { S.ttsEnded = false; enqueueAudio(msg); return; }
   if (msg.type === "tts_stop") { stopAudio(); return; }
+
+  // The backend has finished sending audio. Until this was handled, the chip
+  // could sit on "Speaking" indefinitely: the state is driven entirely by the
+  // local queue, so a chunk that failed to decode — or a synthesis that
+  // produced none at all — left nothing to fire `onended` and move it on.
+  if (msg.type === "tts_done") {
+    S.ttsEnded = true;
+    if (!S.playing && !S.queue.length && !S.scheduled.length) setState("idle", "Idle");
+    return;
+  }
 
   if (msg.type === "error") {
     bubble("err", msg.message || "Something went wrong.");
@@ -381,9 +394,14 @@ async function enqueueAudio(msg) {
 }
 
 function playNext() {
+  // One source ending does not mean the speakers are quiet: buffers are
+  // scheduled ahead on the audio clock, so later ones may still be playing.
+  if (S.scheduled.length) return;
+
   const buffer = S.queue.shift();
   if (!buffer) {
     S.playing = false;
+    S.nextStart = 0;
     setState("idle", "Idle");
     // Tell the backend playback finished so it can release its mic gate.
     send({ type: "tts_done" });
@@ -391,17 +409,44 @@ function playNext() {
   }
   S.playing = true;
   setState("speaking", "Speaking");
-  const source = audioCtx().createBufferSource();
+  scheduleBuffer(buffer);
+  // Anything already decoded is scheduled straight away, each landing exactly
+  // where the previous one ends.
+  while (S.queue.length) scheduleBuffer(S.queue.shift());
+}
+
+function scheduleBuffer(buffer) {
+  // Start each buffer at the exact time the previous one ends. Chaining on
+  // `onended` instead put an event-loop turn of silence at every boundary —
+  // a click. With whole sentences that was rare; once Timbre's SSE stream
+  // split each sentence into many small chunks it became constant crackling.
+  const ctx = audioCtx();
+  let at = S.nextStart || 0;
+  if (at < ctx.currentTime) at = ctx.currentTime + 0.02;
+
+  const source = ctx.createBufferSource();
   source.buffer = buffer;
-  source.connect(audioCtx().destination);
-  source.onended = playNext;
-  source.start();
+  source.connect(ctx.destination);
+  source.start(at);
+  S.nextStart = at + buffer.duration;
+  S.scheduled.push(source);
+  source.onended = () => {
+    const i = S.scheduled.indexOf(source);
+    if (i >= 0) S.scheduled.splice(i, 1);
+    playNext();
+  };
   S.source = source;
 }
 
 function stopAudio() {
   S.queue.length = 0;
-  try { S.source && S.source.stop(); } catch (_) {}
+  // Several buffers may be queued on the audio clock; stopping only the
+  // current one would let the rest play on after a Stop.
+  for (const source of S.scheduled.splice(0)) {
+    try { source.onended = null; source.stop(); } catch (_) {}
+  }
+  S.source = null;
+  S.nextStart = 0;
   S.playing = false;
   setState("idle", "Idle");
 }

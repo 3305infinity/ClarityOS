@@ -44,6 +44,16 @@ with a success signal. The runtime executor decides which tools to call.
 5. Do not include max_actions. Runtime safety limits are enforced by the executor.
 6. deliverable_key names the output stored in working memory for downstream milestones.
 
+## Producing Something, Not Describing It
+When the user asks for an artefact, the milestone must CREATE it where they
+can use it — printing the text into the chat is not the artefact.
+  * "draft/write/reply to an email" -> a Gmail compose window, open and filled
+    in, via gmail_draft. A message in the chat cannot be sent.
+  * A reply to an existing email needs the original read FIRST, so the
+    recipient and subject are real rather than "[Name]" placeholders.
+Make that the goal and the success_signal: "a compose window is open with the
+reply", not "the reply is presented to the user".
+
 ## Voice Transcription Awareness
 Requests arrive as voice-transcribed text. Correct obvious errors.
 """ + platform_prompt_block() + """"""

@@ -106,6 +106,63 @@ def find_parallel_groups(plan: MilestonePlan) -> List[List[Milestone]]:
 #  Sub-Agent Manager
 # ═══════════════════════════════════════════════════════════════
 
+# How many times one task may be replanned after a failure. Replanning is for
+# finding a different route; past a couple of attempts the route is not the
+# problem and another plan only costs the user more waiting.
+MAX_REPLANS_PER_TASK = 2
+
+
+# Verbs that all mean "get what is on the surface". The runaway cycled through
+# these — read, extract, capture, screenshot, OCR — so comparing raw words made
+# each reword look like a different plan. Collapse them to one token.
+_READ_SYNONYMS = {
+    "read", "reads", "reading", "extract", "extracts", "extracting",
+    "capture", "captures", "capturing", "screenshot", "screenshots",
+    "ocr", "grab", "fetch", "obtain", "retrieve", "scrape", "identify",
+}
+
+
+def _normalise_goal(text: str) -> set:
+    """Content words of a goal, for comparing one plan's step to another's."""
+    import re
+    stop = {"the", "a", "an", "and", "or", "of", "to", "from", "in", "on", "at",
+            "for", "with", "by", "is", "are", "be", "retry", "using", "via",
+            "currently", "active", "window", "screen", "content", "contents",
+            "details", "text", "visible", "displayed", "its", "this", "that",
+            # Where it is, not what to do: "from the browser tab" and "from the
+            # active Chrome window" name the same place, and treating them as
+            # distinct made two identical plans look like different routes.
+            "browser", "tab", "tabs", "chrome", "edge", "firefox", "brave",
+            "visual", "page"}
+    words = {w for w in re.findall(r"[a-z]+", (text or "").lower()) if len(w) > 2}
+    words -= stop
+    if words & _READ_SYNONYMS:
+        words = (words - _READ_SYNONYMS) | {"__read__"}
+    return words
+
+
+def _is_same_goal(revised, failed_goal: str) -> bool:
+    """Is the replan just the failed step again in different words?
+
+    Compared on content words rather than exact text, because the rewordings
+    that caused the runaway were all different strings saying the same thing:
+    "Capture the LeetCode problem details from the active browser window",
+    "Capture a screenshot or text content of the active LeetCode problem
+    window", and a dozen more.
+    """
+    want = _normalise_goal(failed_goal)
+    if not want:
+        return False
+    for milestone in revised or []:
+        got = _normalise_goal(getattr(milestone, "goal", ""))
+        if not got:
+            continue
+        overlap = len(want & got) / max(1, len(want | got))
+        if overlap < 0.6:
+            return False          # at least one genuinely different step
+    return True
+
+
 class SubAgentManager:
     """
     Orchestrates parallel sub-agent execution for a MilestonePlan.
@@ -165,6 +222,7 @@ class SubAgentManager:
         )
 
         group_idx = 0
+        replans = 0
         while group_idx < len(groups):
             group = groups[group_idx]
             group_had_failure = False
@@ -198,11 +256,22 @@ class SubAgentManager:
                         failed_milestone_id = group[i].id
                         failure_reason = group[i].error or result.error or "Failed"
 
-            # Dynamic replanning after a group failure
-            if group_had_failure and replan_fn and failed_milestone_id is not None:
+            # Dynamic replanning after a group failure.
+            #
+            # Bounded, because this used to be unbounded: each failure appended
+            # a fresh milestone, reset group_idx and went round again. One task
+            # grew from 3 milestones to 16, every new one a reword of the step
+            # that had just failed ("Capture the LeetCode problem..."), and the
+            # user watched the counter climb for minutes before it gave up.
+            # Replanning is for finding another route, not for asking the same
+            # question repeatedly.
+            if (group_had_failure and replan_fn and failed_milestone_id is not None
+                    and replans < MAX_REPLANS_PER_TASK):
                 remaining = [m for m in plan.milestones
                              if m.status == MilestoneStatus.PENDING]
                 if remaining:
+                    failed_goal = next((m.goal for m in plan.milestones
+                                        if m.id == failed_milestone_id), "")
                     try:
                         revised = await replan_fn(
                             plan=plan,
@@ -210,7 +279,15 @@ class SubAgentManager:
                             failure_reason=failure_reason,
                             deliverables=deliverables,
                         )
+                        if revised and _is_same_goal(revised, failed_goal):
+                            # A reworded retry is not a new route. Taking it
+                            # would spend another milestone to fail the same way.
+                            print("[SubAgentManager] replan only restated the failed "
+                                  "goal - stopping instead of retrying it")
+                            revised = None
                         if revised:
+                            replans += 1
+                            print(f"[SubAgentManager] replan {replans}/{MAX_REPLANS_PER_TASK}")
                             kept = [m for m in plan.milestones
                                     if m.status != MilestoneStatus.PENDING]
                             plan.milestones = kept + revised
@@ -220,6 +297,9 @@ class SubAgentManager:
                             continue
                     except Exception as e:
                         print(f"[SubAgentManager] ⚠ Replan error: {e}")
+            elif group_had_failure and replans >= MAX_REPLANS_PER_TASK:
+                print(f"[SubAgentManager] replan limit ({MAX_REPLANS_PER_TASK}) reached "
+                      f"- reporting the failure instead of planning again")
 
             group_idx += 1
 

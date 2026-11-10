@@ -1,28 +1,25 @@
 """
-ClarityOS — Pluggable Speech-to-Text
-====================================
-One interface, several engines. Pick one with env vars (see WINDOWS_GUIDE.md):
+ClarityOS — Speech-to-Text (Gnani only)
+=======================================
+All speech recognition runs on Gnani Vachana. There is no second vendor and no
+switch to one: GNANI_API_KEY is what makes the microphone work.
 
-    CLARITYOS_STT_PROVIDER = google | gnani | gnani-stream | sarvam  (default: google)
-    CLARITYOS_STT_FALLBACK = google | gnani | sarvam | "" (default: google when the
-                            primary is not google, so a network/API hiccup never
-                            leaves the mic dead)
+    CLARITYOS_STT_PROVIDER = gnani-stream | gnani   (default: gnani-stream)
     CLARITYOS_STT_LANGUAGE = BCP-47 code, e.g. en-IN, hi-IN, ta-IN
 
 Engines
-  google  – free Google Web Speech via the `SpeechRecognition` package (original behaviour)
-  gnani   – Gnani Vachana "Prisma v2.5"  POST https://api.vachana.ai/stt/v3
-              key: GNANI_API_KEY      (sent as X-API-Key-ID)
-              en-IN accepts English+Hindi mixed speech and answers in Latin script;
-              hi-IN answers in Devanagari.
-  gnani-stream
-          – the same model over the realtime socket
-              wss://api.vachana.ai/stt/v3/stream
-              Audio goes out while the user is still speaking, so the transcript
-              is ready almost as soon as they stop. Falls back to the REST
-              engine above if the socket cannot be used.
-  sarvam  – Sarvam Saaras/Saarika        POST https://api.sarvam.ai/speech-to-text
-              key: SARVAM_API_KEY     (sent as api-subscription-key)
+  gnani-stream  Prisma v2.5 over the realtime socket (default)
+                  wss://api.vachana.ai/stt/v3/stream
+                  Audio goes out while the user is still speaking, so the
+                  transcript is ready almost as soon as they stop. Falls back
+                  to the REST engine below if the socket cannot be used — that
+                  is the only fallback, and it is still Gnani.
+  gnani         Prisma v2.5 over REST
+                  POST https://api.vachana.ai/stt/v3
+                  key: GNANI_API_KEY  (sent as X-API-Key-ID)
+                  en-IN accepts English+Hindi mixed speech and answers in Latin
+                  script; hi-IN answers in Devanagari. Clips are capped at 30s,
+                  the documented maximum for this endpoint.
 
 Contract used by the servers:
     text = await provider.transcribe(pcm16_mono_16k_bytes)
@@ -123,36 +120,6 @@ class STTProvider:
 
     async def transcribe(self, pcm: bytes, sample_rate: int = SAMPLE_RATE) -> str:
         raise NotImplementedError
-
-
-# ═══════════════════════════════════════════════════════════════
-#  Google Web Speech (original behaviour, now off the event loop)
-# ═══════════════════════════════════════════════════════════════
-
-class GoogleSTT(STTProvider):
-    name = "google"
-
-    def __init__(self, language: Optional[str] = None):
-        self.language = language or os.environ.get("CLARITYOS_STT_LANGUAGE", "en-US")
-        self._recognizer = None
-
-    def _blocking_transcribe(self, wav_bytes: bytes) -> str:
-        import speech_recognition as sr  # imported lazily: optional dependency
-
-        if self._recognizer is None:
-            self._recognizer = sr.Recognizer()
-        try:
-            with sr.AudioFile(io.BytesIO(wav_bytes)) as source:
-                audio = self._recognizer.record(source)
-            return self._recognizer.recognize_google(audio, language=self.language)
-        except sr.UnknownValueError as e:
-            raise NoSpeechError("Google STT could not understand audio") from e
-        except sr.RequestError as e:
-            raise STTRequestError(f"Google STT request failed: {e}") from e
-
-    async def transcribe(self, pcm: bytes, sample_rate: int = SAMPLE_RATE) -> str:
-        wav = pcm_to_wav(pcm, sample_rate)
-        return await asyncio.to_thread(self._blocking_transcribe, wav)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -441,102 +408,31 @@ class GnaniStreamingSTT(STTProvider):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  Sarvam (Saaras / Saarika)
-# ═══════════════════════════════════════════════════════════════
-
-class SarvamSTT(STTProvider):
-    """
-    REST: POST /speech-to-text (multipart). Handles Indian languages + English and
-    code-mixed speech. Default model saaras:v3 (mode "transcribe"); set
-    SARVAM_STT_MODE=codemix for Hinglish-style output.
-    If CLARITYOS_STT_LANGUAGE is unset the model auto-detects the language.
-    """
-    name = "sarvam"
-    URL = "https://api.sarvam.ai/speech-to-text"
-
-    def __init__(self, api_key: Optional[str] = None, language: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("SARVAM_API_KEY", "")
-        self.language = language or os.environ.get("CLARITYOS_STT_LANGUAGE", "")
-        self.model = os.environ.get("SARVAM_STT_MODEL", "saaras:v3")
-        self.mode = os.environ.get("SARVAM_STT_MODE", "transcribe")
-
-    async def transcribe(self, pcm: bytes, sample_rate: int = SAMPLE_RATE) -> str:
-        if not self.api_key:
-            raise STTRequestError("SARVAM_API_KEY is not set")
-        import httpx
-
-        data = {"model": self.model}
-        if self.model.startswith("saaras"):
-            data["mode"] = self.mode
-        if self.language:
-            data["language_code"] = self.language
-        files = {"file": ("speech.wav", pcm_to_wav(pcm, sample_rate), "audio/wav")}
-        headers = {"api-subscription-key": self.api_key}
-
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_S) as client:
-                resp = await client.post(self.URL, data=data, files=files, headers=headers)
-        except httpx.HTTPError as e:
-            raise STTRequestError(f"Sarvam STT network error: {e}") from e
-
-        _raise_for_status("Sarvam", resp)
-        try:
-            body = resp.json()
-        except ValueError as e:
-            raise STTRequestError("Sarvam STT returned non-JSON response") from e
-        text = (body.get("transcript") or "").strip() if isinstance(body, dict) else ""
-        if not text:
-            raise NoSpeechError("Sarvam STT returned an empty transcript")
-        return text
-
-
-# ═══════════════════════════════════════════════════════════════
-#  Fallback wrapper
-# ═══════════════════════════════════════════════════════════════
-
-class FallbackSTT(STTProvider):
-    """Try `primary`; on a request/auth/network failure (NOT on 'no speech') try `secondary`."""
-
-    def __init__(self, primary: STTProvider, secondary: STTProvider):
-        self.primary = primary
-        self.secondary = secondary
-        self.name = f"{primary.name}+{secondary.name}"
-
-    async def transcribe(self, pcm: bytes, sample_rate: int = SAMPLE_RATE) -> str:
-        try:
-            return await self.primary.transcribe(pcm, sample_rate)
-        except STTRequestError as e:
-            print(f"[STT] {self.primary.name} failed ({e}); falling back to {self.secondary.name}")
-            return await self.secondary.transcribe(pcm, sample_rate)
-
-
-# ═══════════════════════════════════════════════════════════════
 #  Factory
 # ═══════════════════════════════════════════════════════════════
 
 _PROVIDERS = {
-    "google": GoogleSTT,
     "gnani": GnaniSTT,
     "gnani-stream": GnaniStreamingSTT,
-    "sarvam": SarvamSTT,
 }
+DEFAULT_PROVIDER = "gnani-stream"
 _singleton: Optional[STTProvider] = None
 
 
 def build_stt_provider() -> STTProvider:
-    primary_name = os.environ.get("CLARITYOS_STT_PROVIDER", "google").strip().lower()
-    if primary_name not in _PROVIDERS:
-        print(f"[STT] Unknown CLARITYOS_STT_PROVIDER '{primary_name}' — using google")
-        primary_name = "google"
-    primary = _PROVIDERS[primary_name]()
+    """The configured Gnani engine.
 
-    fallback_name = os.environ.get(
-        "CLARITYOS_STT_FALLBACK", "google" if primary_name != "google" else ""
-    ).strip().lower()
-    if fallback_name and fallback_name != primary_name and fallback_name in _PROVIDERS:
-        provider: STTProvider = FallbackSTT(primary, _PROVIDERS[fallback_name]())
-    else:
-        provider = primary
+    There is no cross-vendor fallback to choose any more — speech recognition
+    is Gnani. A setting naming an engine that no longer exists is reported and
+    ignored rather than failing the microphone outright, because an old
+    settings.json or a stale .env should not leave the user unable to speak.
+    """
+    name = os.environ.get("CLARITYOS_STT_PROVIDER", DEFAULT_PROVIDER).strip().lower()
+    if name not in _PROVIDERS:
+        print(f"[STT] CLARITYOS_STT_PROVIDER '{name}' is not available "
+              f"(voice runs on Gnani) — using {DEFAULT_PROVIDER}")
+        name = DEFAULT_PROVIDER
+    provider = _PROVIDERS[name]()
     print(f"[STT] Engine: {provider.name}")
     return provider
 

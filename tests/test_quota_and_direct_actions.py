@@ -441,32 +441,18 @@ def test_direct_action_failure_messages_are_actionable():
 
 
 def test_tts_failure_does_not_disable_the_agent():
-    """
-    Missing Google ADC must not silence the assistant or affect planning.
+    """A Gnani failure must not silence the assistant or affect planning.
 
-    This previously asserted `enabled is False`: a failed Google client disabled
-    the engine outright, so `stream_synthesize` returned zero chunks and nothing
-    ever reached the renderer. The engine now stands down from Google and falls
-    back to the built-in OS voice, so it stays enabled.
+    This once asserted `enabled is False`: a failed client disabled the engine
+    outright, so `stream_synthesize` returned zero chunks and nothing ever
+    reached the renderer. A bad key or an empty balance is reported, and the
+    engine stays enabled so the next turn can try again.
     """
     from voice.tts import TTSEngine
+
+    os.environ.pop("GNANI_API_KEY", None)
     engine = TTSEngine()
-    engine._client = None
 
-    import builtins
-    real_import = builtins.__import__
-
-    def fake_import(name, *a, **k):
-        if name == "google.cloud" or name.startswith("google.cloud.texttospeech"):
-            raise Exception("Your default credentials were not found")
-        return real_import(name, *a, **k)
-
-    builtins.__import__ = fake_import
-    try:
-        assert engine._get_client() is None
-    finally:
-        builtins.__import__ = real_import
-
-    assert engine._google_ok is False       # Google stood down…
-    assert engine.enabled is True           # …but speech is not disabled
+    assert asyncio.run(engine._synthesize_one("hello there")) is None
+    assert engine.enabled is True           # speech is not disabled by one failure
     assert model_config.fast_model()        # model config untouched by TTS

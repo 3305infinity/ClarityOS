@@ -149,10 +149,6 @@ function findVenvPython() {
   return null;
 }
 
-// Bundled Picovoice key — enables the "Hey ClarityOS" wake word out of the box.
-// Users can replace this with their own key from console.picovoice.ai
-const BUNDLED_PICOVOICE_KEY = "lDvqq7J641WbqdzMsPCdLlawELhfGZOGhaceFzl3ZYYYzeeuXq55YA==";
-
 // ── Credential storage ──
 const CRED_FILE = path.join(app.getPath("userData"), "credentials.enc");
 
@@ -314,8 +310,17 @@ async function _startPythonBackend() {
       + `${storedGeminiKey.length} characters, too short to be valid. Falling back to backend/.env. `
       + `Re-enter it in Settings → API keys to use a stored key.`);
   }
-  // Use saved Picovoice key if set, otherwise fall back to the bundled default
-  spawnEnv.PICOVOICE_ACCESS_KEY = savedCreds?.picovoice_key || BUNDLED_PICOVOICE_KEY;
+  // Picovoice key for the wake word: the user's saved key, or the environment.
+  // There is deliberately no bundled default — a key shipped inside the app is
+  // readable by anyone who has the app, cannot be rotated without a new build,
+  // and bills whoever owns it. Unset simply means no wake word; the backend
+  // logs that and the Ctrl+Shift+Space hotkey still works.
+  const picovoiceKey = savedCreds?.picovoice_key || process.env.PICOVOICE_ACCESS_KEY || "";
+  if (picovoiceKey) {
+    spawnEnv.PICOVOICE_ACCESS_KEY = picovoiceKey;
+  } else {
+    console.log("[ClarityOS] No Picovoice key (Settings or PICOVOICE_ACCESS_KEY) — wake word disabled");
+  }
   // stdout is a pipe, so Python falls back to the locale encoding (cp1252 on Windows)
   // and every print() containing ✓/✗/→ raises UnicodeEncodeError, killing the backend.
   spawnEnv.PYTHONIOENCODING = "utf-8";

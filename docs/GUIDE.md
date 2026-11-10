@@ -385,7 +385,7 @@ instead of repeated 429s.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLARITYOS_TTS_VOICE` | `en-US-Neural2-J` | Google Cloud TTS Neural2 voice |
+| `GNANI_TTS_VOICE` | `Poorvi` | Gnani Timbre v2.5 voice (Hinglish by default) |
 | `CLARITYOS_TTS_SPEED` | `1.05` | Speaking rate (1.0 = normal speed) |
 
 ### Optional — Ports
@@ -460,7 +460,7 @@ ClarityOS/
 │   │   └── remote_executor.py   # Remote milestone execution
 │   │
 │   ├── voice/
-│   │   └── tts.py               # Streamed Google Cloud TTS (Neural2, OGG/Opus)
+│   │   └── tts.py               # Streamed Gnani Timbre v2.5 TTS (SSE, WAV)
 │   │
 │   ├── auth.py                  # Dual-mode auth (GCP ID token + shared secret)
 │   ├── runtime_state.py         # Per-user session state registry
@@ -528,7 +528,7 @@ Electron renderer.js
          ▼
 Python local_server.py
   → pvporcupine detects wake word "Hey ClarityOS" in audio stream
-  → SpeechRecognition + Google STT transcribes the rest
+  → Gnani Prisma v2.5 transcribes the rest (realtime socket, REST fallback)
   → Sends {type: "transcription", text: "search Amazon for AirPods"}
          │
          ▼
@@ -662,15 +662,16 @@ Every intelligent decision goes through **Google Gemini** via the `google-genai`
 
 The Pro model uses **native function calling** — it returns structured JSON (`{tool_name, args}`) rather than free text, so the executor can directly call the right tool without any text parsing.
 
-### 2. Google Cloud Text-to-Speech — voice output
+### 2. Gnani Timbre v2.5 — voice output
 
-Spoken responses use **Google Neural2** voices via `google-cloud-texttospeech` SDK (`backend/voice/tts.py`):
+Spoken responses use **Gnani Timbre v2.5** (`backend/voice/tts.py`), streamed over
+the SSE endpoint so speech starts before a sentence has finished rendering:
 
 - The response is split into sentences
 - All sentences are synthesized **concurrently** (parallel API calls)
 - Audio chunks are yielded in order as they finish — the first sentence plays while the rest are still being generated, creating a seamless streaming feel
 - Output format: OGG/Opus (plays natively in Chromium without any decoder library)
-- Default voice: `en-US-Neural2-J` (natural, conversational)
+- Default voice: `Poorvi` (Timbre v2.5, Hinglish)
 
 ### 3. Cloud Run — the cloud brain (production mode)
 
@@ -724,7 +725,7 @@ Your Mac
 GCP Cloud Run  (clarityos-brain)
   ├── SPAV Agent V2
   ├── Gemini API ──────────────────────────► Google AI Studio
-  ├── Google Cloud TTS ────────────────────► Neural2 voice synthesis
+  ├── Gnani Timbre v2.5 ───────────────────► streamed voice synthesis
   └── Memory layer
         ├── Firestore ◄──── conversations, vault, profile, tasks
         └── Cloud Storage ◄── large blobs (>1 MB)
@@ -745,7 +746,7 @@ GCP Cloud Run  (clarityos-brain)
 | AI provider | **Google Gemini** | Native function calling; multimodal; same credentials for TTS + embeddings + cloud; fastest Flash model for routing |
 | macOS control | **AppleScript + pyobjc (Quartz/AppKit)** | AppleScript covers 90% of app control; Quartz Accessibility API handles the rest (system controls, fine-grained UI) |
 | Wake word | **Picovoice Porcupine** | On-device, low-power, custom wake word ("Hey ClarityOS"); no audio leaves the Mac for detection |
-| Voice output | **Google Cloud TTS Neural2** | Natural prosody; concurrent sentence synthesis for streaming feel; OGG/Opus output plays natively in Chromium |
+| Voice output | **Gnani Timbre v2.5** | Indic + Hinglish prosody; SSE streaming so speech starts before a sentence is fully rendered; WAV plays natively in Chromium |
 | Browser bridge | **Chrome Extension MV3** | Bridges the real browser the user has open (with all their logged-in state and cookies) rather than a headless browser |
 | Cloud | **Google Cloud Run** | Scales to 0 (no idle cost); 15-minute request timeout for long tasks; WebSocket support |
 | Persistence | **Firestore + GCS** | Serverless; vector search built-in; automatic scaling; same GCP credentials |

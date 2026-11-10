@@ -243,9 +243,9 @@ agent response text
  asyncio.gather (max 4 concurrent)
       │  for each sentence:
       ▼
- Google Cloud TTS Neural2
- • voice: en-US-Neural2-J (default)
- • encoding: OGG_OPUS
+ Gnani Timbre v2.5 (SSE)
+ • voice: Poorvi (default)
+ • container: WAV
  • speaking rate: 1.05
       │
       ▼
@@ -402,8 +402,10 @@ backend/
     perception.py           Screen capture + accessibility tree
     glance.py               Fast screen-understanding pass
   voice/
-    tts.py                  TTSEngine — Google Cloud Neural2 streamed TTS,
+    tts.py                  TTSEngine - Gnani Timbre v2.5 streamed TTS,
                             split_sentences, prepare_for_speech
+    tts_providers.py        GnaniTTS: REST + SSE, single-request gate
+    stt.py                  Gnani Prisma v2.5: REST + realtime WebSocket
     __init__.py
   browser/
     browser_aci.py          High-level ACI browser tools

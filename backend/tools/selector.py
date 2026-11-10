@@ -172,7 +172,7 @@ _CURRENT_PAGE_CUES: tuple[str, ...] = (
     # the current-page path never ran: the planner was offered web_search,
     # searched Google for the page's own title, and opened a second copy of
     # the tab the user was already looking at.
-    "in my browser", "on my screen", "my screen", "on screen",
+    "in my browser", "in browser", "on my screen", "my screen", "on screen",
     "open tab", "current page", "current tab", "the open page",
     "i am on", "i'm on", "im on", "i am looking at", "i'm looking at",
     "im looking at",
@@ -186,7 +186,7 @@ _CURRENT_PAGE_CUES: tuple[str, ...] = (
 _THIS_PAGE_CUES: tuple[str, ...] = (
     "this page", "this tab", "this email", "this mail", "this message",
     "current page", "current tab", "the open page", "open tab",
-    "in my browser", "on my screen", "my screen", "on screen",
+    "in my browser", "in browser", "on my screen", "my screen", "on screen",
     "in front of me", "already open", "currently open", "i have open",
     "i am on", "i'm on", "im on",
     "i am looking at", "i'm looking at", "im looking at",
@@ -223,9 +223,75 @@ _BEYOND_PAGE_RE = re.compile(
 # never fired and play_media was left out of scope entirely — so the planner
 # reached for typing the song name into Spotify's search box, with tools it had
 # not been given, and the whole plan was rejected as impossible.
+# Cue phrases are matched against text with the articles taken out, and the
+# cues themselves are normalised the same way. "fill the gform on the screen"
+# used to match nothing — the cue is "on screen" and the request said "on THE
+# screen" — so the agent was handed no way to touch the page and asked the user
+# to paste the URL instead. Normalising both sides stops that whole family of
+# near-misses without adding another phrase to another list.
+_CUE_FILLER_RE = re.compile(r"(?i)\b(?:the|that)\b")
+
+
+def cue_text(text: str) -> str:
+    """Lower-cased text with articles dropped, for cue matching."""
+    return " ".join(_CUE_FILLER_RE.sub(" ", (text or "").lower()).split())
+
+
+def has_cue(text: str, cues) -> bool:
+    """Does `text` contain any of `cues`, ignoring articles on either side?"""
+    low = cue_text(text)
+    return any(cue_text(c) in low for c in cues)
+
+
 _MUSIC_REQUEST_RE = re.compile(
     r"(?i)\b(?:spotify|song|album|playlist|podcast|soundtrack)\b"
     r"|\bplay\s+(?!.*\b(?:video|game)\b)\w+"
+)
+
+# "Set a reminder for 7am" is about a time, not about whatever happens to be
+# on screen. With Chrome in front the selector steered everything towards
+# browser tools and dropped run_shell, so the planner's own plan came back as
+# "requires run_shell" and the whole task was refused. Scheduling words are
+# matched in English and Hinglish, because that is how the request arrives.
+_REMINDER_REQUEST_RE = re.compile(
+    r"(?i)\breminders?\b|\bremind\b|\balarm\b|\bschedul\w*\b"
+    r"|\byaad\s+dila\w*\b|\byaad\s+rakh\w*\b"
+)
+
+# Tools that can hold a future-dated reminder. Calendar first: it is the tool
+# actually meant for this, and it needs no shell access.
+_REMINDER_TOOLS: tuple[str, ...] = ("gcal_create_event", "gcal_list_events", "run_shell")
+
+# Filling in a form that is already open is an interaction, not a read. Asked
+# to "fill the gform on the screen", the agent was handed open_url and nothing
+# else — so it could only answer "paste me the URL and I'll open it", which is
+# the opposite of automation on a page the user is already looking at.
+_FORM_FILL_RE = re.compile(
+    r"(?i)\b(?:fill|填|bharo|bhar\s*do|complete|enter|type|submit|answer)\b"
+    r"[^.]{0,80}\b(?:form|gform|google\s*form|field|fields|survey|application)\b"
+    r"|\b(?:form|gform|google\s*form)\b[^.]{0,80}\b(?:fill|bharo|complete|submit)\b"
+)
+
+# What it takes to read a form and put values into it through the extension.
+_FORM_TOOLS: tuple[str, ...] = (
+    "browser_refresh_refs", "browser_snapshot", "browser_find",
+    "browser_type_ref", "browser_click_ref", "browser_select_ref",
+    "read_page_content", "fill_form",
+)
+
+# Replying to or drafting an email. "draft a response for the email" was
+# answered by printing a draft into the chat with "[Name]" where the recipient
+# should be — the agent had gmail_draft but no way to read the message it was
+# replying to, so it had nothing real to address it to.
+_EMAIL_REPLY_RE = re.compile(
+    r"(?i)\b(?:draft|reply|respond|response|answer|compose|write)\b"
+    r"[^.]{0,60}\b(?:e-?mail|mail|message|thread)\b"
+    r"|\b(?:e-?mail|mail)\b[^.]{0,60}\b(?:draft|reply|respond|compose)\b"
+)
+
+# Read the original first, then open a compose window with the reply in it.
+_EMAIL_REPLY_TOOLS: tuple[str, ...] = (
+    "read_page_content", "browser_refresh_refs", "gmail_draft",
 )
 
 _BROWSER_SURFACE_CUES: tuple[str, ...] = (
@@ -2161,6 +2227,23 @@ class ToolSelector:
         r"[^.]{0,60}\b(?:file|script|function|class|module|program|project|folder|note)s?\b")
 
     @classmethod
+    def _points_at_open_surface(cls, user_request: str) -> bool:
+        """Does the request name the thing already in front of the user?
+
+        Deliberately separate from `_looks_like_inspection`, which tests the
+        *verb*. "solve this question on screen", "translate this page",
+        "fix the error in this tab" all point at the open surface while asking
+        for something other than a read — and all of them still need the page
+        read first. Kept out of the inspection test itself so that withholding
+        navigation, which keys off that test, is not widened by accident:
+        "open this page in a new window" must still be able to navigate.
+        """
+        low = " ".join((user_request or "").lower().split())
+        if cls._CREATION.search(low):
+            return False
+        return has_cue(low, _THIS_PAGE_CUES)
+
+    @classmethod
     def _looks_like_inspection(cls, user_request: str) -> bool:
         """Is the user asking to look at something that already exists?"""
         low = " ".join((user_request or "").lower().split())
@@ -2479,7 +2562,9 @@ class ToolSelector:
         # launching a second VS Code window. Adding the window-inspection tools
         # gives the planner a correct option; open_app stays available for
         # genuine launch requests.
-        if self._looks_like_inspection(user_request) and (context_app or context_url):
+        if ((self._looks_like_inspection(user_request)
+             or self._points_at_open_surface(user_request))
+                and (context_app or context_url)):
             for tool in _INSPECTION_TOOLS:
                 if tool in self._all_tool_names and tool not in selected:
                     selected = list(selected) + [tool] if isinstance(selected, list) else set(selected) | {tool}
@@ -2489,8 +2574,12 @@ class ToolSelector:
         # Chrome to the foreground", which surfaced Chrome's profile chooser,
         # and the next step then read "Who's using Chrome?" as if it were the
         # page. Withhold open_app for browser inspection unless the user
-        # actually asked to open something.
-        if (self._looks_like_inspection(user_request)
+        # actually asked to open something. Pointing at the open surface counts
+        # even without an inspection verb: "solve this question on screen" is
+        # about the page in front, and open_app answered it by launching a
+        # blank Chrome window on top of it.
+        if ((self._looks_like_inspection(user_request)
+             or self._points_at_open_surface(user_request))
                 and (context_app or context_url)
                 and not self._asks_to_launch(user_request)):
             # Widened from browsers to any identified foreground app: asking to
@@ -2514,7 +2603,13 @@ class ToolSelector:
         # URL rather than on any site name, so this is not a Gmail special case.
         browser_context = self._is_browser_app(context_app) or str(context_url or "").startswith("http")
         prefer_browser: list[str] = []
-        if self._looks_like_inspection(user_request) and browser_context:
+        # Pointing at the open page is itself a reason to read it, whatever the
+        # user then wants done with it. "help me solve this leetcode question
+        # on screen" carries no inspection verb, so the page readers were never
+        # offered at all — the planner had no way to see the problem and fell
+        # through to fetching leetcode.com over plain HTTP, which answers 403.
+        points_at_screen = self._points_at_open_surface(user_request)
+        if (self._looks_like_inspection(user_request) or points_at_screen) and browser_context:
             for tool in _BROWSER_READ_TOOLS:
                 if tool in self._all_tool_names:
                     if tool not in selected:
@@ -2524,9 +2619,14 @@ class ToolSelector:
         # A question about the message already on screen must be answered from
         # that message. Searching the account is a different operation and, when
         # offered, the planner reached for it first and then guessed a URL.
-        if (browser_context and self._looks_like_inspection(user_request)
-                and any(cue in " ".join((user_request or "").lower().split())
-                        for cue in _CURRENT_PAGE_CUES)):
+        # ...but not when the user asked to *open* something. "open this page
+        # in a new window" names the current page and still needs open_url;
+        # withholding it there left the one tool that could do the job out of
+        # scope, which is the same shape of failure this block exists to stop.
+        if (browser_context
+                and (self._looks_like_inspection(user_request) or points_at_screen)
+                and not self._asks_to_launch(user_request)
+                and has_cue(user_request, _CURRENT_PAGE_CUES)):
             # Navigation is withheld alongside account search. Leaving only the
             # account tools out still let the planner search the web for the
             # page's own title and open a second copy of it in another tab.
@@ -2538,15 +2638,15 @@ class ToolSelector:
             # that also asks to find or suggest something else still needs a
             # way to go and look.
             _beyond = bool(_BEYOND_PAGE_RE.search(user_request or ""))
-            if any(cue in _low for cue in _THIS_PAGE_CUES) and not _beyond:
+            if has_cue(_low, _THIS_PAGE_CUES) and not _beyond:
                 drop |= _OFFSITE_TOOLS
             # Asking about the page while the extension holds its text: a
             # screenshot is the wrong instrument. Observed answering "summarise
             # the page open in my browser" from a 20s vision call that described
             # a Google results screenshot, while the bridge had the live tab
             # with 160 elements ready to read.
-            if (any(cue in _low for cue in _BROWSER_SURFACE_CUES)
-                    and not any(cue in _low for cue in ("my screen", "on screen", "the screen"))
+            if (has_cue(_low, _BROWSER_SURFACE_CUES)
+                    and not has_cue(_low, ("my screen", "on screen"))
                     and _bridge_is_connected()):
                 drop |= _SCREENSHOT_TOOLS
             withheld = [t for t in selected if t in drop]
@@ -2600,6 +2700,49 @@ class ToolSelector:
                         if isinstance(selected, list)
                         else (set(selected) | {"play_media"}))
             print("[ToolSelector] added play_media for a music request")
+
+        # Same shape for reminders: the request is about a time, so the tools
+        # that can hold a future-dated item must be on offer no matter which
+        # window is in front.
+        if _REMINDER_REQUEST_RE.search(user_request or ""):
+            known = self._get_all_tools()
+            added = []
+            for tool in _REMINDER_TOOLS:
+                if tool in known and tool not in selected:
+                    selected = ((list(selected) + [tool])
+                                if isinstance(selected, list)
+                                else (set(selected) | {tool}))
+                    added.append(tool)
+            if added:
+                print(f"[ToolSelector] added {', '.join(added)} for a reminder request")
+
+        # Filling a form the user is looking at needs the tools that can touch
+        # the page, not just ones that can read it.
+        if _FORM_FILL_RE.search(user_request or "") and browser_context:
+            known = self._get_all_tools()
+            added = []
+            for tool in _FORM_TOOLS:
+                if tool in known and tool not in selected:
+                    selected = ((list(selected) + [tool])
+                                if isinstance(selected, list)
+                                else (set(selected) | {tool}))
+                    added.append(tool)
+            if added:
+                print(f"[ToolSelector] added {', '.join(added)} for a form-filling request")
+
+        # Replying to an email needs the original message, not just a way to
+        # compose. Without the readers the agent invents the recipient.
+        if _EMAIL_REPLY_RE.search(user_request or ""):
+            known = self._get_all_tools()
+            added = []
+            for tool in _EMAIL_REPLY_TOOLS:
+                if tool in known and tool not in selected:
+                    selected = ((list(selected) + [tool])
+                                if isinstance(selected, list)
+                                else (set(selected) | {tool}))
+                    added.append(tool)
+            if added:
+                print(f"[ToolSelector] added {', '.join(added)} for an email reply")
 
         result = list(selected)
         if prefer_browser:

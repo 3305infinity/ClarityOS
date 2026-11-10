@@ -411,6 +411,29 @@ async def snapshot(request_text: str = "", include_vision: bool = False) -> Cont
         if not ctx.page_title:
             ctx.page_title = window_title  # browser window title = page title
 
+    else:
+        # The foreground is not a browser — a screen recorder, a chat window,
+        # ClarityOS itself. The browser is still open behind it, and the
+        # extension publishes its active tab regardless of focus, so the page
+        # is every bit as readable.
+        #
+        # Leaving browser_url empty here made everything downstream behave as
+        # if there were no browser at all: no browser tools were selected, the
+        # agent fell back to screenshots and click automation on a Gmail reply,
+        # burned its budget, and then told the user to bring Chrome forward.
+        try:
+            bridge_state = runtime_state_store.snapshot().browser_state
+            if bridge_state.connected and bridge_state.url:
+                ctx.browser_url = bridge_state.url
+                ctx.page_title = bridge_state.title or ctx.page_title
+                runtime_state_store.update_os_state(
+                    browser_url=bridge_state.url,
+                    provenance="browser_bridge_unfocused",
+                    degraded=False,
+                )
+        except Exception as exc:
+            print(f"[Perception] could not read the bridge tab ({exc.__class__.__name__})")
+
     # ── L3: Vision if needed ──
     if include_vision or _needs_vision(request_text):
         ctx.screenshot_path = await capture_screenshot()

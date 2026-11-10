@@ -33,7 +33,6 @@ LEGACY_KEYRING_SERVICE = "Moon" + "walk"
 SECRET_NAMES = {
     "GEMINI_API_KEY": "Gemini (agent brain)",
     "GNANI_API_KEY": "Gnani (Vachana STT / Timbre TTS)",
-    "SARVAM_API_KEY": "Sarvam (Saaras STT / Bulbul TTS)",
     "BOLNA_API_KEY": "Bolna (phone voice agents)",
 }
 
@@ -119,20 +118,17 @@ CAPABILITIES = ["browser", "desktop", "shell", "files_read", "files_write",
 PERMISSION_MODES = ("allow", "ask", "deny")
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    # Gnani is the voice stack: Prisma v2.5 over the realtime socket for STT,
-    # Timbre v2.5 for TTS. Google stays configured as the fallback so a missing
-    # GNANI_API_KEY degrades instead of leaving the assistant deaf and mute.
-    "stt_provider": "gnani-stream",    # google | gnani | gnani-stream | sarvam
-    "stt_language": "en-IN",           # en-IN also understands Hindi-English mixed speech on Gnani
-    "stt_fallback": "google",
-    "tts_provider": "gnani",           # google | gnani | sarvam
+    # Voice is Gnani: Prisma v2.5 over the realtime socket for STT, Timbre
+    # v2.5 for TTS. There is no other vendor to fall back to — GNANI_API_KEY
+    # is what makes the microphone and the speaker work.
+    "stt_provider": "gnani-stream",    # gnani-stream | gnani
+    "stt_language": "en-IN",           # en-IN also understands Hindi-English mixed speech
+    "tts_provider": "gnani",           # gnani
     "tts_enabled": True,
     "tts_speed": 1.0,
     "gnani_tts_model": "timbre-v2.5",
     "gnani_tts_voice": "Poorvi",
     "gnani_tts_language": "hi-en",
-    "sarvam_tts_speaker": "shubh",
-    "sarvam_tts_language": "hi-IN",
     "bolna_agent_id": "",
     "voice_mode": "push_to_talk",      # push_to_talk | hands_free
     "theme": "system",                 # system | light | dark
@@ -146,15 +142,14 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 
 _ENUMS = {
     # gnani-stream is the same Prisma v2.5 model over the realtime socket.
-    "stt_provider": ("google", "gnani", "gnani-stream", "sarvam"),
-    "stt_fallback": ("", "google", "gnani", "sarvam"),
-    "tts_provider": ("google", "gnani", "sarvam"),
+    "stt_provider": ("gnani", "gnani-stream"),
+    "tts_provider": ("gnani",),
     "voice_mode": ("push_to_talk", "hands_free"),
     "theme": ("system", "light", "dark"),
 }
 _BOOLS = ("tts_enabled", "auto_approve_sensitive")
 _STRINGS = ("stt_language", "gnani_tts_model", "gnani_tts_voice", "gnani_tts_language",
-            "sarvam_tts_speaker", "sarvam_tts_language", "bolna_agent_id")
+            "bolna_agent_id")
 
 
 class SettingsError(ValueError):
@@ -168,12 +163,39 @@ class Settings:
         self._data: Dict[str, Any] = json.loads(json.dumps(DEFAULT_SETTINGS))
         self._load()
 
+    @staticmethod
+    def _migrate(stored: Dict[str, Any]) -> Dict[str, Any]:
+        """Bring a settings.json written before the Gnani-only switch forward.
+
+        Without this, an existing install would hit the stricter enums below,
+        the whole file would be rejected as invalid, and every other setting
+        the user had chosen — permissions, theme, voice mode — would silently
+        revert to defaults. Drop what no longer exists, point the rest at
+        Gnani, and keep everything else.
+        """
+        if not isinstance(stored, dict):
+            return stored
+        migrated = dict(stored)
+        for gone in ("stt_fallback", "sarvam_tts_speaker", "sarvam_tts_language"):
+            migrated.pop(gone, None)
+        if migrated.get("stt_provider") not in ("gnani", "gnani-stream"):
+            if "stt_provider" in migrated:
+                print(f"[Settings] stt_provider '{migrated['stt_provider']}' is retired; "
+                      f"voice runs on Gnani — using gnani-stream")
+            migrated["stt_provider"] = "gnani-stream"
+        if migrated.get("tts_provider") != "gnani":
+            if "tts_provider" in migrated:
+                print(f"[Settings] tts_provider '{migrated['tts_provider']}' is retired; "
+                      f"voice runs on Gnani — using gnani")
+            migrated["tts_provider"] = "gnani"
+        return migrated
+
     def _load(self) -> None:
         if not self.path.exists():
             return
         try:
             stored = json.loads(self.path.read_text(encoding="utf-8"))
-            self.update(stored, persist=False)
+            self.update(self._migrate(stored), persist=False)
         except (OSError, ValueError, SettingsError):
             pass  # corrupt file -> keep defaults
 
@@ -229,16 +251,11 @@ def apply_settings_to_env(s: Dict[str, Any]) -> None:
     env = {
         "CLARITYOS_STT_PROVIDER": s["stt_provider"],
         "CLARITYOS_STT_LANGUAGE": s["stt_language"],
-        "CLARITYOS_STT_FALLBACK": s["stt_fallback"],
         "CLARITYOS_TTS_PROVIDER": s["tts_provider"],
         "GNANI_TTS_MODEL": s["gnani_tts_model"],
         "GNANI_TTS_VOICE": s["gnani_tts_voice"],
         "GNANI_TTS_LANGUAGE": s["gnani_tts_language"],
         "GNANI_TTS_SPEED": str(s["tts_speed"]),
-        "SARVAM_TTS_SPEAKER": s["sarvam_tts_speaker"],
-        "SARVAM_TTS_LANGUAGE": s["sarvam_tts_language"],
-        "SARVAM_TTS_PACE": str(s["tts_speed"]),
-        "CLARITYOS_TTS_SPEED": str(s["tts_speed"]),
         "BOLNA_AGENT_ID": s["bolna_agent_id"],
     }
     for k, v in env.items():

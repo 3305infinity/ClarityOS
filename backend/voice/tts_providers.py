@@ -1,17 +1,13 @@
 """
-ClarityOS — Alternative TTS engines
-===================================
-Used by voice/tts.py when CLARITYOS_TTS_PROVIDER is not "google".
+ClarityOS — Text-to-Speech engine (Gnani only)
+==============================================
+All speech synthesis runs on Gnani Timbre. There is no second vendor and no
+switch to one: GNANI_API_KEY is what makes the assistant speak.
 
-    CLARITYOS_TTS_PROVIDER = google | gnani | sarvam | windows   (default: google)
+Gnani Timbre v2.5
+    REST   POST https://api.vachana.ai/api/v1/tts/inference   (binary WAV)
+    SSE    POST https://api.vachana.ai/api/v1/tts/sse         (progressive)
 
-"windows" is the built-in Windows synthesizer: no API key, no Google Cloud
-credentials, works offline. voice/tts.py falls back to it automatically when the
-configured cloud engine cannot start, so the assistant is never silent.
-    CLARITYOS_TTS_WINDOWS_VOICE   optional installed voice name (e.g. "Microsoft Zira Desktop")
-    CLARITYOS_TTS_SPEED           0.5–2.0, mapped onto SAPI's -10..10 rate scale
-
-Gnani Timbre   POST https://api.vachana.ai/api/v1/tts/inference   (returns binary WAV)
     GNANI_API_KEY            required (sent as X-API-Key-ID)
     GNANI_TTS_MODEL          timbre-v2.5 (default) | timbre-v3.0
     GNANI_TTS_VOICE          Poorvi (default; Hinglish voice for timbre-v2.5)
@@ -19,18 +15,10 @@ Gnani Timbre   POST https://api.vachana.ai/api/v1/tts/inference   (returns binar
                              Avinash) speak all 10 languages; v2.5 voices have one preferred
                              language each (Nalini = Hindi, Kaveri = English, ...).
     GNANI_TTS_LANGUAGE       hi-en (default, Hinglish) | hi-IN | en-IN | ta-IN | ... | auto
-    GNANI_TTS_SPEED          1.0
+    GNANI_TTS_SPEED          1.0  (clamped to Timbre's 0.85–1.15)
     GNANI_TTS_SAMPLE_RATE    48000
 
-Sarvam Bulbul  POST https://api.sarvam.ai/text-to-speech          (JSON, base64 WAV in `audios`)
-    SARVAM_API_KEY           required (sent as api-subscription-key)
-    SARVAM_TTS_MODEL         bulbul:v3 (default)
-    SARVAM_TTS_SPEAKER       shubh (default)
-    SARVAM_TTS_PACE          speaking speed 0.5–2.0 (optional)
-    SARVAM_TTS_LANGUAGE      hi-IN (default) — controls number/abbreviation handling;
-                             code-mixed Hinglish text is fine.
-
-Every provider returns WAV bytes, which the Electron renderer plays through
+Returns WAV bytes, which the Electron renderer plays through
 AudioContext.decodeAudioData (Chromium decodes WAV natively).
 """
 
@@ -44,7 +32,7 @@ from typing import Optional
 HTTP_TIMEOUT_S = float(os.environ.get("CLARITYOS_TTS_TIMEOUT", "30"))
 
 # Per-request character budget for each engine (sentences are packed up to this size).
-MAX_CHARS = {"gnani": 1500, "sarvam": 2500, "windows": 2000}
+MAX_CHARS = {"gnani": 1500}
 
 # How many requests an engine will accept at once. voice/tts.py synthesizes
 # sentences concurrently, which is what lets the first one play while the rest
@@ -129,9 +117,9 @@ def detect_language(text: str, default: str = "en-IN") -> str:
     return default
 
 
-# Timbre accepts 0.85–1.15 and answers 400 for anything outside it. The shared
-# tts_speed setting ranges wider than that for Google and SAPI, so a perfectly
-# reasonable 1.3 on the slider turned into a failed synthesis here.
+# Timbre accepts 0.85–1.15 and answers 400 for anything outside it. The speed
+# setting in the UI ranges wider than that, so a perfectly reasonable 1.3 on
+# the slider turned into a failed synthesis here.
 SPEED_MIN = 0.85
 SPEED_MAX = 1.15
 
@@ -142,21 +130,98 @@ DEFAULT_TTS_MODEL = "timbre-v2.5"
 
 
 def wrap_pcm_wav(pcm: bytes, sample_rate: int, channels: int = 1, width: int = 2) -> bytes:
-    """Give a bare PCM run its own WAV header.
-
-    Only the first SSE chunk carries the RIFF header; the rest are the audio
-    that follows it. The renderer decodes each chunk on its own through
-    AudioContext.decodeAudioData, so a headerless chunk would simply fail to
-    decode and that part of the sentence would go missing. Re-heading each
-    chunk keeps the renderer exactly as it is. The values come from the
-    audio_config we asked for, not from anything the API reports.
-    """
+    """Give a bare PCM run its own WAV header."""
     import struct
     byte_rate = sample_rate * channels * width
     return (b"RIFF" + struct.pack("<I", 36 + len(pcm)) + b"WAVE"
             + b"fmt " + struct.pack("<IHHIIHH", 16, 1, channels,
                                     sample_rate, byte_rate, channels * width, width * 8)
             + b"data" + struct.pack("<I", len(pcm)) + pcm)
+
+
+def parse_wav_header(blob: bytes):
+    """(sample_rate, channels, width, offset_of_audio) for a RIFF blob, or None.
+
+    Reads the real format out of the stream instead of assuming the one we
+    asked for, and reports where the samples start so the header can be
+    dropped.
+    """
+    import struct
+    if len(blob) < 12 or blob[:4] != b"RIFF" or blob[8:12] != b"WAVE":
+        return None
+    pos = 12
+    fmt = None
+    while pos + 8 <= len(blob):
+        cid = blob[pos:pos + 4]
+        try:
+            size = struct.unpack_from("<I", blob, pos + 4)[0]
+        except struct.error:
+            return None
+        body = pos + 8
+        if cid == b"fmt " and body + 16 <= len(blob):
+            _, channels, rate, _, _, bits = struct.unpack_from("<HHIIHH", blob, body)
+            fmt = (rate, channels, max(1, bits // 8))
+        elif cid == b"data":
+            if fmt is None:
+                return None
+            return fmt[0], fmt[1], fmt[2], body
+        pos = body + size + (size & 1)      # chunks are word-aligned
+    return None
+
+
+class PcmAligner:
+    """Turns a run of SSE chunks into independently playable WAV buffers.
+
+    Two things went wrong when each chunk was simply given its own header:
+
+      * A chunk with an odd byte count left the 16-bit samples misaligned, and
+        because every chunk was wrapped on its own the spare byte was dropped
+        rather than carried — so the distortion continued into the next chunk.
+        That is what made the voice crackle.
+      * The first chunk's RIFF header describes the *whole* utterance, not that
+        chunk, so passing it through unchanged handed the decoder a length that
+        did not match the bytes present.
+
+    So: parse the format once from the real header, strip it, and emit only
+    whole samples, keeping the remainder for the next chunk.
+    """
+
+    def __init__(self, sample_rate: int, channels: int = 1, width: int = 2):
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.width = width
+        self._carry = b""
+        self._saw_header = False
+
+    @property
+    def block_align(self) -> int:
+        return max(1, self.channels * self.width)
+
+    def feed(self, raw: bytes) -> Optional[bytes]:
+        """A playable WAV for this chunk, or None when nothing whole is ready."""
+        if not raw:
+            return None
+        if not self._saw_header:
+            parsed = parse_wav_header(raw)
+            if parsed:
+                self.sample_rate, self.channels, self.width, offset = parsed
+                raw = raw[offset:]
+            self._saw_header = True
+
+        buf = self._carry + raw
+        usable = (len(buf) // self.block_align) * self.block_align
+        self._carry = buf[usable:]
+        if not usable:
+            return None
+        return wrap_pcm_wav(buf[:usable], self.sample_rate, self.channels, self.width)
+
+    def flush(self) -> Optional[bytes]:
+        """Whatever is left, padded to a whole sample. Called once at the end."""
+        if not self._carry:
+            return None
+        pad = (-len(self._carry)) % self.block_align
+        tail, self._carry = self._carry + b"\x00" * pad, b""
+        return wrap_pcm_wav(tail, self.sample_rate, self.channels, self.width)
 
 
 def clamp_speed(value) -> float:
@@ -295,8 +360,23 @@ class GnaniTTS:
                                 raise TTSProviderError(
                                     f"Gnani TTS SSE HTTP {resp.status_code}: {_err(resp)}")
 
-                            async for item in self._read_sse(resp):
-                                yield item
+                            # One aligner per stream: the carry has to survive
+                            # across chunks or the spare byte is lost and the
+                            # samples shift.
+                            aligner = PcmAligner(self.sample_rate)
+                            last_index = 0
+                            async for index, raw, is_final in self._read_sse(resp):
+                                last_index = index
+                                playable = aligner.feed(raw)
+                                if playable:
+                                    yield index, playable, False
+                            tail = aligner.flush()
+                            if tail:
+                                last_index += 1
+                                yield last_index, tail, False
+                            # The final marker carries no audio of its own, so
+                            # it is emitted once the buffer has drained.
+                            yield last_index + 1, b"", True
                             return
                 except httpx.HTTPError as e:
                     raise TTSProviderError(f"Gnani TTS SSE network error: {e}") from e
@@ -339,175 +419,8 @@ class GnaniTTS:
                 if is_final:
                     return
 
-    def playable_chunk(self, audio: bytes) -> bytes:
-        """A standalone-decodable WAV for one SSE chunk."""
-        if audio[:4] == b"RIFF":
-            return audio
-        return wrap_pcm_wav(audio, self.sample_rate)
-
-
-class SarvamTTS:
-    name = "sarvam"
-    URL = "https://api.sarvam.ai/text-to-speech"
-
-    def __init__(self):
-        self.api_key = os.environ.get("SARVAM_API_KEY", "")
-        self.model = os.environ.get("SARVAM_TTS_MODEL", "bulbul:v3")
-        self.speaker = os.environ.get("SARVAM_TTS_SPEAKER", "shubh")
-        self.language = os.environ.get("SARVAM_TTS_LANGUAGE", "hi-IN")
-
-    def build_payload(self, text: str) -> dict:
-        language = self.language
-        if language == "auto-script":
-            language = detect_language(text)
-        payload = {
-            "text": text[: MAX_CHARS["sarvam"]],
-            "model": self.model,
-            "target_language_code": language,
-            "speaker": self.speaker,
-        }
-        pace = os.environ.get("SARVAM_TTS_PACE", "").strip()
-        if pace:
-            try:
-                payload["pace"] = max(0.5, min(2.0, float(pace)))
-            except ValueError:
-                pass
-        return payload
-
-    async def synthesize(self, text: str) -> Optional[bytes]:
-        if not self.api_key:
-            raise TTSProviderError("SARVAM_API_KEY is not set")
-        import httpx
-
-        headers = {"api-subscription-key": self.api_key, "Content-Type": "application/json"}
-        try:
-            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_S) as client:
-                resp = await client.post(self.URL, json=self.build_payload(text), headers=headers)
-        except httpx.HTTPError as e:
-            raise TTSProviderError(f"Sarvam TTS network error: {e}") from e
-        if resp.status_code >= 400:
-            raise TTSProviderError(f"Sarvam TTS HTTP {resp.status_code}: {_err(resp)}")
-        try:
-            audios = resp.json().get("audios") or []
-        except ValueError as e:
-            raise TTSProviderError("Sarvam TTS returned non-JSON response") from e
-        if not audios:
-            raise TTSProviderError("Sarvam TTS returned no audio")
-        # Docs: join the base64 strings, then decode once.
-        return base64.b64decode("".join(audios))
-
-
-# ═══════════════════════════════════════════════════════════════
-#  Windows SAPI — local, offline, no credentials
-# ═══════════════════════════════════════════════════════════════
-
-class WindowsSapiTTS:
-    """
-    Speech via the Windows built-in synthesizer (System.Speech).
-
-    This is the only engine that needs no API key and no Google Cloud
-    credentials, so it is what keeps the assistant audible out of the box.
-    Quality is below the cloud voices — configure Gnani/Sarvam/Google for those.
-
-    Runs PowerShell rather than binding COM so it needs no extra Python
-    dependency (pywin32 is not installed). The text is passed as base64 and
-    decoded inside PowerShell, so nothing a user or model says can be
-    interpreted as script.
-    """
-
-    name = "windows"
-
-    def __init__(self):
-        self.voice = os.environ.get("CLARITYOS_TTS_WINDOWS_VOICE", "").strip()
-        try:
-            self.speed = float(os.environ.get("CLARITYOS_TTS_SPEED", "1.0"))
-        except (TypeError, ValueError):
-            self.speed = 1.0
-
-    @staticmethod
-    def available() -> bool:
-        return os.name == "nt"
-
-    def _rate(self) -> int:
-        """Map a 0.5–2.0 speed multiplier onto SAPI's -10..10 rate scale."""
-        speed = min(max(self.speed, 0.5), 2.0)
-        return int(round((speed - 1.0) * 10))
-
-    def _script(self, text: str, out_path: str) -> str:
-        payload = base64.b64encode(text.encode("utf-8")).decode("ascii")
-        voice_line = ""
-        if self.voice:
-            safe_voice = base64.b64encode(self.voice.encode("utf-8")).decode("ascii")
-            voice_line = (
-                f"$v=[Text.Encoding]::UTF8.GetString("
-                f"[Convert]::FromBase64String('{safe_voice}'));"
-                "try{$s.SelectVoice($v)}catch{};"
-            )
-        return (
-            "Add-Type -AssemblyName System.Speech;"
-            "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
-            f"{voice_line}"
-            f"$s.Rate={self._rate()};"
-            f"$s.SetOutputToWaveFile('{out_path}');"
-            f"$t=[Text.Encoding]::UTF8.GetString("
-            f"[Convert]::FromBase64String('{payload}'));"
-            "$s.Speak($t);$s.Dispose();"
-        )
-
-    def _blocking_synthesize(self, text: str) -> bytes:
-        import subprocess
-        import tempfile
-
-        fd, out_path = tempfile.mkstemp(suffix=".wav", prefix="clarityos_tts_")
-        os.close(fd)
-        try:
-            proc = subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                 self._script(text, out_path.replace("'", "''"))],
-                capture_output=True, text=True, timeout=HTTP_TIMEOUT_S,
-                creationflags=0x08000000,       # CREATE_NO_WINDOW
-            )
-            if proc.returncode != 0:
-                raise TTSProviderError(
-                    f"Windows speech failed ({proc.returncode}): "
-                    f"{(proc.stderr or '').strip()[:200]}")
-            with open(out_path, "rb") as f:
-                audio = f.read()
-        finally:
-            try:
-                os.unlink(out_path)
-            except OSError:
-                pass
-        if not audio.startswith(b"RIFF"):
-            raise TTSProviderError("Windows speech produced no audio")
-        return audio
-
-    async def synthesize(self, text: str) -> Optional[bytes]:
-        import asyncio
-
-        if not self.available():
-            raise TTSProviderError("Windows speech is only available on Windows")
-        clean = (text or "").strip()
-        if not clean:
-            return None
-        return await asyncio.get_running_loop().run_in_executor(
-            None, self._blocking_synthesize, clean[: MAX_CHARS["windows"]])
-
-
-def build_provider(name: str):
-    name = (name or "").strip().lower()
-    if name == "gnani":
-        return GnaniTTS()
-    if name == "sarvam":
-        return SarvamTTS()
-    if name in ("windows", "sapi", "local"):
-        return WindowsSapiTTS()
-    return None
-
-
-def build_local_provider():
-    """
-    The engine used when no cloud provider is configured or reachable.
-    Returns None on non-Windows platforms.
-    """
-    return WindowsSapiTTS() if WindowsSapiTTS.available() else None
+def build_provider(name: str = "gnani"):
+    """The TTS engine. Always Gnani Timbre — the argument is accepted so the
+    existing call site needs no edit, and ignored because there is nothing
+    else to build."""
+    return GnaniTTS()

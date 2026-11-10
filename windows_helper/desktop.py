@@ -609,12 +609,76 @@ def best_start_app(name: str, apps: List[Dict[str, str]]) -> Optional[Dict[str, 
     return apps[names.index(close[0])] if close else None
 
 
+def _find_app_window(want: str) -> int:
+    """HWND of a visible window already belonging to `want`, or 0.
+
+    Matched on the process name and the window title, so "chrome" finds a
+    running Chrome whichever page it happens to be showing.
+    """
+    import ctypes
+    from ctypes import wintypes
+    user32 = _user32()
+    tokens = [t for t in re.split(r"\W+", (want or "").lower()) if len(t) > 2]
+    if not tokens:
+        return 0
+    hit = [0]
+    EnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def cb(hwnd, _):
+        if not user32.IsWindowVisible(hwnd) or not _text(hwnd):
+            return True
+        if user32.GetWindowLongW(hwnd, -20) & 0x80:        # tool window
+            return True
+        haystack = f"{friendly_name(_proc_name(_pid(hwnd)))} {_proc_name(_pid(hwnd))} {_text(hwnd)}".lower()
+        if any(t in haystack for t in tokens):
+            hit[0] = hwnd
+            return False
+        return True
+
+    user32.EnumWindows(EnumProc(cb), 0)
+    return hit[0]
+
+
+def _focus_window(hwnd: int) -> bool:
+    """Bring an existing window to the front. True if it got there."""
+    import ctypes
+    user32 = _user32()
+    try:
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)                     # SW_RESTORE
+        # Windows refuses SetForegroundWindow from a process that does not own
+        # the current foreground, unless the input queues are attached first.
+        cur = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
+        tgt = user32.GetWindowThreadProcessId(hwnd, None)
+        attached = bool(cur and tgt and cur != tgt and user32.AttachThreadInput(cur, tgt, True))
+        try:
+            user32.SetForegroundWindow(hwnd)
+        finally:
+            if attached:
+                user32.AttachThreadInput(cur, tgt, False)
+        return user32.GetForegroundWindow() == hwnd
+    except Exception:
+        return False
+
+
 def open_app(app_name: str) -> str:
     check_alive()
     _require_windows()
     want = (app_name or "").strip()
     if not want or len(want) > 100:
         return "ERROR: invalid app name"
+
+    # Already running? Focus that window instead of starting another copy.
+    # Launching chrome.exe with no arguments opens a *blank* new window, which
+    # is how asking about the page already on screen ended up covering it with
+    # an empty one. "Open X" when X is open means "show me X".
+    existing = _find_app_window(want)
+    if existing:
+        if _focus_window(existing):
+            return f"{want} was already open - brought it to the front."
+        return (f"{want} is already running, but Windows would not bring it to "
+                f"the front. Click its taskbar icon and try again.")
+
     alias = _ALIASES.get(want.lower())
     launched = ""
     try:

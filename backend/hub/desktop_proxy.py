@@ -257,9 +257,10 @@ def install(link: HelperLink, registry) -> None:
                 return str(await link.call("open_url", {"url": url}))
             except HelperError as e:
                 return f"ERROR: {e}"
-        import webbrowser
-        webbrowser.open(url)
-        return f"Opened {url} in the default browser"
+        # Last resort. Still routed through browser_target so this lands in the
+        # browser ClarityOS is working in rather than the system default.
+        from tools.browser_target import open_in_browser
+        return f"Opened {url} in {open_in_browser(url)}"
 
     registry._tools["open_url"].func = open_url
     mac.open_url = open_url

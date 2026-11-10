@@ -31,3 +31,10 @@ Thumbs.db
 *.log
 hey_moonwalk.ppn
 scripts/blog-*.html
+
+# ── Demo footage ──
+# The raw screen recordings are 100 MB+ each, over GitHub's hard limit, and
+# they are only inputs to the edit. Keep them locally; ship the cut versions.
+videos/*
+!videos/ClarityOS_Demo_Gnani.mp4
+!videos/ClarityOS_Demo_Gnani_60s.mp4

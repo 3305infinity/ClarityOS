@@ -38,7 +38,7 @@ import compat_env  # noqa: E402,F401  (maps legacy env names before they are rea
 
 load_dotenv(os.path.join(_backend_dir, ".env"))
 # Per-user config (set by Electron): %APPDATA%\ClarityOS\.env on Windows, ~/Library/Application Support/ClarityOS/.env on macOS.
-# Lets packaged builds keep GNANI_API_KEY / SARVAM_API_KEY / BOLNA_API_KEY outside the install folder.
+# Lets packaged builds keep GNANI_API_KEY / BOLNA_API_KEY outside the install folder.
 _user_dir = os.environ.get("CLARITYOS_USER_DIR", "")
 if _user_dir:
     load_dotenv(os.path.join(_user_dir, ".env"), override=True)
@@ -191,7 +191,7 @@ class VoiceAssistant:
 
         # For capturing the command after wake
         self.audio_buffer = bytearray()
-        self.stt = get_stt_provider()  # google | gnani | sarvam (CLARITYOS_STT_PROVIDER)
+        self.stt = get_stt_provider()  # gnani-stream | gnani (CLARITYOS_STT_PROVIDER)
         self.consecutive_silence_chunks = 0
         self.SILENCE_THRESHOLD_CHUNKS = 7  # Approx 0.45 seconds of sustained silence
         # Push-to-talk: set while an explicit Speak press is being recorded.
@@ -199,7 +199,7 @@ class VoiceAssistant:
         self._onset_deadline = 0.0
         self.MIN_BUFFER_SIZE = 16000 * 2 * 0.3  # Min 0.3 seconds of audio
         # Longest clip the configured engine will accept. Only Gnani documents
-        # one; Google and Sarvam keep their previous unbounded behaviour.
+        # one, and it applies to both of its engines.
         self.MAX_CLIP_S = GNANI_MAX_AUDIO_S
         # Live realtime-STT socket for the take in progress, when the engine
         # supports one. None for the REST engines.
@@ -364,14 +364,25 @@ class VoiceAssistant:
                 return
 
             self.tts_playing = True
+            spoken = 0
             async for chunk in tts.stream_synthesize(speech_text):
                 # to_ws_message() already returns serialized JSON — passing it
                 # through json.dumps() again would make the renderer's single
                 # JSON.parse() yield a string, so msg.type would be undefined
                 # and the tts_chunk handler would never run.
                 await websocket.send(chunk.to_ws_message())
+                spoken += 1
 
             await websocket.send(json.dumps({"type": "tts_done"}))
+
+            if not spoken:
+                # Synthesis produced nothing — no key, no credits, a refused
+                # request. There is no audio for the renderer to play, so it
+                # will never report playback finished, and waiting on the
+                # watchdog would hold the mic shut and leave the UI showing
+                # "Speaking" for 90 seconds over silence. Release now.
+                self._release_tts_gate("no audio was produced")
+                return
             # Keep the mic gated until the RENDERER reports playback finished.
             # Clearing it here (the old behaviour) un-gated the mic the moment
             # the last chunk was *sent*, while the speakers still had seconds of
@@ -534,8 +545,8 @@ class VoiceAssistant:
     def _max_clip_seconds(self) -> float:
         """Clip ceiling for the engine in use, or 0 when it does not document one.
 
-        Kept provider-specific on purpose: capping Google or Sarvam here would
-        change behaviour they never asked for.
+        Kept engine-specific on purpose: the cap is Gnani's documented clip
+        limit, not a general rule about how long someone may speak.
         """
         name = getattr(self.stt, "name", "") or ""
         return self.MAX_CLIP_S if "gnani" in name else 0.0
@@ -762,7 +773,7 @@ class VoiceAssistant:
 
         try:
             # Hand the raw 16 kHz mono PCM to the configured STT engine
-            # (Google / Gnani Vachana / Sarvam). Raises NoSpeechError or STTRequestError.
+            # (Gnani Vachana Prisma v2.5). Raises NoSpeechError or STTRequestError.
             try:
                 text = await self._finish_transcription()
                 print(f"=> TRANSCRIBED: {text}")

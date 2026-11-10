@@ -507,7 +507,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => { if (e.code === 'Space' && S.rec && S.rec.hold) stopRec(true); });
 $('#b-mic').onclick = () => (S.rec ? stopRec(true) : startRec(false));
 
-// ── microphone → 16 kHz mono WAV → hub (STT happens server-side: Gnani / Sarvam / Google) ──
+// ── microphone → 16 kHz mono WAV → hub (STT happens server-side: Gnani Prisma) ──
 async function startRec(hold) {
   if (S.busy) return;
   stopAudio();
@@ -646,17 +646,16 @@ async function tab(name) {
   if (name === 'voice') {
     const o = st.options;
     body.append(
-      field('Speech recognition', sel(['google', 'gnani', 'sarvam'], s.stt_provider, (v) => save({ stt_provider: v }))),
+      field('Speech recognition', sel(['gnani-stream', 'gnani'], s.stt_provider, (v) => save({ stt_provider: v }))),
       field('Language', sel(o.stt_languages, s.stt_language, (v) => save({ stt_language: v }))),
-      field('Voice output', sel(['google', 'gnani', 'sarvam'], s.tts_provider, (v) => save({ tts_provider: v }))),
+      field('Voice output', sel(['gnani'], s.tts_provider, (v) => save({ tts_provider: v }))),
       field('Speak replies', el('input', { type: 'checkbox', checked: s.tts_enabled, onchange: (e) => save({ tts_enabled: e.target.checked }) })),
       field('Speed ' + s.tts_speed, el('input', { type: 'range', min: 0.5, max: 2, step: 0.05, value: s.tts_speed, onchange: (e) => save({ tts_speed: +e.target.value }).then(() => tab('voice')) })),
       field('Gnani voice', el('input', { type: 'text', value: s.gnani_tts_voice, list: 'gv', onchange: (e) => save({ gnani_tts_voice: e.target.value }) })),
       field('Gnani language', el('input', { type: 'text', value: s.gnani_tts_language, onchange: (e) => save({ gnani_tts_language: e.target.value }) })),
-      field('Sarvam speaker', el('input', { type: 'text', value: s.sarvam_tts_speaker, onchange: (e) => save({ sarvam_tts_speaker: e.target.value }) })),
       field('Bolna agent ID', el('input', { type: 'text', value: s.bolna_agent_id, onchange: (e) => save({ bolna_agent_id: e.target.value }) })));
     const dl = el('datalist', { id: 'gv' }); Object.values(o.gnani_voices).flat().forEach((v) => dl.append(el('option', { value: v }))); body.append(dl,
-      el('p', { class: 'mut' }, 'Tip: Gnani “hi-en” + voice Poorvi is the Hinglish setup. If the chosen engine fails, Google is used as backup.'));
+      el('p', { class: 'mut' }, 'Tip: Gnani “hi-en” + voice Poorvi is the Hinglish setup. Voice needs GNANI_API_KEY — there is no other engine.'));
   } else if (name === 'keys') {
     body.append(el('p', { class: 'mut' }, st.connections.secrets_persistent ? 'Keys are stored in Windows Credential Manager. They are never shown again.' : '⚠ No secure keyring found — keys last only until the hub restarts.'));
     for (const [k, label] of Object.entries(st.secret_labels)) {

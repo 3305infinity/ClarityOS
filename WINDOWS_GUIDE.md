@@ -19,13 +19,16 @@ Try: *"Chrome kholo, meri GitHub repository check karo, failing tests identify k
 ## 2. Hinglish voice
 Settings → **Voice**.
 
+All speech runs on Gnani. `GNANI_API_KEY` is what makes the microphone and
+the speaker work — there is no second vendor to fall back to.
+
 | Goal | Speech recognition | Voice output |
 |---|---|---|
-| Hindi/English/Hinglish, Indian accents | `gnani`, language `en-IN` (mixed speech, Latin output) or `hi-IN` (Devanagari) | `gnani`, model `timbre-v2.5`, voice `Poorvi`, language `hi-en` |
-| Alternative | `sarvam` (Saaras, auto-detects language if left blank) | `sarvam` (Bulbul, speaker `shubh`) |
-| No keys | `google` | `google` (needs Google Cloud credentials) |
+| Hindi/English/Hinglish, Indian accents | `gnani-stream` (Prisma v2.5 realtime, default), language `en-IN` (mixed speech, Latin output) or `hi-IN` (Devanagari) | `gnani`, model `timbre-v2.5`, voice `Poorvi`, language `hi-en` |
+| Slower link / socket blocked | `gnani` (Prisma v2.5 over REST) | same |
 
-- If the chosen engine fails (bad key, quota, offline) ClarityOS falls back to Google automatically for speech recognition and speech output.
+- `gnani-stream` sends audio while you are still speaking; if the socket cannot
+  be used it falls back to the REST endpoint, which is the same model.
 - Mic: **hold Space** (push-to-talk) or click 🎤 (stops after ~1.3 s of silence). Pressing the mic, **Esc**, or Stop interrupts speech. Too-quiet audio is rejected before any paid API call; if recognition fails you get a clear message and can type instead.
 - Not in the website: wake-word (Porcupine is only in the old Electron overlay).
 - **Bolna** runs *phone-call* agents; it is not an STT/TTS engine. Create an agent in the Bolna dashboard, put its **Agent ID** in Settings → Voice, add the Bolna key, then say *"Rahul ko +91… par call karo"*. Every call needs your approval.
@@ -44,8 +47,8 @@ Settings → **Voice**.
 - Chrome/Electron apps expose little UI Automation data until accessibility is on — the agent then falls back to screenshots + the Gemini vision model.
 - Google Workspace tools that drove the UI with AppleScript don't work on Windows; `send_imessage` is removed.
 - Workflows are saved lists of natural-language steps replayed through the agent (permissions still apply), not recorded click-by-click macros.
-- The legacy Electron overlay (`main.js`) and `local_server.py` are unchanged and still macOS-oriented; `local_server.py` still accepts any WebSocket origin — don't run it alongside, use the hub. The Picovoice key hard-coded in `main.js` is public in the repo: rotate it.
-- Gnani, Sarvam and Bolna were implemented from their public API docs and tested against mocked responses, not live accounts.
+- The legacy Electron overlay (`main.js`) and `local_server.py` are unchanged and still macOS-oriented; `local_server.py` still accepts any WebSocket origin — don't run it alongside, use the hub. The Picovoice key is no longer bundled: set `PICOVOICE_ACCESS_KEY` or save one in Settings, otherwise the wake word stays off. The key that *was* committed is in git history — rotate it at console.picovoice.ai.
+- Gnani and Bolna were implemented from their public API docs and tested against mocked responses, not live accounts.
 
 ## 5. Tests
 `pip install pytest pytest-timeout -r backend\requirements-hub.txt` then `cd tests\hub && pytest` (42 tests: auth/origin, approvals, policy, helper protocol, bridge hardening, cancel, redaction, voice providers, Bolna).

@@ -201,8 +201,8 @@ async def open_app(app_name: str) -> str:
                 switched = await _switch_to_chrome_tab(existing_tab.url)
                 if switched:
                     return f"{app_name} is already open — switched to that tab."
-            webbrowser.open(url)
-            return f"Opened {app_name} in browser"
+            from tools.browser_target import open_in_browser
+            return f"Opened {app_name} in {open_in_browser(url)}"
 
     # Try launching as a macOS app
     proc = await asyncio.create_subprocess_exec(
@@ -432,22 +432,8 @@ async def play_media(query: str) -> str:
     # here — the same mismatch already fixed in open_url and web_search. The
     # user is working in Chrome, so a video opening in Edge is both surprising
     # and unreadable by the extension.
-    where = ""
-    try:
-        from tools.browser_target import reading_browser, launch_url
-        target = reading_browser()
-        if target:
-            opened, message = launch_url(target, url)
-            if opened:
-                where = f" in {target.capitalize()}"
-            else:
-                print(f"[play_media] {message}")
-                webbrowser.open(url)
-        else:
-            webbrowser.open(url)
-    except Exception as exc:
-        print(f"[play_media] browser targeting failed: {exc.__class__.__name__}")
-        webbrowser.open(url)
+    from tools.browser_target import open_in_browser
+    where = f" in {open_in_browser(url)}"
     # Say what actually happened: results are on screen, nothing is playing yet.
     return (f"Opened YouTube search results for '{query}'{where}. Nothing is playing "
             f"yet — pick a video, or ask me to play it in Spotify instead.")
@@ -493,8 +479,8 @@ async def web_search(query: str) -> str:
             print(f"[web_search] {message}")
     except Exception as exc:
         print(f"[web_search] bridge targeting unavailable ({exc.__class__.__name__})")
-    webbrowser.open(url)
-    return f"Opened web search for '{query}'"
+    from tools.browser_target import open_in_browser
+    return f"Opened web search for '{query}' in {open_in_browser(url)}"
 
 
 # ── 6. type_text ──
@@ -805,7 +791,8 @@ async def open_url(url: str, force_new_tab: bool = False, browser: str = "") -> 
         return (f"{message} I could not confirm it came to the foreground "
                 f"({detail}).")
 
-    webbrowser.open(url)
+    from tools.browser_target import open_in_browser
+    open_in_browser(url)
     # Record in cooldown tracker
     if cooldown_key:
         _recent_url_opens[cooldown_key] = _time.time()

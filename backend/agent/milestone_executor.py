@@ -766,6 +766,28 @@ class MilestoneExecutor:
             description = decision.get("description", "")
 
             if not tool:
+                # The model may have answered in prose instead of choosing a
+                # tool. For an explain/deliver milestone that prose IS the
+                # work, so offer it as the deliverable rather than throwing it
+                # away — but run it past the same evidence check an explicit
+                # DONE faces, so a step that genuinely needed to *do*
+                # something still cannot be completed by talking about it.
+                prose = str(decision.get("_prose", "") or "").strip()
+                if len(prose) >= self._MIN_PROSE_DELIVERABLE_CHARS:
+                    ok, why = self._completion_has_evidence(
+                        milestone=milestone, actions=actions, deliverable=prose)
+                    if ok:
+                        print(f"[MilestoneExec] Milestone {milestone.id} answered in prose "
+                              f"({len(prose)} chars); taking it as the deliverable")
+                        milestone.result_summary = prose[:500]
+                        milestone.actions_taken = action_num
+                        return True, prose
+                    print(f"[MilestoneExec] prose answer rejected: {why}")
+                    last_result = f"Answered without doing the work: {why}"
+                else:
+                    last_result = ("The model returned no tool call and no usable answer."
+                                   if not prose else
+                                   f"The model answered with only {len(prose)} characters: {prose[:120]}")
                 print(f"[MilestoneExec] ⚠ No tool specified, skipping action")
                 decision_failures += 1
                 if decision_failures >= 3:
@@ -1356,6 +1378,11 @@ class MilestoneExecutor:
     })
     MAX_VISION_CALLS_PER_MILESTONE = 2
 
+    # Shortest prose answer that can stand in for a tool call. Long enough to
+    # exclude "ok" or a stray sentence of reasoning, short enough not to reject
+    # a genuinely brief answer.
+    _MIN_PROSE_DELIVERABLE_CHARS = 80
+
     def _vision_budget_spent(self, actions: list[MilestoneAction], tool: str) -> str:
         if tool not in self._VISION_TOOLS:
             return ""
@@ -1495,6 +1522,12 @@ class MilestoneExecutor:
 
         return False, "insufficient evidence for milestone completion"
 
+    @staticmethod
+    def _looks_like_decision(obj: dict) -> bool:
+        """Does this object carry any field a decision is made of?"""
+        return any(k in obj for k in ("tool", "done", "args", "reasoning",
+                                      "deliverable", "description"))
+
     def _parse_decision(self, text: str) -> dict:
         """Parse the LLM's JSON decision."""
         cleaned = text.strip()
@@ -1506,17 +1539,36 @@ class MilestoneExecutor:
             cleaned = cleaned.strip()
 
         try:
-            return json.loads(cleaned)
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, dict):
+                return parsed
         except json.JSONDecodeError:
-            start = cleaned.find("{")
-            end = cleaned.rfind("}") + 1
-            if start >= 0 and end > start:
-                try:
-                    return json.loads(cleaned[start:end])
-                except json.JSONDecodeError:
-                    pass
+            pass
+
+        # Salvage a JSON object embedded in prose — but only if it really is a
+        # decision. Slicing from the first "{" to the last "}" also matches
+        # braces inside a code sample: an answer containing `seen = {}` parsed
+        # cleanly into an empty dict, which then looked like a decision with no
+        # tool and no deliverable. That is how a finished LeetCode solution
+        # became "Stalled after 0 actions".
+        start = cleaned.find("{")
+        end = cleaned.rfind("}") + 1
+        if start >= 0 and end > start:
+            try:
+                candidate = json.loads(cleaned[start:end])
+            except json.JSONDecodeError:
+                candidate = None
+            if isinstance(candidate, dict) and self._looks_like_decision(candidate):
+                return candidate
             print(f"[MilestoneExec] ⚠ Could not parse decision JSON")
-            return {"done": False, "tool": "", "args": {}, "reasoning": "Parse error"}
+            # Keep the prose. A milestone like "explain the algorithm and give
+            # the code" invites the model to simply write the answer, and
+            # discarding it here is how a finished solution turned into
+            # "Stalled after 0 actions" with nothing shown to the user.
+            # execute_milestone decides whether it counts, using the same
+            # evidence rules an explicit DONE goes through.
+            return {"done": False, "tool": "", "args": {},
+                    "reasoning": "Parse error", "_prose": cleaned}
 
 
 # ═══════════════════════════════════════════════════════════════

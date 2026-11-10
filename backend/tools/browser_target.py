@@ -139,6 +139,10 @@ def launch_url(name: str, url: str) -> tuple[bool, str]:
     report that, because silently using another one is the bug this exists to
     prevent.
     """
+    if not (url or "").strip():
+        # `chrome.exe ""` opens a blank window, which looks to the user like
+        # ClarityOS covered their page with an empty one. Refuse instead.
+        return False, "No URL was given, so there was nothing to open."
     exe = resolve_executable(name)
     if not exe:
         return False, (f"{name.capitalize()} does not appear to be installed on this PC, "
@@ -219,6 +223,34 @@ def bridge_browser() -> str:
         if is_running(name):
             return name
     return ""
+
+
+def open_in_browser(url: str, what: str = "") -> str:
+    """Open `url` in the browser ClarityOS is actually working in.
+
+    The one place that decides this. Every tool that shows the user a page —
+    a Gmail compose window, a calendar event, a new doc, a search — used to
+    call `webbrowser.open()` directly, which hands the URL to the *system
+    default*. On this machine that is Edge, while the user is signed in and
+    reading in Chrome, so pages opened signed-out or in the wrong profile and
+    the extension could not see them. Each call site was fixed separately and
+    the next one was always still wrong; this exists so there is nothing left
+    to miss.
+
+    Returns a short human description of where it opened, for the tool's reply.
+    """
+    if not (url or "").strip():
+        print("[browser] open_in_browser called with no URL - nothing opened")
+        return "nowhere (no URL was given)"
+    target = reading_browser()
+    if target:
+        opened, message = launch_url(target, url)
+        if opened:
+            return target.capitalize()
+        print(f"[browser] {message}")
+    import webbrowser
+    webbrowser.open(url)
+    return "your default browser"
 
 
 def reading_browser() -> str:
