@@ -62,7 +62,7 @@ makes an agent feel like it is listening rather than transcribing.
 
 | | |
 |---|---|
-| Repository | _(GitHub URL)_ |
+| Repository | https://github.com/3305infinity/ClarityOS |
 | Demo video — 1 minute | `videos/ClarityOS_Demo_Gnani_60s.mp4` |
 | Demo video — full walkthrough | `videos/ClarityOS_Demo_Gnani.mp4` |
 | Gnani integration detail | [`docs/GNANI_SUBMISSION.md`](GNANI_SUBMISSION.md) |
