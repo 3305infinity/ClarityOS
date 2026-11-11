@@ -1,12 +1,28 @@
 # ClarityOS
 **AI desktop assistant for Windows** — a docked sidebar or a transparent glass-pill overlay, driven by voice and text, that controls your PC.
-Built with Electron + Python. Thinks with Gemini. Acts through a local Hub, a Windows helper, and a Chrome extension.
+Built with Electron + Python. Thinks with Gemini, **listens and speaks with Gnani AI**. Acts through a local Hub, a Windows helper, and a Chrome extension.
+
+---
+
+## Demo
+
+| | |
+|---|---|
+| **One-minute cut** | [`videos/ClarityOS_Demo_Gnani_60s.mp4`](videos/ClarityOS_Demo_Gnani_60s.mp4) |
+| **Full walkthrough** (3:39) | [`videos/ClarityOS_Demo_Gnani.mp4`](videos/ClarityOS_Demo_Gnani.mp4) |
+| **One-page pitch** | [`docs/SOLUTION_PITCH.md`](docs/SOLUTION_PITCH.md) |
+| **Gnani integration detail** | [`docs/GNANI_SUBMISSION.md`](docs/GNANI_SUBMISSION.md) |
+
+Four tasks, end to end, no clicks: open Spotify · make a Calendar reminder from a
+Hindi sentence · summarise the open page and recommend from it · draft a Gmail
+reply to the thread on screen. Every voice in those videos — the narrator and
+ClarityOS's own answers — is Gnani Timbre.
 
 ---
 
 ## Features
 - **Two presentation modes** — a **Docked Sidebar** for longer conversations, or a **Floating Assistant** pill for quick requests. Pick one from the tray; the choice is remembered across restarts
-- **Voice-first** — press `Ctrl+Shift+Space`, speak naturally, watch it act
+- **Voice-first, on Gnani AI** — press `Ctrl+Shift+Space` and speak naturally. **Prisma v2.5** transcribes over a realtime WebSocket while you are still talking; **Timbre v2.5** answers over server-sent events, so it starts speaking before the sentence is finished. Code-mixed Hindi-English works in a single utterance
 - **SPAV agent** — Sense → Plan → Act → Verify, with milestone-based execution
 - **Approval-gated** — every consequential tool call goes through a policy engine and an approval prompt
 - **Browser automation** — a Chrome extension bridges real tabs (read pages, find elements, click, type, extract data)
@@ -31,8 +47,9 @@ bash setup.sh          # Git Bash
 
 # 3. Configure
 copy backend\.env.example backend\.env
-# Fill in GOOGLE_API_KEY (or add it later in the app: Settings → API keys)
-# A key saved in Settings takes precedence over backend\.env — see below
+# Fill in GOOGLE_API_KEY  (reasoning)  and GNANI_API_KEY  (speech)
+# GOOGLE_API_KEY can also be added later in the app: Settings → API keys,
+# and a key saved there takes precedence over backend\.env — see below
 
 
 # 4. Launch
@@ -40,7 +57,8 @@ npm start
 ```
 
 The docked sidebar appears on first launch and the backend starts with it.
-Local voice (Windows SAPI) needs no API key; Gemini does.
+Two keys are needed: `GOOGLE_API_KEY` for reasoning and `GNANI_API_KEY` for
+speech. There is no offline voice fallback — see [Gnani AI voice](#gnani-ai-voice).
 
 
 ### Presentation modes
@@ -120,6 +138,46 @@ deny-by-default, expires after two minutes, and the prompt names who is asking.
 
 Unpair with extension **Options → Reset to Defaults**. Worker logs:
 `chrome://extensions` → ClarityOS → **service worker**.
+
+---
+
+## Gnani AI voice
+
+Every spoken word in and out of ClarityOS is Gnani. There is no second speech
+vendor and no switch to one — `GNANI_API_KEY` is what makes the microphone and
+the voice work.
+
+| Direction | Model | Transport | Endpoint |
+|---|---|---|---|
+| Speech in | **Prisma v2.5** | WebSocket (realtime) | `wss://api.vachana.ai/stt/v3/stream` |
+| Speech in | **Prisma v2.5** | REST (clips ≤ 30 s) | `POST https://api.vachana.ai/stt/v3` |
+| Speech out | **Timbre v2.5** | SSE (progressive) | `POST https://api.vachana.ai/api/v1/tts/sse` |
+| Speech out | **Timbre v2.5** | REST (whole clip) | `POST https://api.vachana.ai/api/v1/tts/inference` |
+
+The streaming paths are the ones that matter. Audio is sent to Prisma in 1024-byte
+PCM frames while you are still speaking, so the transcript is ready the moment you
+stop; Timbre's first chunk arrives and starts playing before the sentence has
+finished generating. Both are authenticated with `GNANI_API_KEY`, sent as
+`X-API-Key-ID`.
+
+Optional tuning, all in `backend/.env` — defaults are sensible, so most setups
+set only the key:
+
+```bash
+GNANI_API_KEY=                   # required
+
+GNANI_STT_BIAS_WORDS=            # comma-separated hint words for your vocabulary
+GNANI_STT_BIAS_SCORE=1.0         # only 0.0 / 0.5 / 1.0 / 1.5 / 2.0 are accepted
+
+GNANI_TTS_VOICE=Poorvi           # voices are tied to a model; this is a v2.5 voice
+GNANI_TTS_LANGUAGE=hi-en         # Hinglish; hi-IN, en-IN, ta-IN ... also work
+GNANI_TTS_SPEED=1.0              # Timbre accepts 0.85–1.15; outside that it is clamped
+```
+
+Gnani allows one active TTS request per account, so all speech — REST and SSE
+alike — queues behind a single gate and retries a `429` rather than dropping the
+sentence. Full protocol notes, including what is *not* Gnani, are in
+[`docs/GNANI_SUBMISSION.md`](docs/GNANI_SUBMISSION.md).
 
 ---
 
